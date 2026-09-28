@@ -17,6 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Capture immutable audit source input
+        run: git archive --format=tar HEAD -o "${RUNNER_TEMP}/review-input.tar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-source-${{ github.sha }}
+          path: ${{ runner.temp }}/review-input.tar
+          retention-days: 1
+          if-no-files-found: error
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
