@@ -2,7 +2,9 @@
 
 本表登记**源码位置与实现方式**，不表示47个流程已经在iOS运行通过。界面合并同一任务的状态，以保持用户已批准的四页简明结构；不强行把HTML47个演示route做成47个原生顶层页面。
 
-全部Apple框架链路均待Mac构建与真机验收；纯Swift逻辑与Python relay的实际测试见QA_REPORT。原型用于演示的假交易/假云端/假手表被真实适配器替代，生产UI没有默认“模拟Pro”。
+Apple SDK 已在 `790aee815f3b7c40f74ab30776635e5eb7199c69` 的 [Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36417214180) 完成 iPhone/Widget/Watch 模拟器编译。原生服务 34、UI 9、Core 87、Relay 15 项通过；**只有相应测试执行的路径是已验证，47 行的“源码位置”不等于 47 个完整场景通过**。生产 UI 没有默认模拟 Pro，外部服务没有用假成功替代。
+
+验证层级：**C**＝源码与 SDK 编译；**S**＝指定的部分模拟器用例；**H/A**＝硬件、账号及真实服务，全部仍未验收。下表保留源码映射，场景证据按后面的验证矩阵单独阅读。
 
 | ID | 参考页面/功能 | 原生位置 | 已写入内容与范围差异 |
 |---|---|---|---|
@@ -60,13 +62,30 @@
 
 ## 未经验证/存在边界的功能
 
-- SwiftUI / CoreHaptics / StoreKit / CloudKit / MusicKit / WatchConnectivity / WidgetKit 都仅写入源码，尚未完成Apple SDK类型检查、链接及真机联调，存在需在Xcode修正的风险。
+- 上述 Apple 框架源码已通过指定 SDK 的类型检查与链接；物理触觉、真实服务、系统扩展行为及所有未列入测试的场景仍未验证。
 - 云同步是用户显式执行，没有后台推送自动同步。
 - Local音频与Apple系统MusicHaptics是不同技术路径；受保护歌曲没有任意自定义PCM分析入口。
 - 音乐配置换新文件时重置区间到全曲，其余映射参数保留；精确曲目身份和区间重关联需再验收。
 - 呼吸/组合结束回顾通过会话状态与使用历史呈现，没有独立游戏化成就页面。
 - HTML手表“配对”只是流程；原生配对必须由iOS/watchOS系统完成，App只检查并发送真实WCSession消息。
 - 真实桌面/锁屏widget安装需要系统，App内部说明不会模拟成已经安装成功。
-- GitHub远程建仓和提交未完成，Actions也尚未运行。
+- 完整源码在 GitHub main，Actions 已实际运行。未来提交的编译与测试必须按其 head_sha 单独核对。
 
 本交付不声称“全量全功能已经验收完毕”，也不使用空success函数代替后端、交易和设备返回值。
+
+## 限定的场景验证矩阵
+
+| 参考范围 | 已取得证据 | 未覆盖/仍开放 |
+|---|---|---|
+| S01、S05、S07、S09、S15、S29、S35 | 原 8 项 UI：进入、四 Tab、预设标题、入口/弹层、同进程草稿名和计时选择 | 不含全流程音乐导入、全部编辑器及真正开始/停止马达 |
+| S04～06、S46 | HapticSafetyTests 5 项：生产 driver/coordinator 的停止失败、隔离、重试和正常路径 | 引擎边界替身；实体触觉未验证 |
+| S11 | SystemMusicSafetyTests 7 项：停止/取消/换曲竞态 | 真实授权、曲库、订阅和系统触感未验证；AUD-19 |
+| S15～19、S30、S32、S36 | DataSafety 4 + StorageBoundary 12 中的草稿、擦除、写入/恢复边界；恢复 UI 1 | 仅对应用例，不是完整编辑验收；AUD-09、11～14 |
+| S39 | NativeDateSafety 1、Core 日期/编解码测试、延迟云结果的本地应用代次 | 无真实 CloudKit 多设备；AUD-07、22 |
+| S40、S41 | RemoteSafety 5 项：真实客户端加密帧经内存 socket，普通停止与紧急撤权 | 公网 WSS/两机未验证；AUD-10、15、21 |
+| S12 | Core 合成 PCM 分析测试 | 不能证明真实文件解码、音乐换曲或马达时序 |
+| S20～28、S31、S33～34、S37～38、S42～45、S47 | 有源码、相关目标编译；本轮无完整场景验收 | 声景组合、主题、真实购买、设备扩展、无障碍和人工文案等；AUD-16～19 |
+
+逐个测试名和 P1 限制见 [QA_REPORT.md](QA_REPORT.md) / [AUDIT_PHASE2.md](AUDIT_PHASE2.md)。
+机器可读 `feature-map.json` 的 native_validation 是**场景状态**；sdk_build 另列，不因编译通过而统一改为场景通过。
+新增 `LibraryRecoveryView` 属于启动恢复路径，不增加批准的四个主 Tab。

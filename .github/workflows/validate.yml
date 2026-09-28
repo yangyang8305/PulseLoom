@@ -22,7 +22,8 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r Server/requirements-dev.txt
       - run: python -m pytest Server/tests -q
-      - run: python Scripts/generate-project.py
+      - name: Verify checked-in project and manifest
+        run: python Scripts/check-generated-project.py
       - run: python Scripts/validate-source.py --no-swift-parse
   apple-sdk:
     runs-on: macos-15
@@ -31,6 +32,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify checked-in project and manifest
+        run: python Scripts/check-generated-project.py
       - name: Report selected SDKs
         run: xcodebuild -version && xcodebuild -showsdks
       - name: Build iPhone, Watch, and embedded Widget

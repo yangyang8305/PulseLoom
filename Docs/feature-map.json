@@ -5,7 +5,9 @@
     "name": "开屏",
     "source": "PulseLoomApp.swift / WelcomeView；Config/App-Info.plist",
     "scope": "品牌启动与首次进入；系统LaunchScreen为静态，交互引导位于App中",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "onboard",
@@ -13,7 +15,9 @@
     "name": "首次使用",
     "source": "PulseLoomApp.swift / WelcomeView",
     "scope": "两页说明与真实触感测试入口，可跳过",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "preferences",
@@ -21,7 +25,9 @@
     "name": "偏好选择",
     "source": "MyView.swift / SettingsView；ThemeView",
     "scope": "偏好并入“我的/设置”与换肤；不强制填写目标画像",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "capability",
@@ -29,7 +35,9 @@
     "name": "触感测试",
     "source": "SupportViews.swift / TroubleshootingView",
     "scope": "真实能力检测、三档测试、用户确认；模拟器不伪造触感",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "home",
@@ -37,7 +45,9 @@
     "name": "首页",
     "source": "HomeView.swift；PlaybackCoordinator.swift",
     "scope": "6常用预设/全部、强度、计时、开始暂停停止",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "focus",
@@ -45,7 +55,9 @@
     "name": "专注播放器",
     "source": "PulseLoomApp.swift / FocusView",
     "scope": "专注控制与防误触；停止不锁定",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "library",
@@ -53,7 +65,9 @@
     "name": "节奏库",
     "source": "HomeView.swift / PresetPickerView",
     "scope": "搜索、基础/轻柔/节奏/渐变/自创分类、免费/收藏筛选",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "detail",
@@ -61,7 +75,9 @@
     "name": "节奏详情",
     "source": "HomeView.swift / PatternDetailView",
     "scope": "预览、使用、收藏、复制编辑、导出",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "music",
@@ -69,7 +85,9 @@
     "name": "音乐同步入口",
     "source": "MusicView.swift",
     "scope": "独立第二Tab；选文件/示例，默认跟随参数，无强制分析配置",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "sources",
@@ -77,7 +95,9 @@
     "name": "音乐来源",
     "source": "MusicView.swift / fileImporter；SystemMusicView",
     "scope": "实际音频文件选择；系统音乐独立权限路径",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "musicauth",
@@ -85,7 +105,9 @@
     "name": "音乐授权与可用性",
     "source": "SystemMusicService.swift；SystemMusicView",
     "scope": "真实MusicKit授权、订阅、系统触觉可用性；不提取DRM音频",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "analysis",
@@ -93,7 +115,9 @@
     "name": "音频分析",
     "source": "MusicService.swift；PulseLoomCore/AudioAnalysis.swift",
     "scope": "PCM分块RMS/瞬态/粗BPM；取消和失败状态在音乐页内显示",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "musicplayer",
@@ -101,7 +125,9 @@
     "name": "音乐同步播放器",
     "source": "MusicView.swift；MusicService.swift",
     "scope": "真实音频时钟、触觉映射、区间/偏移、质感、预设混合",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "musicmixes",
@@ -109,7 +135,9 @@
     "name": "音乐配置收藏",
     "source": "MusicView.swift / MusicMixesView",
     "scope": "配置保存/加载/删除；音频另选，切新文件当前将区间重置全曲",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "studio",
@@ -117,7 +145,9 @@
     "name": "创作入口",
     "source": "CreateView.swift",
     "scope": "第三Tab；敲击优先、四种编辑方式均有入口",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "editor",
@@ -125,7 +155,9 @@
     "name": "完整分段编辑器",
     "source": "CreateView.swift / SegmentEditorView；EditorModel.swift",
     "scope": "分段添加/复制/删除/重排、时间轴缩放、数值、撤销/重做、渐入渐出",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "curve",
@@ -133,7 +165,9 @@
     "name": "曲线节点编辑",
     "source": "CreateView.swift / CurveEditorView；EditorModel.swift",
     "scope": "节点拖动/点击添加/删除、数值精调、三模板、预览与保存",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "record",
@@ -141,7 +175,9 @@
     "name": "敲击录制",
     "source": "CreateView.swift；EditorModel.swift；SessionState.swift",
     "scope": "触摸按下/抬起/取消、最长30秒、单次10秒、128片段上限",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "xy",
@@ -149,7 +185,9 @@
     "name": "XY实时调制",
     "source": "CreateView.swift；EditorModel.swift",
     "scope": "触点质感与强度、手势记录、生成事件、数值控制",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "routines",
@@ -157,7 +195,9 @@
     "name": "组合会话",
     "source": "ExtendedViews.swift / RoutinesView",
     "scope": "模板/自建/删除/播放，多段组合",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "routineedit",
@@ -165,7 +205,9 @@
     "name": "组合编排",
     "source": "ExtendedViews.swift / RoutineEditorView",
     "scope": "最多12段、每段时长/强度、顺序、过渡/声景",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "routineplayer",
@@ -173,7 +215,9 @@
     "name": "组合播放",
     "source": "PlaybackCoordinator.swift；ExtendedViews.swift",
     "scope": "当前段/暂停/下一段/停止；结束记录与实际会话状态，回顾并入历史",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "sounds",
@@ -181,7 +225,9 @@
     "name": "声景混音",
     "source": "SoundscapeService.swift；SoundscapeView",
     "scope": "三种原创PCM声景及独立混音；实际发声",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "breath",
@@ -189,7 +235,9 @@
     "name": "呼吸引导配置",
     "source": "ExtendedViews.swift / BreathView",
     "scope": "预设/自定义吸停呼参数、会话时长",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "breathplayer",
@@ -197,7 +245,9 @@
     "name": "呼吸会话",
     "source": "ExtendedViews.swift / BreathView；PlaybackCoordinator.swift",
     "scope": "实时相位、触觉与计时；配置与进行态在同页",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "themes",
@@ -205,7 +255,9 @@
     "name": "主题中心",
     "source": "MyView.swift / ThemeView；DesignSystem.swift",
     "scope": "6皮肤×明暗，跟随系统；附加主题应用时核验Pro",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "themepreview",
@@ -213,7 +265,9 @@
     "name": "主题预览",
     "source": "MyView.swift / ThemeView 内预览区域",
     "scope": "独立临时预览、取消保留旧主题、确认应用",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "icons",
@@ -221,7 +275,9 @@
     "name": "应用图标",
     "source": "SupportViews.swift / IconsView；Assets.xcassets",
     "scope": "三组打包备用图标，真实系统alternateIcon API",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "my",
@@ -229,7 +285,9 @@
     "name": "我的",
     "source": "MyView.swift",
     "scope": "第四Tab；作品收藏历史主题设置与扩展入口",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "saved",
@@ -237,7 +295,9 @@
     "name": "已保存节奏",
     "source": "MyView.swift / SavedPatternsView；LibraryStore.swift",
     "scope": "改名/复制/编辑/删除/导入导出/配额；不伪造保存成功",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "favorites",
@@ -245,7 +305,9 @@
     "name": "收藏",
     "source": "MyView.swift / FavoritesView",
     "scope": "收藏去重、移除、List重排、引用清理",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "history",
@@ -253,7 +315,9 @@
     "name": "使用历史",
     "source": "MyView.swift / HistoryView；LibraryStore.swift",
     "scope": "默认关闭；100条/30日；清空；备份排除",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "premium",
@@ -261,7 +325,9 @@
     "name": "Pro权益与购买",
     "source": "SupportViews.swift / PremiumView；PurchaseService.swift",
     "scope": "真实本地化商品/买断/验签/恢复；不以原型Pro状态作为授权",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "purchase",
@@ -269,7 +335,9 @@
     "name": "交易结果",
     "source": "PurchaseService.swift；PremiumView",
     "scope": "成功取消pending失败恢复通过实际StoreKit结果呈现，不保留假交易按钮",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "settings",
@@ -277,7 +345,9 @@
     "name": "设置",
     "source": "MyView.swift / SettingsView",
     "scope": "外观、减少动画、保持屏幕、历史、隐私等；大字号遵循系统Dynamic Type",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "privacy",
@@ -285,7 +355,9 @@
     "name": "隐私与数据",
     "source": "MyView.swift / PrivacyView；LibraryStore.swift",
     "scope": "实际本地与网络行为、备份预览、清理、反馈/诊断主动导出",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "troubleshoot",
@@ -293,7 +365,9 @@
     "name": "故障排查",
     "source": "SupportViews.swift / TroubleshootingView",
     "scope": "真实支持状态/错误与恢复；生产端不放故障注入",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "help",
@@ -301,7 +375,9 @@
     "name": "帮助与边界",
     "source": "SupportViews.swift / HelpView",
     "scope": "操作说明、前台限制、音乐与隐私界限",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "sync",
@@ -309,7 +385,9 @@
     "name": "云同步与冲突",
     "source": "CloudSyncService.swift；ExtendedViews.swift / CloudView",
     "scope": "实际private CloudKit手动同步，三类冲突，乐观写入与墓碑",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "remote",
@@ -317,7 +395,9 @@
     "name": "远程连接",
     "source": "RemoteService.swift；Server/app.py；RemoteView",
     "scope": "实际HTTPS/WSS，私密邀请与receiver确认；未部署公网",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "remotesession",
@@ -325,7 +405,9 @@
     "name": "远程会话",
     "source": "RemoteService.swift；RemoteView",
     "scope": "接收者许可、强度钳制、fresh nonce、sequence、断线/紧急停止",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "watch",
@@ -333,7 +415,9 @@
     "name": "Watch遥控",
     "source": "WatchBridge.swift；WatchApp/PulseLoomWatchApp.swift",
     "scope": "真实WCSession、许可、前台判断；实际手表配对需系统完成",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "widgets",
@@ -341,7 +425,9 @@
     "name": "桌面组件与快捷操作",
     "source": "Widgets/PulseLoomWidget.swift；Shortcuts.swift",
     "scope": "主屏/锁屏Widget、隐私标题、选定预设快捷指令；只导航",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "review",
@@ -349,7 +435,9 @@
     "name": "全功能审查地图",
     "source": "Docs/FEATURE_COVERAGE.md；Reference/v0.6/；UITests/",
     "scope": "审查地图保留在参考模型与测试交接，不在正式App开放模拟解锁/故障注入",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "documentation_or_navigation_mapping",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "feedback",
@@ -357,7 +445,9 @@
     "name": "审查意见",
     "source": "SupportViews.swift / FeedbackView",
     "scope": "本地意见/删除/导出/已配置支持页面；不自动上传",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "manual",
@@ -365,7 +455,9 @@
     "name": "手动震动控制",
     "source": "ExtendedViews.swift / ManualView；PlaybackCoordinator.swift",
     "scope": "按住输出/松开停、连续模式、强度；失活/离页停止",
-    "native_validation": "not_run"
+    "native_validation": "partial_simulator_see_QA_REPORT",
+    "sdk_build": "passed_at_790aee8_not_full_scenario_acceptance",
+    "device_and_real_service_validation": "not_verified"
   },
   {
     "route": "methods",
@@ -373,6 +465,8 @@
     "name": "全部震动方式",
     "source": "MyView.swift 扩展入口",
     "scope": "不再作为顶层聚合导航；按批准v0.6分散到四Tab/我的扩展，所有功能区保留",
-    "native_validation": "not_run"
+    "native_validation": "scenario_not_verified",
+    "sdk_build": "documentation_or_navigation_mapping",
+    "device_and_real_service_validation": "not_verified"
   }
 ]

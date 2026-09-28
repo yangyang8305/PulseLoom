@@ -1,72 +1,78 @@
 # PulseLoom
 
-基于已确认的 **HTML v0.6** 构建的原生 iPhone 项目。主导航固定为 **首页 / 音乐 / 创作 / 我的**。SwiftUI 界面、Core Haptics、AVFoundation、StoreKit 2、CloudKit、MusicKit、WatchConnectivity、WidgetKit 与独立远控中继均有源码。
+基于批准的 **HTML v0.6** 开发的原生 iPhone 项目，主导航固定为 **首页 / 音乐 / 创作 / 我的**。参考模型保留在 `Reference/v0.6/`，不以 WebView 代替原生界面。
 
-## 本次交付状态
+## 当前验证状态
 
-**这是原生源码工程，尚未完成 Apple SDK 编译及真机验收。不能将此版本当作已经验证的成品或可提交 App Store 的版本。**
+固定验证版本：`790aee815f3b7c40f74ab30776635e5eb7199c69`。2026-09-28 的 [Actions 36417214180](https://github.com/yangyang8305/PulseLoom/actions/runs/36417214180) 已结束，以下数量来自逐项测试日志，不是由 job 颜色或源文件数量推算：
 
-- `Packages/PulseLoomCore` 已在 Linux Swift 6.2.1 中编译；80 项 XCTest 通过。
-- Python 中继服务的 15 项测试通过。
-- 原生 Swift 文件进行了语法解析、项目成员和资源结构检查；这些检查不代替 Xcode 类型检查、链接、签名和运行。
-- 8 项原生 UI 测试已写入，当前环境没有 Xcode，因此执行数为 0。
-- App Store 内购、iCloud、Apple Music、Watch、Widget App Group 与公网 WSS 需要真实账号配置/设备验证；源码中没有默认 Pro、假支付成功或假远控连接。
-- 源码已提交到 [GitHub PulseLoom](https://github.com/yangyang8305/PulseLoom) 的 `main` 分支；提交和 Actions 状态见 [Docs/GITHUB_STATUS.md](Docs/GITHUB_STATUS.md)。
-
-完整核验结果：[Docs/QA_REPORT.md](Docs/QA_REPORT.md)。具体覆盖及差异：[Docs/FEATURE_COVERAGE.md](Docs/FEATURE_COVERAGE.md)。必须完成的后续验证：[Docs/RELEASE_CHECKLIST.md](Docs/RELEASE_CHECKLIST.md)。
-
-## 打开工程
-
-需要 macOS、完整 Xcode 16 或更高版本、可用 iOS Simulator；触感体验需要支持 Core Haptics 的实体 iPhone。iOS 部署目标为 17，系统 Music Haptics 分支要求 iOS 18 及以上；Watch 部署目标为 watchOS 10。
-
-```bash
-open PulseLoom.xcodeproj
-```
-
-选择 `PulseLoom` scheme 和 iPhone Simulator。首次编译应先查看错误并修正 SDK 兼容问题；本次没有执行过这一步。不要将 Linux 单元测试通过等同于 native build 通过。
-
-```bash
-bash Scripts/build-ios.sh       # 编译 iPhone + Watch + 嵌入 Widget，不签名
-bash Scripts/test-ui.sh         # 选择已安装 iPhone 模拟器并运行 8 项 UI 测试
-```
-
-项目含确定性生成器，不需要 XcodeGen/CocoaPods：
-
-```bash
-python3 Scripts/generate-project.py
-```
-
-不同 Xcode 的单目标 Watch 嵌入目录存在差异。生成器默认 `plugins`；可指定 `--watch-layout watch`。构建脚本按 Xcode 主版本选择，打包仍需实际 SDK 校验，不以静态校验代替归档验证。
-
-## 功能与模块
-
-| 模块 | 源码内容 | 外部条件 |
+| 检查 | 实际结果 | 范围 |
 |---|---|---|
-| 首页 | 6 快捷/16 完整预设、分类搜索、相对强度/速度/质感、计时、开始/暂停/停止、防误触、手动触感 | Core Haptics 实体机 |
-| 音乐 | 本地导入、流式 PCM 分析、能量/瞬态映射、柔和/均衡/鲜明、区间/偏移/叠加、配置保存；MusicKit 系统触感独立分支 | 本地格式可解码；系统音乐需许可、订阅和可用曲目 |
-| 创作 | 分段、曲线节点/模板、敲击、XY、撤销/重做、草稿、渐入渐出、保存/复制/重命名/删除、导入导出 | 本地保存；预览需要触感硬件 |
-| 我的 | 作品、收藏排序、可选历史、反馈导出、备份恢复、六套明暗主题、备用图标、设置/隐私/帮助 | 图标与系统外观需 iOS 检验 |
-| 扩展体验 | 多段组合、呼吸节奏、原创合成雨/风/低音声景 | AVAudioSession/硬件中断联测 |
-| 商业化 | StoreKit 商品读取、验证交易、结果状态、恢复、退款申请入口 | 注册真实非消耗型商品 |
-| 云同步 | 用户主动开启、显式同步、保留本机/云端/两份、删除云端、墓碑与并发编辑保护 | 私有 CloudKit database、生产 schema |
-| 远控 | HTTPS 建房、邀请码、WSS、AES-GCM、接收者授权、强度上限、紧急停止、心跳断线、重新确认 | 部署附带中继；两实体机联调 |
-| Watch / Widget / Shortcuts | Watch 真实消息与状态、主屏/锁屏入口、指定预设快捷指令、隐私标题 | 真配对、App Group、系统安装 |
+| Apple SDK 编译 | iPhone、内嵌 Widget、独立 Watch 通过 | Xcode 16.4；iOS Simulator 18.5 / watchOS Simulator 11.5；无需签名 |
+| 原生服务 XCTest | 34 通过，0 失败 | iOS 模拟器中运行生产服务；硬件、订阅和传输边界使用明确的测试替身 |
+| 原生 UI XCTest | 9 通过，0 失败 | 原 8 项四页体验检查，加 1 项损坏资料库启动恢复 |
+| Core XCTest | 87 通过，0 失败 | Linux Swift 6.2.4；原 80 项及 7 项日期/存储边界回归 |
+| Python relay | 15 通过，0 失败 | 本地 ASGI 测试，不是公网 WSS 或两台设备联调 |
 
-“全量范围”指各功能区都保留源码与入口，不表示每项已通过系统级验收。原型中用于审查的模拟故障/模拟 Pro/假系统授权不进入生产逻辑；保留的原型与测试代码继续承载这些审查场景。
+**7 项 P1 已在代码与对应回归范围内关闭；这不表示全功能、真机触觉、真实购买或云服务已经验收。**仍有 14 项 P2，包含付费内容导出政策、远控权益传播、编辑行为及系统扩展验证缺口。AUD-09 政策没有改变。
 
-## 账号配置
+- [QA 报告](Docs/QA_REPORT.md)：测试套件数量、日志、模拟边界和未关闭诊断。
+- [第二阶段记录](Docs/AUDIT_PHASE2.md)：7 项 P1 的失败前/通过后证据、修复 SHA、限制和 P2 清单。
+- [功能覆盖](Docs/FEATURE_COVERAGE.md)：逐项区别源码、编译、部分模拟器验证与未验证场景。
+- [发布清单](Docs/RELEASE_CHECKLIST.md)：真机、真实账号、签名与人工验收仍分开记录。
+- [GitHub 状态](Docs/GITHUB_STATUS.md)：远端历史及按提交查验方式。
+
+上述结果只归属于指定版本。后续每次提交的结论须读取其 `head_sha` 对应的 Actions；不能把历史绿色结果归到新提交。
+
+## 工程与无需签名的验证
+
+需要 macOS、完整 Xcode 16 或更高版本和可用模拟器。iPhone 部署目标 iOS 17，系统 Music Haptics 分支要求 iOS 18；Watch 部署目标 watchOS 10。已验证 SDK 版本如上，其他版本没有自动继承通过状态。
+
+```bash
+# 在干净检出、添加个人 Local.xcconfig 之前检查预生成文件
+python3 Scripts/check-generated-project.py
+open PulseLoom.xcodeproj
+
+bash Scripts/build-ios.sh       # iPhone + Widget + Watch 的模拟器构建，不签名
+bash Scripts/test-services.sh   # 34 项原生服务测试
+bash Scripts/test-ui.sh         # 8 项原有 UI + 1 项恢复 UI
+swift test --package-path Packages/PulseLoomCore
+```
+
+工程含 5 个 targets 和 `PulseLoom`、`PulseLoom-StoreKit`、`PulseLoomWatch`、`PulseLoom-ServiceTests` 四个共享 schemes。不依赖 XcodeGen/CocoaPods。
+
+```bash
+python3 Scripts/generate-project.py --watch-layout plugins
+```
+
+仓库提交的是生成器默认 `plugins` 布局。`build-ios.sh` 在 Xcode 16 上选择 `watch` 布局后进行实际编译；这一差异有意保留。生成一致性检查在 SDK 布局切换前执行，且不证明 Xcode 26、设备安装或签名可用。
+
+## 功能及外部边界
+
+| 模块 | 已有源码 | 尚需验证 |
+|---|---|---|
+| 首页 | 16 预设、6 快捷、强度/节奏/质感、定时、开始/暂停/停止、防误触 | 实际马达输出、停止时延、接缝、温度与功耗 |
+| 音乐 | 本地 PCM 分析/触觉映射；独立的 MusicKit 系统触感路径 | 文件导入全流程、音乐延迟、真实授权/订阅/可用曲目 |
+| 创作 | 分段、曲线、敲击、XY、撤销、草稿、保存及导入导出 | 完整创作验收；AUD-11～14 仍开放 |
+| 我的 | 作品、收藏、历史、主题、隐私清理、备份恢复 | 全部主题与无障碍；外部备份副本不在本地擦除范围 |
+| 扩展 | 组合、声景、呼吸；Watch、Widget、快捷指令 | AUD-16～19；系统安装、配对及元数据行为 |
+| 购买 | StoreKit 商品、验证、恢复和退款入口 | 真实交易、退款撤销、离线权益，未以测试 Pro 状态冒充 |
+| 云同步 | 显式 CloudKit 同步、合并、冲突、内容代次 | 真实 CloudKit 多设备/账号；AUD-07、22 |
+| 远控 | HTTPS/WSS、加密、普通停止、紧急撤权与重新许可 | 未部署公网；AUD-10、15、21 及两机联调 |
+
+模拟器服务测试能验证调用顺序、错误和竞态状态，不能测量物理震动，也没有打通真实购买、CloudKit 或 Apple Music 账号。
+
+## 后续账号配置（本轮不执行）
 
 ```bash
 cp Config/Local.xcconfig.example Config/Local.xcconfig
 ```
 
-填入你自己的 Apple Team、三个 App 的 bundle identifiers、App Group、CloudKit container、真实商品 ID、已部署中继 HTTPS URL、支持页面 URL。`Config/Local.xcconfig` 已忽略，不提交证书/私钥/token。详见 [Docs/SETUP.md](Docs/SETUP.md)。
+个人 Team、Bundle ID、App Group、CloudKit、商品及服务配置见 [Docs/SETUP.md](Docs/SETUP.md)。本轮不需要账号密码、证书私钥或部署中继。`Config/Local.xcconfig` 不提交到 GitHub。
 
-- `PulseLoom`：真实 StoreKit 环境，商品未配置时显示不可用，不伪造价格。
-- `PulseLoom-StoreKit`：Xcode 本地测试配置，使用 `Config/PulseLoom.storekit`。仅用于开发测试，无实际扣费；Release scheme 不挂此配置。
-- 首次正式运行免费；付费状态只来自已验证的 StoreKit 交易。调整 `Preferences` 或导入 JSON 不授予 Pro。
+`PulseLoom-StoreKit` scheme 的本地测试配置只用于开发，无实际扣费；正式 scheme 不挂该 fixture。JSON 偏好不授予账号 Pro；付费预设导出/再导入的内容政策仍为 AUD-09 未决事项。
 
-## 在本地测试
+## 本地非 Apple 测试
 
 ```bash
 python3 -m venv .venv
@@ -75,25 +81,12 @@ python -m pip install -r Server/requirements-dev.txt
 bash Scripts/test.sh
 ```
 
-纯 Swift 包无第三方依赖。Python 直接依赖按此次测试环境锁定；间接依赖与基础 Docker image 未完全内容寻址锁定，生产部署前需生成锁文件、镜像摘要及漏洞扫描报告。
+纯 Swift 包无第三方依赖。Python 间接依赖和容器镜像未完全内容寻址锁定，生产部署之前仍需单独完成锁定及安全验证。本次没有修改这些 P2/部署范围。
 
-## GitHub 源码
+## 版本管理
 
-原生工程、测试、资源与 v0.6 参考原型已上传到 `yangyang8305/PulseLoom` 的 `main`。`Scripts/publish-github.py` 是仓库创建前交付的建仓脚本；目标仓库现已存在，不应再次运行它来建仓。原始离线 bundle 和 ZIP 保留在本地交付目录中。
+完整源码已在 `yangyang8305/PulseLoom` 的 `main`。保留原始提交历史；不要再次运行 `Scripts/publish-github.py` 创建同名仓库。新的日志与 `.xcresult` 保存为 Actions artifact，不将构建产物、分片或密钥加入源码提交。
 
-## 目录
+`Docs/Validation/` 中原有日志是早期离线验证快照，保留作历史证据，不代表当前测试状态。
 
-```text
-App/                       iPhone SwiftUI、服务、资源
-Packages/PulseLoomCore/     可独立测试的数据、校验、计时、分析、合并、协议
-WatchApp/                  watchOS App
-Widgets/                   Widget extension
-UITests/                   8 项未执行的原生 UI 测试
-Server/                    不解密业务载荷的远控中继与 Docker/Caddy
-Config/                    plist、entitlements、xcconfig、StoreKit fixture
-Scripts/                   工程生成、测试、构建、归档、建仓推送
-Docs/                      覆盖、配置、质量记录、发布阻断项
-Reference/v0.6/             只作对照的已批准 HTML；不嵌入原生 App
-```
-
-仓库未指定开源许可证。应用图形由本项目生成，不含外部字体、商业音乐或他人 UI 截图；不对音乐原文件作再分发。
+仓库未指定开源许可证。应用资源不包含用于再分发的商业音乐或外部字体；本轮没有变更许可证或仓库可见性。
