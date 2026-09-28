@@ -12,17 +12,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Rebuild source archive
+      - name: Rebuild and verify source archive
         shell: bash
         run: |
           set -euo pipefail
           cat .bootstrap-upload/chunk-*.b64 > /tmp/pulseloom.b64
-          base64 -d /tmp/pulseloom.b64 > /tmp/pulseloom.tar.gz
-          mkdir -p /tmp/pulseloom-src
-          tar -xzf /tmp/pulseloom.tar.gz -C /tmp/pulseloom-src
+          base64 -d /tmp/pulseloom.b64 > /tmp/pulseloom.tar.xz
           expected="$(cat .bootstrap-upload/SHA256)"
-          actual="$(sha256sum /tmp/pulseloom.tar.gz | awk '{print $1}')"
+          actual="$(sha256sum /tmp/pulseloom.tar.xz | awk '{print $1}')"
           test "$expected" = "$actual"
+          mkdir -p /tmp/pulseloom-src
+          tar -xJf /tmp/pulseloom.tar.xz -C /tmp/pulseloom-src
       - name: Replace bootstrap tree with source
         shell: bash
         run: |
