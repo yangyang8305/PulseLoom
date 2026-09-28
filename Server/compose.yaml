@@ -1,0 +1,31 @@
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    expose: ["8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks: [relay]
+    mem_limit: 256m
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["443:443", "80:80"]
+    environment:
+      RELAY_DOMAIN: ${RELAY_DOMAIN:?Set RELAY_DOMAIN to your configured DNS name}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [relay]
+volumes:
+  caddy_data:
+  caddy_config:
+networks:
+  relay:
+    ipam:
+      config:
+        - subnet: 172.30.90.0/24

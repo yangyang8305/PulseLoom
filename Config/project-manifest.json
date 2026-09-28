@@ -1,0 +1,38 @@
+{
+  "generator": 1,
+  "watchEmbedLayout": "plugins",
+  "targets": {
+    "PulseLoom": "AD330ED6C4EB2A4E16781F41",
+    "PulseLoomWatch": "480BC170C51044372A6A9A73",
+    "PulseLoomWidgets": "34283F500086F38BA7880D68",
+    "PulseLoomUITests": "94BDB5057364AA658505C5CB"
+  },
+  "sourceFiles": [
+    "App/Application/AppModel.swift",
+    "App/Application/PulseLoomApp.swift",
+    "App/Application/Shortcuts.swift",
+    "App/DesignSystem/DesignSystem.swift",
+    "App/Features/CreateView.swift",
+    "App/Features/EditorModel.swift",
+    "App/Features/ExtendedViews.swift",
+    "App/Features/HomeView.swift",
+    "App/Features/MusicView.swift",
+    "App/Features/MyView.swift",
+    "App/Features/SupportViews.swift",
+    "App/Services/CloudSyncService.swift",
+    "App/Services/Diagnostics.swift",
+    "App/Services/HapticDriver.swift",
+    "App/Services/LibraryStore.swift",
+    "App/Services/MusicService.swift",
+    "App/Services/PlaybackCoordinator.swift",
+    "App/Services/PurchaseService.swift",
+    "App/Services/RemoteService.swift",
+    "App/Services/SoundscapeService.swift",
+    "App/Services/SystemMusicService.swift",
+    "App/Services/WatchBridge.swift",
+    "WatchApp/PulseLoomWatchApp.swift",
+    "Widgets/PulseLoomWidget.swift",
+    "UITests/PulseLoomUITests.swift"
+  ],
+  "objectCount": 150
+}

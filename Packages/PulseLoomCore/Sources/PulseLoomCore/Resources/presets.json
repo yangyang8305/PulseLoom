@@ -1,0 +1,1122 @@
+[
+  {
+    "id": "p01",
+    "name": "平稳",
+    "englishName": "Still",
+    "japaneseName": "均一",
+    "category": "基础",
+    "description": "均匀的轻触，一段留给自己的时间。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 2000,
+        "gap": 0,
+        "gain": 0.45,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "2c1439ef-c3bc-5bb2-8e46-1784668ae988"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p02",
+    "name": "柔绽",
+    "englishName": "Soft Bloom",
+    "japaneseName": "やわらかな脈",
+    "category": "轻柔",
+    "description": "轻柔脉冲与留白，缓缓展开。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 300,
+        "gap": 500,
+        "gain": 0.45,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "f600fd21-c7ee-546d-9efd-bc6cfb013a55"
+      },
+      {
+        "duration": 300,
+        "gap": 500,
+        "gain": 0.45,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "86e85411-1b3b-5937-b4f7-3261b1a68c8c"
+      }
+    ],
+    "nodes": [],
+    "cycle": 1600,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p03",
+    "name": "双拍",
+    "englishName": "Double Tap",
+    "japaneseName": "二拍",
+    "category": "节奏",
+    "description": "两次清楚的轻点，随后片刻留白。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 50,
+        "gap": 130,
+        "gain": 0.5,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "dd78ffab-b4c3-5213-84d5-9ac69b4e5e75"
+      },
+      {
+        "duration": 50,
+        "gap": 970,
+        "gain": 0.35,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "5a7f0f0d-5988-5686-ba26-29f16eb743bc"
+      }
+    ],
+    "nodes": [],
+    "cycle": 1200,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p04",
+    "name": "缓浪",
+    "englishName": "Slow Wave",
+    "japaneseName": "ゆるやかな波",
+    "category": "渐变",
+    "description": "触感慢慢起伏，如一阵轻风。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.2,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "bf8bb4f3-eaa1-507d-89c1-76b50c1611e8"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.30395584540887965,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "78372992-3b12-58af-9d1c-57ab1772812f"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.4033683215379001,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "c3253457-1869-5e2b-aca2-c6ea7cb1802f"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.4938926261462366,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "85c98531-1c46-56e6-a905-f9f647bd61f8"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5715724127386972,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "a10ae1ad-d807-59be-a442-62f3ea6bb1ce"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6330127018922194,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "77f49793-7b27-5f49-b8a8-b27fba626c67"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6755282581475768,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "7aa952db-a6a9-5aaa-8536-a5c224408ada"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6972609476841367,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "c5ac60a1-cdae-5804-b9a6-e5503081bcce"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6972609476841367,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "7700bbc4-afad-59f1-b16b-0e0c91085cae"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6755282581475768,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "1bcc992a-4977-5e02-b5dd-84da00c7b507"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6330127018922194,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "00d40077-c9d9-5b88-80de-dfc349f7a904"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5715724127386972,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "ca8b88fb-7323-5ab2-8a25-858adb0f0207"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.49389262614623664,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "d9dfd61a-4878-56f3-a4bf-9b7abccae4fa"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.40336832153790003,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "ff333e62-5551-5971-9a58-8405c4025958"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.30395584540887965,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "8517197e-fdbf-5d16-96a2-c1ffbcdfd15e"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.20000000000000007,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "6858de93-d689-5d0f-9145-ba6294b58c59"
+      }
+    ],
+    "nodes": [],
+    "cycle": 4000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p05",
+    "name": "渐起",
+    "englishName": "Gentle Rise",
+    "japaneseName": "徐々に強く",
+    "category": "渐变",
+    "description": "从轻到浓，分辨细微的变化。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.2,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "a73e4e31-a7ad-551f-96e5-4521c7635a1d"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.30000000000000004,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "08249e98-8733-53c0-b011-55d879e3be07"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.4,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "df2859d6-614c-5e8c-af66-a3e503e50ba0"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.5,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "29aa8087-1025-51fd-a785-263964002d52"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.6000000000000001,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "0bf8fc8c-de0c-5f2c-b6e1-d331ffed89eb"
+      },
+      {
+        "duration": 300,
+        "gap": 600,
+        "gain": 0.7,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "001705cc-409a-5f94-8649-12c002a5602c"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2400,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p06",
+    "name": "轻点",
+    "englishName": "Little Touch",
+    "japaneseName": "軽い点",
+    "category": "基础",
+    "description": "每秒一次轻点，余下交给安静。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 50,
+        "gap": 950,
+        "gain": 0.3,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "34ae854d-5e60-5511-94a0-9f058d2383c6"
+      },
+      {
+        "duration": 50,
+        "gap": 950,
+        "gain": 0.3,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "cbd690dc-b4af-59a1-acfe-847c3ed40c8f"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": false,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p07",
+    "name": "连浪",
+    "englishName": "Rolling",
+    "japaneseName": "連なる波",
+    "category": "渐变",
+    "description": "两个起伏衔接成一段流动。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.2,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "d3192c1a-32cf-5428-851a-65a16b3ae3ed"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.39524768260290116,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "65550dd6-22cf-56a7-a634-a1d322c8b788"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5518241671106134,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "47b39a6c-ee45-5731-85dc-69537736cc42"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6387175604818207,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "c7c353d1-ea46-545a-b638-2cbf20941eba"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6387175604818207,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "48b10300-f9df-54e3-867f-6c4ac750446e"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5518241671106134,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "06e810d3-8a93-5fc6-9082-2c7b49dd5a50"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.3952476826029012,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "df88e2a8-803e-5149-9ebf-55eaddd20532"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.20000000000000007,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "b95f538e-1683-55a3-9659-588f54fd7902"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.3952476826029011,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "24c81bde-1f47-55ae-b0ea-16dba8fa984f"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5518241671106134,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "39d35d46-8209-5273-b91b-7a7b851fd38f"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6387175604818207,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "843a80b0-d5de-5a67-abd6-b460402b8dcf"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.6387175604818207,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "cdd44c1e-8cde-50ea-9f97-7686a56d42b5"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.5518241671106134,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "383a5a15-c697-551f-a315-195374c791ec"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.3952476826029013,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "7ade240e-9216-5091-bb85-aefd2990e127"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.20000000000000012,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "b5f18a1c-97fa-5bd9-8cf5-0d11500fca6d"
+      },
+      {
+        "duration": 250,
+        "gap": 0,
+        "gain": 0.3952476826029011,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "0b04df50-8b96-5d9b-b4d2-f2f7442ee30c"
+      }
+    ],
+    "nodes": [],
+    "cycle": 4000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p08",
+    "name": "涟漪",
+    "englishName": "Ripple",
+    "japaneseName": "さざ波",
+    "category": "轻柔",
+    "description": "四次轻点，逐渐减弱。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 50,
+        "gap": 550,
+        "gain": 0.65,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "c5f38ed2-e5be-5440-aa19-3ae6e14b702b"
+      },
+      {
+        "duration": 50,
+        "gap": 550,
+        "gain": 0.5,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "15076f2a-de3a-529c-9f5d-2c2cdfcad7c6"
+      },
+      {
+        "duration": 50,
+        "gap": 550,
+        "gain": 0.35,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "310eb5a0-dd81-57c2-b72f-962ede272983"
+      },
+      {
+        "duration": 50,
+        "gap": 550,
+        "gain": 0.2,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "ea6f1d97-5cdd-557c-ae97-473864fa49bc"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2400,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p09",
+    "name": "阶梯",
+    "englishName": "Terrace",
+    "japaneseName": "階段",
+    "category": "渐变",
+    "description": "三个层次，缓缓递进。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 800,
+        "gap": 0,
+        "gain": 0.25,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "24ce390d-68fd-5565-b5c0-4a88a2f561c3"
+      },
+      {
+        "duration": 800,
+        "gap": 0,
+        "gain": 0.45,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "dc7343f7-404e-5cff-aac4-d32493d16723"
+      },
+      {
+        "duration": 800,
+        "gap": 800,
+        "gain": 0.65,
+        "sharp": 0.3,
+        "type": "continuous",
+        "id": "c0f58b73-ba1d-580c-b757-1c555dae2287"
+      }
+    ],
+    "nodes": [],
+    "cycle": 3200,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p10",
+    "name": "三拍",
+    "englishName": "Triple Tap",
+    "japaneseName": "三拍",
+    "category": "节奏",
+    "description": "三次轻点，自成一个小节。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 50,
+        "gap": 150,
+        "gain": 0.5,
+        "sharp": 0.5,
+        "type": "continuous",
+        "id": "d23ccc0e-6d7c-51a8-881f-bdd0cc2e6f6b"
+      },
+      {
+        "duration": 50,
+        "gap": 150,
+        "gain": 0.65,
+        "sharp": 0.5,
+        "type": "continuous",
+        "id": "64de0867-7263-5403-914a-e8064e5e8a44"
+      },
+      {
+        "duration": 50,
+        "gap": 1150,
+        "gain": 0.5,
+        "sharp": 0.5,
+        "type": "continuous",
+        "id": "4f3d9caf-0a98-5f62-a4ad-b98c8aadd270"
+      }
+    ],
+    "nodes": [],
+    "cycle": 1600,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p11",
+    "name": "交替",
+    "englishName": "Alternating",
+    "japaneseName": "強弱交互",
+    "category": "节奏",
+    "description": "强弱相间，轻盈而清晰。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.65,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "f2c034da-eda7-5e96-80d0-7231f23cc806"
+      },
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.25,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "2c9c83bd-1fdc-5fd4-9221-877e79fd1430"
+      },
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.65,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "75bc124d-4780-59e5-abe5-bf00270e0b68"
+      },
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.25,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "453cb3e9-d24b-571a-9986-9f04304b1529"
+      },
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.65,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "20ff3655-9c4c-502f-945b-a55e7e4862bc"
+      },
+      {
+        "duration": 100,
+        "gap": 300,
+        "gain": 0.25,
+        "sharp": 0.35,
+        "type": "continuous",
+        "id": "80c83271-4220-5a3c-a287-f647a66a4b1a"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2400,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p12",
+    "name": "留白",
+    "englishName": "Open Space",
+    "japaneseName": "余白",
+    "category": "轻柔",
+    "description": "半秒轻触，留一段安静。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 500,
+        "gap": 3500,
+        "gain": 0.4,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "c9eae4ef-0093-5aa9-b04d-902a82d362cb"
+      }
+    ],
+    "nodes": [],
+    "cycle": 4000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p13",
+    "name": "渐落",
+    "englishName": "Soft Fall",
+    "japaneseName": "徐々に弱く",
+    "category": "渐变",
+    "description": "由浓到轻，缓缓落下。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.7,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "99f854be-282b-5489-b0d0-e2f7ae92c2b3"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.6,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "390c6454-7664-5e9f-849a-1c005550fc23"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.49999999999999994,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "5517569f-b1d2-50ae-8761-9d0c67c3ed47"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.3999999999999999,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "b59e9e3e-1d4f-5e9e-ad4b-1a3380401d68"
+      },
+      {
+        "duration": 300,
+        "gap": 0,
+        "gain": 0.29999999999999993,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "608d0846-eb01-5562-aab6-170e782ce44d"
+      },
+      {
+        "duration": 300,
+        "gap": 600,
+        "gain": 0.19999999999999996,
+        "sharp": 0.2,
+        "type": "continuous",
+        "id": "1f94ec6e-dd60-5f40-8848-31b494a38005"
+      }
+    ],
+    "nodes": [],
+    "cycle": 2400,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p14",
+    "name": "长浪",
+    "englishName": "Long Wave",
+    "japaneseName": "長い波",
+    "category": "轻柔",
+    "description": "八秒一轮的慢起伏。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.2,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "573f050e-d39d-50e0-8fcb-bc06f398c9c6"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.30395584540887965,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "8c8a64fe-49ea-579d-975d-214676e0296f"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.4033683215379001,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "d0c28d84-5869-5097-bf8e-d9810b8760d8"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.4938926261462366,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "e4d146b7-33ff-5d92-a004-ddb75a501189"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.5715724127386972,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "9521f290-d7f4-51f9-9bc4-5df4a1e62e55"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6330127018922194,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "49c61452-853a-505d-9a46-0ea84c286b93"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6755282581475768,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "c45f286a-d681-5a63-9faf-0a3542000215"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6972609476841367,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "dc08fd37-9ae8-5bb5-a44d-3a0a0c410ba7"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6972609476841367,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "c651d0a9-320b-5ef6-82c5-5ff26db3d484"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6755282581475768,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "792c917a-485b-5c7b-bb15-2d8540a4c70c"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.6330127018922194,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "9b4894cc-89ca-59fe-b7f9-e29f660bcf29"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.5715724127386972,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "c76e77c0-a908-52c1-b91b-7241f440c610"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.49389262614623664,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "171c6cc4-330f-5076-81ca-be9fda0e3d4e"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.40336832153790003,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "a64a249b-7929-5a9c-94c8-aba0c2ef0b6a"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.30395584540887965,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "630aac29-eeb8-564e-be3f-7c5dbfffa236"
+      },
+      {
+        "duration": 500,
+        "gap": 0,
+        "gain": 0.20000000000000007,
+        "sharp": 0.15,
+        "type": "continuous",
+        "id": "81ed2b0e-4ecd-58fb-9ee0-f03689647b4b"
+      }
+    ],
+    "nodes": [],
+    "cycle": 8000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p15",
+    "name": "漂移",
+    "englishName": "Drift",
+    "japaneseName": "ゆらぎ",
+    "category": "基础",
+    "description": "细微的变化，每一轮都可重现。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.25,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "daf94783-a462-5c4c-b179-bf8de0a22b0d"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.45,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "fc2ecddb-6791-5fa3-b700-8791b38c83ba"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.35,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "96de942d-27e9-5dcb-8788-40468670a675"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.55,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "e1734281-6a76-5ecd-93f4-70dca883feca"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.3,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "71b7ba32-987f-50bc-be85-ddc1421a66a0"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.5,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "054a05d7-6562-5765-8f0c-996cfeded6f2"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.4,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "2620c70e-2246-5639-a99e-61ac29e5a4ce"
+      },
+      {
+        "duration": 400,
+        "gap": 100,
+        "gain": 0.25,
+        "sharp": 0.25,
+        "type": "continuous",
+        "id": "a0c9d292-7470-5643-82bb-09778616bc60"
+      }
+    ],
+    "nodes": [],
+    "cycle": 4000,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  },
+  {
+    "id": "p16",
+    "name": "序列",
+    "englishName": "Sequence",
+    "japaneseName": "組み合わせ",
+    "category": "节奏",
+    "description": "双拍、单拍、三拍的组合。",
+    "mode": "basic",
+    "segments": [
+      {
+        "duration": 50,
+        "gap": 150,
+        "gain": 0.5,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "0def3448-0369-5e28-8314-64caa27535cb"
+      },
+      {
+        "duration": 50,
+        "gap": 700,
+        "gain": 0.35,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "bf6a19ba-8061-5e87-b4bc-d84b086010be"
+      },
+      {
+        "duration": 50,
+        "gap": 800,
+        "gain": 0.65,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "a8d49b8d-b14a-5289-bfaa-770114ae48b2"
+      },
+      {
+        "duration": 50,
+        "gap": 150,
+        "gain": 0.3,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "4fcbfa00-4e1d-5c25-bf76-3933b3e63a97"
+      },
+      {
+        "duration": 50,
+        "gap": 150,
+        "gain": 0.4,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "9885d7ff-f37a-5a56-91bd-426d946d81ab"
+      },
+      {
+        "duration": 50,
+        "gap": 950,
+        "gain": 0.5,
+        "sharp": 0.4,
+        "type": "continuous",
+        "id": "b0939f87-7404-528c-8685-34a97b2d1136"
+      }
+    ],
+    "nodes": [],
+    "cycle": 3200,
+    "sharpness": 0.25,
+    "loop": true,
+    "fadeIn": 0,
+    "fadeOut": 0,
+    "premium": true,
+    "builtin": true,
+    "sourcePremium": false,
+    "updatedAt": 0
+  }
+]

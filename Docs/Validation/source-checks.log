@@ -1,0 +1,10 @@
+{
+  "checks_passed": 1227,
+  "checks_failed": 0,
+  "native_swift_files": 25,
+  "core_swift_files": 7,
+  "localization_keys": 395,
+  "swift_syntax_files": 33,
+  "apple_sdk_build": "NOT RUN by this checker",
+  "failures": []
+}

@@ -1,0 +1,22 @@
+{
+  "identifier": "10C19710-98CB-4C0C-B91D-0D4323B3917C",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "9.99",
+      "familyShareable": false,
+      "internalID": "AEBAD041",
+      "localizations": [
+        {"description": "Unlock all patterns, music mapping, themes and extended tools.", "displayName": "Pulse Loom Pro", "locale": "en_US"},
+        {"description": "解锁全部模式、音乐跟随、主题和扩展工具。", "displayName": "Pulse Loom Pro", "locale": "zh_Hans"},
+        {"description": "すべてのパターン、音楽連動、テーマ、拡張ツールを利用できます。", "displayName": "Pulse Loom Pro", "locale": "ja"}
+      ],
+      "productID": "com.yoyo.PulseLoom.pro.lifetime",
+      "referenceName": "PulseLoom Pro Development Fixture",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {"_applicationInternalID": "0", "_developerTeamID": "", "_failTransactionsEnabled": false, "_locale": "en_US", "_storefront": "USA", "_timeRate": 0},
+  "subscriptionGroups": [],
+  "version": {"major": 3, "minor": 0}
+}

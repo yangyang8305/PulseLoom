@@ -1,0 +1,11 @@
+// Copy to Config/Local.xcconfig; that local file is ignored by Git.
+// Set the actual Apple team and identifiers registered by your account.
+DEVELOPMENT_TEAM = YOURTEAMID
+APP_BUNDLE_ID = com.yourcompany.PulseLoom
+APP_GROUP_ID = group.com.yourcompany.PulseLoom
+CLOUD_CONTAINER_ID = iCloud.com.yourcompany.PulseLoom
+PRO_PRODUCT_ID = com.yourcompany.PulseLoom.pro.lifetime
+// Do not paste keys/tokens. These fields are public URLs, not credentials.
+// Escape // because xcconfig treats it as a comment.
+RELAY_BASE_URL = https:/$()/relay.your-domain.example
+SUPPORT_URL = https:/$()/your-domain.example/support

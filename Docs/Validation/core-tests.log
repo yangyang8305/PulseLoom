@@ -1,0 +1,207 @@
+[0/1] Planning build
+Building for debugging...
+[0/4] Write sources
+[2/4] Write swift-version--1BA0962812E73E12.txt
+[4/6] Emitting module PulseLoomCore
+[5/6] Compiling PulseLoomCore Persistence.swift
+[7/15] Emitting module PulseLoomCoreTests
+[8/15] Compiling PulseLoomCoreTests CoreTests.swift
+[9/15] /mnt/data/PulseLoom/Packages/PulseLoomCore/.build/x86_64-unknown-linux-gnu/debug/PulseLoomCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[10/16] Write sources
+[12/19] Compiling PulseLoomCorePackageDiscoveredTests all-discovered-tests.swift
+[13/19] Compiling PulseLoomCorePackageDiscoveredTests PulseLoomCoreTests.swift
+[14/19] Emitting module PulseLoomCorePackageDiscoveredTests
+[15/17] Write Objects.LinkFileList
+[16/17] Linking PulseLoomCorePackageTests.xctest
+Build complete! (1.78s)
+Test Suite 'All tests' started at 2026-09-28 03:06:53.602
+Test Suite 'debug.xctest' started at 2026-09-28 03:06:53.604
+Test Suite 'AudioTests' started at 2026-09-28 03:06:53.604
+Test Case 'AudioTests.testAnalysisBounded' started at 2026-09-28 03:06:53.604
+Test Case 'AudioTests.testAnalysisBounded' passed (0.006 seconds)
+Test Case 'AudioTests.testConstantEnergy' started at 2026-09-28 03:06:53.610
+Test Case 'AudioTests.testConstantEnergy' passed (0.101 seconds)
+Test Case 'AudioTests.testDemoWavHasValidHeader' started at 2026-09-28 03:06:53.711
+Test Case 'AudioTests.testDemoWavHasValidHeader' passed (0.006 seconds)
+Test Case 'AudioTests.testInvalidSampleRate' started at 2026-09-28 03:06:53.718
+Test Case 'AudioTests.testInvalidSampleRate' passed (0.0 seconds)
+Test Case 'AudioTests.testOnsetsDetected' started at 2026-09-28 03:06:53.718
+Test Case 'AudioTests.testOnsetsDetected' passed (0.002 seconds)
+Test Case 'AudioTests.testSilenceDoesNotMakeHaptics' started at 2026-09-28 03:06:53.720
+Test Case 'AudioTests.testSilenceDoesNotMakeHaptics' passed (0.001 seconds)
+Test Case 'AudioTests.testZeroGainProducesSilence' started at 2026-09-28 03:06:53.721
+Test Case 'AudioTests.testZeroGainProducesSilence' passed (0.0 seconds)
+Test Suite 'AudioTests' passed at 2026-09-28 03:06:53.721
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.117 (0.117) seconds
+Test Suite 'CatalogTests' started at 2026-09-28 03:06:53.721
+Test Case 'CatalogTests.testAllPresetsAreValid' started at 2026-09-28 03:06:53.721
+Test Case 'CatalogTests.testAllPresetsAreValid' passed (0.002 seconds)
+Test Case 'CatalogTests.testAllThemesHaveTwelveLightDarkTokens' started at 2026-09-28 03:06:53.724
+Test Case 'CatalogTests.testAllThemesHaveTwelveLightDarkTokens' passed (0.003 seconds)
+Test Case 'CatalogTests.testCopyIsIndependent' started at 2026-09-28 03:06:53.726
+Test Case 'CatalogTests.testCopyIsIndependent' passed (0.0 seconds)
+Test Case 'CatalogTests.testLocalizationNames' started at 2026-09-28 03:06:53.726
+Test Case 'CatalogTests.testLocalizationNames' passed (0.0 seconds)
+Test Case 'CatalogTests.testSixFreePresets' started at 2026-09-28 03:06:53.726
+Test Case 'CatalogTests.testSixFreePresets' passed (0.0 seconds)
+Test Case 'CatalogTests.testSixteenStablePresets' started at 2026-09-28 03:06:53.727
+Test Case 'CatalogTests.testSixteenStablePresets' passed (0.0 seconds)
+Test Case 'CatalogTests.testThemeFreeCount' started at 2026-09-28 03:06:53.727
+Test Case 'CatalogTests.testThemeFreeCount' passed (0.0 seconds)
+Test Suite 'CatalogTests' passed at 2026-09-28 03:06:53.727
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'ClockAndEditorTests' started at 2026-09-28 03:06:53.727
+Test Case 'ClockAndEditorTests.testBreathing' started at 2026-09-28 03:06:53.727
+Test Case 'ClockAndEditorTests.testBreathing' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testCompletionAndStop' started at 2026-09-28 03:06:53.727
+Test Case 'ClockAndEditorTests.testCompletionAndStop' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testCurveMath' started at 2026-09-28 03:06:53.727
+Test Case 'ClockAndEditorTests.testCurveMath' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testFadeMath' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testFadeMath' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testInterruptedDoesNotAutoResume' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testInterruptedDoesNotAutoResume' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testNegativeClockJumpIgnored' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testNegativeClockJumpIgnored' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testPatternMath' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testPatternMath' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testPauseDoesNotConsumeTime' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testPauseDoesNotConsumeTime' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testRecorderCapacity' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testRecorderCapacity' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testRecorderShortTapIsTransient' started at 2026-09-28 03:06:53.728
+Test Case 'ClockAndEditorTests.testRecorderShortTapIsTransient' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testRecorderTenSecondHoldCap' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testRecorderTenSecondHoldCap' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testRecorderThirtySecondCap' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testRecorderThirtySecondCap' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testRecorderTrimsLeadingSilence' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testRecorderTrimsLeadingSilence' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testSecondFingerIgnored' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testSecondFingerIgnored' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testTimerCannotExtendPastTenMinutes' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testTimerCannotExtendPastTenMinutes' passed (0.0 seconds)
+Test Case 'ClockAndEditorTests.testUndoRedoIsValueSemantic' started at 2026-09-28 03:06:53.729
+Test Case 'ClockAndEditorTests.testUndoRedoIsValueSemantic' passed (0.0 seconds)
+Test Suite 'ClockAndEditorTests' passed at 2026-09-28 03:06:53.729
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'FinalRegressionTests' started at 2026-09-28 03:06:53.729
+Test Case 'FinalRegressionTests.testCloudConcurrentEditsPreserveNewItem' started at 2026-09-28 03:06:53.729
+Test Case 'FinalRegressionTests.testCloudConcurrentEditsPreserveNewItem' passed (0.001 seconds)
+Test Case 'FinalRegressionTests.testCloudDuplicateIdentifiersThrowInsteadOfTrap' started at 2026-09-28 03:06:53.730
+Test Case 'FinalRegressionTests.testCloudDuplicateIdentifiersThrowInsteadOfTrap' passed (0.0 seconds)
+Test Case 'FinalRegressionTests.testCloudSameContentDifferentTimestampDoesNotDuplicate' started at 2026-09-28 03:06:53.730
+Test Case 'FinalRegressionTests.testCloudSameContentDifferentTimestampDoesNotDuplicate' passed (0.0 seconds)
+Test Case 'FinalRegressionTests.testFallbackPaletteHasCompletePairs' started at 2026-09-28 03:06:53.730
+Test Case 'FinalRegressionTests.testFallbackPaletteHasCompletePairs' passed (0.0 seconds)
+Test Case 'FinalRegressionTests.testRemoteConnectionNonceRoundtrip' started at 2026-09-28 03:06:53.731
+Test Case 'FinalRegressionTests.testRemoteConnectionNonceRoundtrip' passed (0.0 seconds)
+Test Case 'FinalRegressionTests.testRemoteOldWireWithoutNonceDecodesForRejectionByTransport' started at 2026-09-28 03:06:53.731
+Test Case 'FinalRegressionTests.testRemoteOldWireWithoutNonceDecodesForRejectionByTransport' passed (0.0 seconds)
+Test Suite 'FinalRegressionTests' passed at 2026-09-28 03:06:53.731
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'PersistenceTests' started at 2026-09-28 03:06:53.731
+Test Case 'PersistenceTests.testAtomicFileAndPrevious' started at 2026-09-28 03:06:53.731
+Test Case 'PersistenceTests.testAtomicFileAndPrevious' passed (0.001 seconds)
+Test Case 'PersistenceTests.testBulkImport' started at 2026-09-28 03:06:53.732
+Test Case 'PersistenceTests.testBulkImport' passed (0.001 seconds)
+Test Case 'PersistenceTests.testCloudFingerprintIgnoresDeviceOnlyMutations' started at 2026-09-28 03:06:53.734
+Test Case 'PersistenceTests.testCloudFingerprintIgnoresDeviceOnlyMutations' passed (0.001 seconds)
+Test Case 'PersistenceTests.testCloudPayloadExcludesPrivateFields' started at 2026-09-28 03:06:53.734
+Test Case 'PersistenceTests.testCloudPayloadExcludesPrivateFields' passed (0.0 seconds)
+Test Case 'PersistenceTests.testConflictPreservesBoth' started at 2026-09-28 03:06:53.734
+Test Case 'PersistenceTests.testConflictPreservesBoth' passed (0.0 seconds)
+Test Case 'PersistenceTests.testCorruptJSONRejected' started at 2026-09-28 03:06:53.735
+Test Case 'PersistenceTests.testCorruptJSONRejected' passed (0.0 seconds)
+Test Case 'PersistenceTests.testDeletedRemoteEditDoesNotResurrectThroughCopy' started at 2026-09-28 03:06:53.735
+Test Case 'PersistenceTests.testDeletedRemoteEditDoesNotResurrectThroughCopy' passed (0.0 seconds)
+Test Case 'PersistenceTests.testFavoritesRetainLocalOrder' started at 2026-09-28 03:06:53.735
+Test Case 'PersistenceTests.testFavoritesRetainLocalOrder' passed (0.0 seconds)
+Test Case 'PersistenceTests.testImportChangesIDAndPrivilege' started at 2026-09-28 03:06:53.735
+Test Case 'PersistenceTests.testImportChangesIDAndPrivilege' passed (0.0 seconds)
+Test Case 'PersistenceTests.testInvalidParentThrows' started at 2026-09-28 03:06:53.736
+Test Case 'PersistenceTests.testInvalidParentThrows' passed (0.0 seconds)
+Test Case 'PersistenceTests.testOversizeRejected' started at 2026-09-28 03:06:53.736
+Test Case 'PersistenceTests.testOversizeRejected' passed (0.0 seconds)
+Test Case 'PersistenceTests.testPrototypePatternImport' started at 2026-09-28 03:06:53.736
+Test Case 'PersistenceTests.testPrototypePatternImport' passed (0.0 seconds)
+Test Case 'PersistenceTests.testRoundTrip' started at 2026-09-28 03:06:53.737
+Test Case 'PersistenceTests.testRoundTrip' passed (0.001 seconds)
+Test Suite 'PersistenceTests' passed at 2026-09-28 03:06:53.737
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'RemoteTests' started at 2026-09-28 03:06:53.737
+Test Case 'RemoteTests.testBackgroundDenied' started at 2026-09-28 03:06:53.737
+Test Case 'RemoteTests.testBackgroundDenied' passed (0.0 seconds)
+Test Case 'RemoteTests.testClampsToReceiverLimit' started at 2026-09-28 03:06:53.737
+Test Case 'RemoteTests.testClampsToReceiverLimit' passed (0.0 seconds)
+Test Case 'RemoteTests.testDefaultDenies' started at 2026-09-28 03:06:53.737
+Test Case 'RemoteTests.testDefaultDenies' passed (0.0 seconds)
+Test Case 'RemoteTests.testReconnectRequiresConsent' started at 2026-09-28 03:06:53.737
+Test Case 'RemoteTests.testReconnectRequiresConsent' passed (0.0 seconds)
+Test Case 'RemoteTests.testRemoteCannotBypassPro' started at 2026-09-28 03:06:53.738
+Test Case 'RemoteTests.testRemoteCannotBypassPro' passed (0.0 seconds)
+Test Case 'RemoteTests.testReplayRejected' started at 2026-09-28 03:06:53.738
+Test Case 'RemoteTests.testReplayRejected' passed (0.0 seconds)
+Test Case 'RemoteTests.testRevocation' started at 2026-09-28 03:06:53.738
+Test Case 'RemoteTests.testRevocation' passed (0.0 seconds)
+Test Case 'RemoteTests.testStopAllowedWithoutConsent' started at 2026-09-28 03:06:53.738
+Test Case 'RemoteTests.testStopAllowedWithoutConsent' passed (0.0 seconds)
+Test Case 'RemoteTests.testUnknownAction' started at 2026-09-28 03:06:53.738
+Test Case 'RemoteTests.testUnknownAction' passed (0.0 seconds)
+Test Suite 'RemoteTests' passed at 2026-09-28 03:06:53.738
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ValidationTests' started at 2026-09-28 03:06:53.738
+Test Case 'ValidationTests.testCurveMissingEndpoints' started at 2026-09-28 03:06:53.738
+Test Case 'ValidationTests.testCurveMissingEndpoints' passed (0.0 seconds)
+Test Case 'ValidationTests.testCurveTooManyNodes' started at 2026-09-28 03:06:53.738
+Test Case 'ValidationTests.testCurveTooManyNodes' passed (0.0 seconds)
+Test Case 'ValidationTests.testCurveValidation' started at 2026-09-28 03:06:53.738
+Test Case 'ValidationTests.testCurveValidation' passed (0.0 seconds)
+Test Case 'ValidationTests.testCycleOverThirtySeconds' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testCycleOverThirtySeconds' passed (0.0 seconds)
+Test Case 'ValidationTests.testDuplicateFavorites' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testDuplicateFavorites' passed (0.0 seconds)
+Test Case 'ValidationTests.testDuplicateRoutineIDs' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testDuplicateRoutineIDs' passed (0.0 seconds)
+Test Case 'ValidationTests.testDuplicateSegmentIDs' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testDuplicateSegmentIDs' passed (0.0 seconds)
+Test Case 'ValidationTests.testEmptyName' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testEmptyName' passed (0.0 seconds)
+Test Case 'ValidationTests.testEntitlementQuota' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testEntitlementQuota' passed (0.0 seconds)
+Test Case 'ValidationTests.testInvalidDurations' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testInvalidDurations' passed (0.0 seconds)
+Test Case 'ValidationTests.testLongName' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testLongName' passed (0.0 seconds)
+Test Case 'ValidationTests.testMissingRoutineReference' started at 2026-09-28 03:06:53.739
+Test Case 'ValidationTests.testMissingRoutineReference' passed (0.0 seconds)
+Test Case 'ValidationTests.testMusicBounds' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testMusicBounds' passed (0.0 seconds)
+Test Case 'ValidationTests.testNonFiniteGain' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testNonFiniteGain' passed (0.0 seconds)
+Test Case 'ValidationTests.testNormalPattern' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testNormalPattern' passed (0.0 seconds)
+Test Case 'ValidationTests.testPaidDerivativeRetainsGate' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testPaidDerivativeRetainsGate' passed (0.0 seconds)
+Test Case 'ValidationTests.testRecordedLongHold' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testRecordedLongHold' passed (0.0 seconds)
+Test Case 'ValidationTests.testRoutineLimits' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testRoutineLimits' passed (0.0 seconds)
+Test Case 'ValidationTests.testSegmentAndRecordingCaps' started at 2026-09-28 03:06:53.740
+Test Case 'ValidationTests.testSegmentAndRecordingCaps' passed (0.0 seconds)
+Test Case 'ValidationTests.testSilentPattern' started at 2026-09-28 03:06:53.741
+Test Case 'ValidationTests.testSilentPattern' passed (0.0 seconds)
+Test Case 'ValidationTests.testSnapshotCannotOverrideBuiltin' started at 2026-09-28 03:06:53.741
+Test Case 'ValidationTests.testSnapshotCannotOverrideBuiltin' passed (0.0 seconds)
+Test Case 'ValidationTests.testSnapshotReferences' started at 2026-09-28 03:06:53.741
+Test Case 'ValidationTests.testSnapshotReferences' passed (0.0 seconds)
+Test Suite 'ValidationTests' passed at 2026-09-28 03:06:53.741
+	 Executed 22 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'debug.xctest' passed at 2026-09-28 03:06:53.741
+	 Executed 80 tests, with 0 failures (0 unexpected) in 0.136 (0.136) seconds
+Test Suite 'All tests' passed at 2026-09-28 03:06:53.741
+	 Executed 80 tests, with 0 failures (0 unexpected) in 0.136 (0.136) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.2.1 (c9d57c83568b06d)
+↳ Target Platform: x86_64-unknown-linux-gnu
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

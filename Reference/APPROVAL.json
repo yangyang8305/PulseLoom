@@ -1,0 +1,11 @@
+{
+  "approved": "HTML v0.6 / four tabs / user confirmation in conversation",
+  "sha256": "8b77aa6735b092eb217200cc8593627a107f61d23e11426c87cbf33e2c76bf1d",
+  "scope": "The original staged roadmap is archival. All approved v0.6 functional areas are in the implementation scope.",
+  "tabs": [
+    "首页",
+    "音乐",
+    "创作",
+    "我的"
+  ]
+}

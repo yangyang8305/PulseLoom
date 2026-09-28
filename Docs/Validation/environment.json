@@ -1,0 +1,25 @@
+{
+  "created_at": "2026-09-28T12:07:41.869840+09:00",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "swift_files": 33,
+  "swift_lines": 6771,
+  "core_tests_passed": 80,
+  "core_tests_failed": 0,
+  "relay_tests_passed": 15,
+  "relay_tests_failed": 0,
+  "ui_tests_written": 8,
+  "ui_tests_executed": 0,
+  "localization_keys": 395,
+  "languages": [
+    "en",
+    "zh-Hans",
+    "ja"
+  ],
+  "native_sdk_build": "not_run",
+  "signing": "not_run",
+  "physical_device_tests": "not_run",
+  "remote_repository_created": false,
+  "remote_pushed": false,
+  "github_workflows_executed": false,
+  "reference_sha256": "8b77aa6735b092eb217200cc8593627a107f61d23e11426c87cbf33e2c76bf1d"
+}

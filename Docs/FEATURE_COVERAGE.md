@@ -1,0 +1,72 @@
+# 原型 v0.6 → 原生实现覆盖表
+
+本表登记**源码位置与实现方式**，不表示47个流程已经在iOS运行通过。界面合并同一任务的状态，以保持用户已批准的四页简明结构；不强行把HTML47个演示route做成47个原生顶层页面。
+
+全部Apple框架链路均待Mac构建与真机验收；纯Swift逻辑与Python relay的实际测试见QA_REPORT。原型用于演示的假交易/假云端/假手表被真实适配器替代，生产UI没有默认“模拟Pro”。
+
+| ID | 参考页面/功能 | 原生位置 | 已写入内容与范围差异 |
+|---|---|---|---|
+| S01 | 开屏 | `PulseLoomApp.swift / WelcomeView；Config/App-Info.plist` | 品牌启动与首次进入；系统LaunchScreen为静态，交互引导位于App中 |
+| S02 | 首次使用 | `PulseLoomApp.swift / WelcomeView` | 两页说明与真实触感测试入口，可跳过 |
+| S03 | 偏好选择 | `MyView.swift / SettingsView；ThemeView` | 偏好并入“我的/设置”与换肤；不强制填写目标画像 |
+| S04 | 触感测试 | `SupportViews.swift / TroubleshootingView` | 真实能力检测、三档测试、用户确认；模拟器不伪造触感 |
+| S05 | 首页 | `HomeView.swift；PlaybackCoordinator.swift` | 6常用预设/全部、强度、计时、开始暂停停止 |
+| S06 | 专注播放器 | `PulseLoomApp.swift / FocusView` | 专注控制与防误触；停止不锁定 |
+| S07 | 节奏库 | `HomeView.swift / PresetPickerView` | 搜索、基础/轻柔/节奏/渐变/自创分类、免费/收藏筛选 |
+| S08 | 节奏详情 | `HomeView.swift / PatternDetailView` | 预览、使用、收藏、复制编辑、导出 |
+| S09 | 音乐同步入口 | `MusicView.swift` | 独立第二Tab；选文件/示例，默认跟随参数，无强制分析配置 |
+| S10 | 音乐来源 | `MusicView.swift / fileImporter；SystemMusicView` | 实际音频文件选择；系统音乐独立权限路径 |
+| S11 | 音乐授权与可用性 | `SystemMusicService.swift；SystemMusicView` | 真实MusicKit授权、订阅、系统触觉可用性；不提取DRM音频 |
+| S12 | 音频分析 | `MusicService.swift；PulseLoomCore/AudioAnalysis.swift` | PCM分块RMS/瞬态/粗BPM；取消和失败状态在音乐页内显示 |
+| S13 | 音乐同步播放器 | `MusicView.swift；MusicService.swift` | 真实音频时钟、触觉映射、区间/偏移、质感、预设混合 |
+| S14 | 音乐配置收藏 | `MusicView.swift / MusicMixesView` | 配置保存/加载/删除；音频另选，切新文件当前将区间重置全曲 |
+| S15 | 创作入口 | `CreateView.swift` | 第三Tab；敲击优先、四种编辑方式均有入口 |
+| S16 | 完整分段编辑器 | `CreateView.swift / SegmentEditorView；EditorModel.swift` | 分段添加/复制/删除/重排、时间轴缩放、数值、撤销/重做、渐入渐出 |
+| S17 | 曲线节点编辑 | `CreateView.swift / CurveEditorView；EditorModel.swift` | 节点拖动/点击添加/删除、数值精调、三模板、预览与保存 |
+| S18 | 敲击录制 | `CreateView.swift；EditorModel.swift；SessionState.swift` | 触摸按下/抬起/取消、最长30秒、单次10秒、128片段上限 |
+| S19 | XY实时调制 | `CreateView.swift；EditorModel.swift` | 触点质感与强度、手势记录、生成事件、数值控制 |
+| S20 | 组合会话 | `ExtendedViews.swift / RoutinesView` | 模板/自建/删除/播放，多段组合 |
+| S21 | 组合编排 | `ExtendedViews.swift / RoutineEditorView` | 最多12段、每段时长/强度、顺序、过渡/声景 |
+| S22 | 组合播放 | `PlaybackCoordinator.swift；ExtendedViews.swift` | 当前段/暂停/下一段/停止；结束记录与实际会话状态，回顾并入历史 |
+| S23 | 声景混音 | `SoundscapeService.swift；SoundscapeView` | 三种原创PCM声景及独立混音；实际发声 |
+| S24 | 呼吸引导配置 | `ExtendedViews.swift / BreathView` | 预设/自定义吸停呼参数、会话时长 |
+| S25 | 呼吸会话 | `ExtendedViews.swift / BreathView；PlaybackCoordinator.swift` | 实时相位、触觉与计时；配置与进行态在同页 |
+| S26 | 主题中心 | `MyView.swift / ThemeView；DesignSystem.swift` | 6皮肤×明暗，跟随系统；附加主题应用时核验Pro |
+| S27 | 主题预览 | `MyView.swift / ThemeView 内预览区域` | 独立临时预览、取消保留旧主题、确认应用 |
+| S28 | 应用图标 | `SupportViews.swift / IconsView；Assets.xcassets` | 三组打包备用图标，真实系统alternateIcon API |
+| S29 | 我的 | `MyView.swift` | 第四Tab；作品收藏历史主题设置与扩展入口 |
+| S30 | 已保存节奏 | `MyView.swift / SavedPatternsView；LibraryStore.swift` | 改名/复制/编辑/删除/导入导出/配额；不伪造保存成功 |
+| S31 | 收藏 | `MyView.swift / FavoritesView` | 收藏去重、移除、List重排、引用清理 |
+| S32 | 使用历史 | `MyView.swift / HistoryView；LibraryStore.swift` | 默认关闭；100条/30日；清空；备份排除 |
+| S33 | Pro权益与购买 | `SupportViews.swift / PremiumView；PurchaseService.swift` | 真实本地化商品/买断/验签/恢复；不以原型Pro状态作为授权 |
+| S34 | 交易结果 | `PurchaseService.swift；PremiumView` | 成功取消pending失败恢复通过实际StoreKit结果呈现，不保留假交易按钮 |
+| S35 | 设置 | `MyView.swift / SettingsView` | 外观、减少动画、保持屏幕、历史、隐私等；大字号遵循系统Dynamic Type |
+| S36 | 隐私与数据 | `MyView.swift / PrivacyView；LibraryStore.swift` | 实际本地与网络行为、备份预览、清理、反馈/诊断主动导出 |
+| S37 | 故障排查 | `SupportViews.swift / TroubleshootingView` | 真实支持状态/错误与恢复；生产端不放故障注入 |
+| S38 | 帮助与边界 | `SupportViews.swift / HelpView` | 操作说明、前台限制、音乐与隐私界限 |
+| S39 | 云同步与冲突 | `CloudSyncService.swift；ExtendedViews.swift / CloudView` | 实际private CloudKit手动同步，三类冲突，乐观写入与墓碑 |
+| S40 | 远程连接 | `RemoteService.swift；Server/app.py；RemoteView` | 实际HTTPS/WSS，私密邀请与receiver确认；未部署公网 |
+| S41 | 远程会话 | `RemoteService.swift；RemoteView` | 接收者许可、强度钳制、fresh nonce、sequence、断线/紧急停止 |
+| S42 | Watch遥控 | `WatchBridge.swift；WatchApp/PulseLoomWatchApp.swift` | 真实WCSession、许可、前台判断；实际手表配对需系统完成 |
+| S43 | 桌面组件与快捷操作 | `Widgets/PulseLoomWidget.swift；Shortcuts.swift` | 主屏/锁屏Widget、隐私标题、选定预设快捷指令；只导航 |
+| S44 | 全功能审查地图 | `Docs/FEATURE_COVERAGE.md；Reference/v0.6/；UITests/` | 审查地图保留在参考模型与测试交接，不在正式App开放模拟解锁/故障注入 |
+| S45 | 审查意见 | `SupportViews.swift / FeedbackView` | 本地意见/删除/导出/已配置支持页面；不自动上传 |
+| S46 | 手动震动控制 | `ExtendedViews.swift / ManualView；PlaybackCoordinator.swift` | 按住输出/松开停、连续模式、强度；失活/离页停止 |
+| S47 | 全部震动方式 | `MyView.swift 扩展入口` | 不再作为顶层聚合导航；按批准v0.6分散到四Tab/我的扩展，所有功能区保留 |
+
+## 参数与资源
+
+16个预设由批准原型目录转成原生Codable资源；6主题保留12个浅色与12个暗色token。395条界面文案有英文、简中、日文。翻译是开发稿，尚未做人工本地化验收。
+
+## 未经验证/存在边界的功能
+
+- SwiftUI / CoreHaptics / StoreKit / CloudKit / MusicKit / WatchConnectivity / WidgetKit 都仅写入源码，尚未完成Apple SDK类型检查、链接及真机联调，存在需在Xcode修正的风险。
+- 云同步是用户显式执行，没有后台推送自动同步。
+- Local音频与Apple系统MusicHaptics是不同技术路径；受保护歌曲没有任意自定义PCM分析入口。
+- 音乐配置换新文件时重置区间到全曲，其余映射参数保留；精确曲目身份和区间重关联需再验收。
+- 呼吸/组合结束回顾通过会话状态与使用历史呈现，没有独立游戏化成就页面。
+- HTML手表“配对”只是流程；原生配对必须由iOS/watchOS系统完成，App只检查并发送真实WCSession消息。
+- 真实桌面/锁屏widget安装需要系统，App内部说明不会模拟成已经安装成功。
+- GitHub远程建仓和提交未完成，Actions也尚未运行。
+
+本交付不声称“全量全功能已经验收完毕”，也不使用空success函数代替后端、交易和设备返回值。

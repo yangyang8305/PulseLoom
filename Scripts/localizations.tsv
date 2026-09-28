@@ -1,0 +1,396 @@
+app.name|Pulse Loom|触律|Pulse Loom
+tab.home|Home|首页|ホーム
+tab.music|Music|音乐|音楽
+tab.create|Create|创作|作成
+tab.my|My|我的|マイページ
+common.all|All|全部|すべて
+common.cancel|Cancel|取消|キャンセル
+common.close|Close|关闭|閉じる
+common.continue|Continue|继续|続ける
+common.copy|Copy|副本|コピー
+common.delete|Delete|删除|削除
+common.dismiss|Dismiss|收起提示|閉じる
+common.done|Done|完成|完了
+common.duplicate|Duplicate|复制|複製
+common.edit|Edit|编辑|編集
+common.error|Unable to complete|操作未完成|操作を完了できませんでした
+common.export|Export|导出|書き出し
+common.free|Free|免费|無料
+common.name|Name|名称|名前
+common.new|Start new|新建|新しく作成
+common.openSettings|Open app settings|打开本 App 设置|アプリの設定を開く
+common.redo|Redo|重做|やり直す
+common.rename|Rename|重命名|名前を変更
+common.save|Save|保存|保存
+common.undo|Undo|撤销|元に戻す
+common.stop|Stop|停止|停止
+common.apply|Apply|应用|適用
+common.reset|Reset|恢复默认|初期値に戻す
+common.import|Import patterns|导入震动模式|パターンを読み込む
+common.retry|Try again|重试|再試行
+common.search|Search|搜索|検索
+common.yes|Yes|是|はい
+common.no|No|否|いいえ
+home.title|Vibration|震动|振動
+home.subtitle|Choose a feeling. Let it unfold.|选一种喜欢的，轻重随你。|好きなリズムを、自分の強さで。
+home.presets|Vibration presets|震动预设|振動パターン
+home.allPresets|All presets|全部预设|すべてのパターン
+home.intensity|Vibration intensity|震动强度|振動の強さ
+home.timerFormat|Stop after %d min|%d 分钟后停止|%d分後に停止
+home.adjust|Adjust feel|调整触感|感触を調整
+home.interrupted|Interrupted. Tap resume when you are ready.|已中断，准备好后点击继续。|中断しました。準備ができたら再開してください。
+home.start|Start vibration|开始震动|振動を開始
+home.pause|Pause vibration|暂停震动|振動を一時停止
+home.resume|Resume vibration|继续震动|振動を再開
+home.remaining|Remaining|剩余|残り
+home.speed|Rhythm speed|节奏速度|リズムの速さ
+home.texture|Texture: soft to crisp|质感：柔和至清晰|感触：柔らかい〜鮮明
+home.parametersHelp|Intensity is relative to the device. Speed changes the rhythm, not a physical motor frequency.|强度是设备内的相对值。速度改变节奏，不代表马达物理频率。|強さは端末内の相対値です。速さはリズムを変え、モーターの物理周波数を指定するものではありません。
+home.guard|Prevent accidental adjustment|防误触|誤操作を防ぐ
+home.focus|Focus controls|专注控制|集中コントロール
+pattern.custom|Your own vibration pattern|你的自定义震动模式|自作の振動パターン
+pattern.cycleFormat|%.1f seconds per cycle|每轮 %.1f 秒|1周期 %.1f秒
+pattern.details|Pattern details|震动模式详情|パターンの詳細
+pattern.filter|Filter patterns|筛选震动模式|パターンを絞り込む
+pattern.search|Search patterns|搜索震动模式|パターンを検索
+pattern.wave|Designed haptic rhythm, not a hardware measurement|设计的触觉节奏，非硬件测量|設計上のリズム。実測値ではありません
+pattern.preview|Preview feel|预览触感|感触を試す
+pattern.use|Use this pattern|使用此震动模式|このパターンを使う
+pattern.copyEdit|Create an editable copy|复制后编辑|コピーして編集
+pattern.subtitle.p01|Continuous touch|持续轻触|途切れない感触
+pattern.subtitle.p02|Light, then pause|轻震、停歇|軽く、ひと休み
+pattern.subtitle.p03|Two short touches|两次轻点|短く2回
+pattern.subtitle.p04|A gentle rise and fall|慢慢起伏|ゆっくりとした波
+pattern.subtitle.p05|Builds softly|由轻渐强|徐々に強く
+pattern.subtitle.p06|Room between touches|稀疏轻触|間をあけた軽い感触
+pattern.subtitle.p07|Two flowing waves|双重连浪|続く2つの波
+pattern.subtitle.p08|Fading ripples|逐渐衰减|小さくなる波紋
+pattern.subtitle.p09|Three clear levels|三级强弱|3段階の強さ
+pattern.subtitle.p10|Three light taps|三次轻点|軽く3回
+pattern.subtitle.p11|Strong and soft|强弱交替|強弱を交互に
+pattern.subtitle.p12|A longer pause|长一些的留白|長めの余白
+pattern.subtitle.p13|Slowly softens|慢慢减弱|徐々に弱く
+pattern.subtitle.p14|An unhurried wave|更慢的波浪|ゆったりした波
+pattern.subtitle.p15|A varied sequence|变化的节奏|変化するリズム
+pattern.subtitle.p16|A sequence of touches|复合触碰节奏|触れるリズムの連なり
+timer.title|Stop timer|停止定时|停止タイマー
+timer.custom|Custom length|自定义时长|時間を指定
+timer.limit|A session has at most 10 minutes of active output. Pauses do not consume the timer.|一次会话累计输出最多 10 分钟；暂停时不扣除剩余时长。|1回の出力は合計10分までです。一時停止中は時間を消費しません。
+time.minutes|%d min|%d 分钟|%d分
+time.seconds|%d seconds|%d 秒|%d秒
+unit.seconds|s|秒|秒
+unit.ms|ms|毫秒|ミリ秒
+create.title|Create|创作|作成
+create.subtitle|A rhythm made by your touch.|用触碰，留下自己的节奏。|自分のタッチでリズムを作る。
+create.tool|Creation method|创作方式|作成方法
+create.tool.tap|Tap|敲击|タップ
+create.tool.basic|Arrange|编排|並べる
+create.tool.curve|Draw|绘制|描く
+create.tool.xy|Gesture|手势|ジェスチャー
+editor.add|Add segment|添加片段|区間を追加
+editor.cycle|Cycle: %.1f seconds|完整周期：%.1f 秒|周期：%.1f秒
+editor.fadeIn|Fade in: %d ms|淡入：%d 毫秒|フェードイン：%dミリ秒
+editor.fadeOut|Fade out: %d ms|淡出：%d 毫秒|フェードアウト：%dミリ秒
+editor.loop|Repeat until timer ends|循环至计时结束|タイマー終了まで繰り返す
+editor.moveAfter|Move segment later|片段后移|区間を後へ
+editor.moveBefore|Move segment earlier|片段前移|区間を前へ
+editor.name|Name this pattern|给模式起个名字|パターンの名前
+editor.node|Node %d|节点 %d|ポイント %d
+editor.nodeValues|Fine adjustments|数值精调|数値で調整
+editor.options|More options|更多选项|その他の設定
+editor.replaceDraft|Start a new pattern?|新建震动模式？|新しいパターンを作りますか？
+editor.replaceHelp|The current unsaved draft will be replaced. Saved patterns remain unchanged.|当前未保存草稿会被替换，已保存的作品保留。|未保存の下書きは置き換わります。保存済みの作品は変更されません。
+editor.segment|Segment %d|片段 %d|区間 %d
+editor.segmentCount|%d segments · %.1f s|%d 段 · %.1f 秒|%d区間 · %.1f秒
+editor.segmentLimit|Segment limit reached. Remove a segment before adding another.|已达到片段上限，请先删除片段。|区間数の上限です。削除してから追加してください。
+editor.time|Time|时间|時間
+editor.untitled|Untitled pattern|未命名模式|無題のパターン
+editor.save|Save pattern|保存模式|パターンを保存
+editor.saved|Saved · save changes|已保存 · 更新保存|保存済み・変更を保存
+editor.duration|Output length|震动时长|振動の長さ
+editor.gap|Pause length|间隔时长|間隔の長さ
+editor.addNode|Add curve point|添加曲线节点|ポイントを追加
+editor.localHelp|Drafts are kept on this device. Preview before saving. No microphone is used.|草稿保存在本机，可先预览再保存。敲击录制不使用麦克风。|下書きは端末に保存されます。保存前に感触を試せます。マイクは使いません。
+record.accessibleTap|Record one short touch|录入一次短触碰|短いタッチを1回記録
+record.count|%d touches|%d 次触碰|%d回のタッチ
+record.pad|Rhythm recording touch area|节奏录制触控区域|リズム記録のタッチ領域
+record.startHint|Start recording, then touch here.|开始录制后，在这里轻触。|記録を開始して、ここに触れてください。
+record.begin|Start recording|开始录制|記録を開始
+record.end|Finish recording|结束录制|記録を終了
+my.title|My|我的|マイページ
+my.space|My little space|我的小小空间|自分だけの空間
+my.subtitle|Return to what feels right.|随时回到喜欢的感觉。|好きな感触をいつでも。
+my.patterns|My patterns|我的作品|自作パターン
+my.favorites|Favorites|收藏|お気に入り
+my.history|History|使用记录|使用履歴
+my.more|More experiences|更多体验|その他の体験
+my.saveQuota|%d / %d saved patterns|%d / %d 个保存位|%d / %d 件保存
+my.deleteConfirm|Delete this pattern and its references?|删除模式及其相关引用？|パターンと参照を削除しますか？
+my.exportPatterns|Export all my patterns|导出全部作品|自作パターンをすべて書き出す
+history.enabled|Record usage history|记录使用历史|使用履歴を残す
+history.help|Off by default. Up to 100 entries, kept for 30 days. History is excluded from cloud sync.|默认关闭。最多 100 条，保留 30 天，不参与云同步。|初期設定はオフです。最大100件・30日間保存し、クラウドには同期しません。
+history.clear|Clear history|清空历史|履歴を消去
+music.title|Music|音乐|音楽
+music.subtitle|Let your music shape the vibration.|让震动，跟随你的音乐。|音楽に合わせて振動を。
+music.analyzing|Finding the rhythm…|正在分析节奏…|リズムを解析中…
+music.bringSong|Bring a song you love.|选一首喜欢的音乐。|好きな曲を選んでください。
+music.select|Choose music|选择音乐|音楽を選ぶ
+music.change|Change|换一首|曲を変更
+music.demo|Try the included sample|使用内置示例|サンプルを試す
+music.feel|Follow feel|跟随触感|追従する感触
+music.feel.soft|Soft|柔和|柔らかい
+music.feel.balanced|Balanced|均衡|バランス
+music.feel.vivid|Vivid|鲜明|鮮明
+music.start|Start following|开始跟随|追従を開始
+music.pause|Pause following|暂停跟随|追従を一時停止
+music.from|Start at (seconds)|起点（秒）|開始位置（秒）
+music.to|End at (seconds)|终点（秒）|終了位置（秒）
+music.localHelp|Audio is decoded on this device and is not uploaded. Supported files: up to 30 MB and 10 minutes.|音乐在本机解码，不上传。文件上限 30MB、时长上限 10 分钟。|音声は端末で解析し、アップロードしません。最大30MB・10分です。
+music.mapping|Follow mode|跟随方式|追従方法
+music.mapping.energy|Energy|能量起伏|音量の変化
+music.mapping.beats|Accents|重拍|アクセント
+music.mapping.blend|Mix preset|预设叠加|パターンを重ねる
+music.mixes|Saved music settings|音乐配置|保存した音楽設定
+music.more|More adjustments|更多调整|さらに調整
+music.overlay|Overlay pattern|叠加预设|重ねるパターン
+music.mix|Pattern mix|预设混合比例|パターンの割合
+music.offset|Sync offset|同步偏移|同期のずれ
+music.volume|Music volume|音乐音量|音楽の音量
+music.sensitivity|Response|跟随灵敏度|反応の強さ
+music.applyRange|Apply playback range|应用播放区间|再生範囲を適用
+music.previewEnded|The free 60-second preview has ended. Pro unlocks complete tracks.|免费 60 秒体验已结束。Pro 可跟随完整曲目。|無料の60秒プレビューが終了しました。Proでは曲全体を利用できます。
+music.progress|Music position|音乐进度|音楽の再生位置
+music.saveMix|Save these settings|保存这组配置|この設定を保存
+music.mixHelp|Only settings and filenames are saved. Select the original audio again after reopening.|仅保存参数与文件名，重新打开后需再次选择原文件。|設定とファイル名のみ保存します。再起動後は元の音声を選び直してください。
+music.analysisHelp|The app maps volume changes and short accents to touch. Estimated tempo may differ from musical beats.|根据音量变化和瞬态生成触感。估算速度可能与乐理节拍不同。|音量の変化と短いアクセントを感触に変換します。推定テンポは楽譜の拍と異なる場合があります。
+music.appleMusic|Apple Music|Apple Music|Apple Music
+music.authorize|Allow Apple Music access|授权访问 Apple Music|Apple Musicへのアクセスを許可
+music.denied|Music access was not authorized. You can still choose a local file.|未获得音乐访问授权，仍可选择本地文件。|音楽へのアクセスが許可されていません。ローカルファイルは利用できます。
+music.search|Search Apple Music|搜索 Apple Music|Apple Musicを検索
+music.subscription|An active Apple Music catalog subscription is required.|需要可播放曲库内容的 Apple Music 订阅。|カタログを再生できるApple Musicサブスクリプションが必要です。
+music.systemUnavailable|System Music Haptics is off or this song has no available haptic track.|系统音乐触感未开启，或歌曲没有可用触觉轨。|システムのミュージックの触覚がオフ、または対応する触覚トラックがありません。
+music.systemHelp|Apple Music uses Apple's Music Haptics for supported tracks. Enable it in Settings → Accessibility → Music Haptics. Protected audio is never extracted for custom analysis.|Apple Music 使用系统音乐触感处理支持的曲目。在“设置 → 辅助功能 → 音乐触感”开启。不会提取受保护音频进行自定义分析。|Apple Musicは対応曲のシステム触覚を利用します。「設定 → アクセシビリティ → ミュージックの触覚」をオンにしてください。保護された音声の抽出は行いません。
+music.systemOn|System Music Haptics is on.|系统音乐触感已开启。|システムのミュージックの触覚はオンです。
+music.systemOff|System Music Haptics is off.|系统音乐触感未开启。|システムのミュージックの触覚はオフです。
+music.trackAvailable|A haptic track is available.|有可用触觉轨。|対応する触覚トラックがあります。
+music.trackMissing|No haptic track is available for this song.|此曲目没有可用触觉轨。|この曲には対応する触覚トラックがありません。
+music.systemStart|Play with system haptics|播放并使用系统触感|システム触覚と再生
+empty.search|No matching patterns.|未找到匹配模式。|一致するパターンがありません。
+empty.searchHelp|Try another name or filter.|更换名称或筛选条件。|別の名前や条件で検索してください。
+empty.patterns|Your first pattern starts here.|从你的第一个作品开始。|最初のパターンを作りましょう。
+empty.patternsHelp|Tap Create to record or draw a rhythm.|进入“创作”，录制或绘制节奏。|「作成」でリズムを記録・描画できます。
+empty.mixes|No saved music settings yet.|还没有音乐配置。|音楽設定はまだありません。
+theme.title|Themes & appearance|主题与外观|テーマと外観
+theme.appearance|Appearance|外观|外観
+theme.auto|System|跟随系统|システム
+theme.light|Light|浅色|ライト
+theme.dark|Dark|深色|ダーク
+theme.preview|Theme preview|主题预览|テーマのプレビュー
+theme.previewHelp|Preview first. Your current theme stays unchanged until you apply.|先预览，点击应用后才更换当前主题。|適用するまでは現在のテーマは変わりません。
+theme.apply|Apply theme|应用主题|テーマを適用
+settings.title|Settings|设置|設定
+settings.personal|Personal|个人偏好|個人設定
+settings.name|Name (optional)|称呼（选填）|名前（任意）
+settings.experience|Experience|体验|体験
+settings.awake|Keep screen awake during output|输出时保持屏幕唤醒|出力中は画面をスリープさせない
+settings.motion|Reduce visual motion|减少动态效果|視覚効果を抑える
+settings.privacyCover|Hide content in app switcher|后台遮盖个人内容|アプリ切替時に内容を隠す
+settings.data|Data & connections|数据与连接|データと接続
+settings.help|Help|支持与帮助|サポート
+onboard.again|Show welcome again|重新查看开屏与引导|ウェルカム画面を再表示
+privacy.title|Privacy & data|隐私与数据|プライバシーとデータ
+privacy.local|Patterns, drafts, favorites and preferences are saved locally. OS backups may include your pattern library.|作品、草稿、收藏和偏好存于本机，系统备份可能包含作品库。|作品・下書き・お気に入り・設定は端末に保存されます。OSのバックアップに作品庫が含まれる場合があります。
+privacy.audio|Local audio is copied to temporary storage for decoding. Audio files are not uploaded or included in library backups.|本地音频会复制到临时目录用于解码，不上传，也不包含在作品备份中。|音声は解析用の一時領域へコピーします。アップロードや作品のバックアップには含めません。
+privacy.cloud|Cloud sync is optional and uses your private iCloud database. It includes patterns, favorites, themes and routines, not audio, music filenames, history or diagnostics.|云同步需主动开启，使用你的 iCloud 私有数据库。范围为作品、收藏、主题、组合，不含音频、音乐文件名、历史和诊断。|クラウド同期は任意で、プライベートiCloudを利用します。作品・お気に入り・テーマ・組み合わせを同期し、音声・音声名・履歴・診断は含めません。
+privacy.remote|Remote control sends end-to-end encrypted commands through the configured relay. The relay sees connection metadata and IP addresses, not the shared key or command contents.|远控通过配置的中继发送端到端加密指令。中继可见连接元数据与 IP，不接收共享密钥或明文指令。|リモート操作は設定済み中継を通じて暗号化コマンドを送ります。中継には接続情報とIPが見えますが、鍵やコマンド内容は見えません。
+privacy.apple|Apple processes purchases, iCloud and authorized Apple Music access. No advertising or third-party analytics SDK is included.|购买、iCloud 和已授权的 Apple Music 由 Apple 处理。应用不集成广告或第三方分析 SDK。|購入・iCloud・許可済みApple MusicはAppleが処理します。広告や第三者分析SDKは含みません。
+privacy.retention|History is optional and kept up to 30 days or 100 entries. Diagnostic event codes remain in memory until cleared or the app exits. Exported files are controlled by you.|历史可关闭，最多保留 30 天或 100 条。诊断事件码仅存内存，清理或退出后删除。导出文件由你自行保管。|履歴は任意で最大30日または100件です。診断コードはメモリ内だけに保存し、消去または終了時に削除します。書き出したファイルはご自身で管理してください。
+privacy.export|Export library backup|导出作品库备份|作品庫のバックアップを書き出す
+privacy.restore|Restore from backup|从备份恢复|バックアップを復元
+privacy.clear|Delete local creations and records|删除本地作品与记录|端末の作品と記録を削除
+privacy.previous|Restore previous library file|恢复上一份作品库|前の作品庫を復元
+privacy.restoreConfirm|Replace the current local library?|替换当前本地作品库？|現在の作品庫を置き換えますか？
+privacy.replace|Replace library|替换作品库|作品庫を置き換える
+privacy.importCount|Backup contains %d custom patterns. Existing local data will be replaced.|备份包含 %d 个作品，现有本地数据将被替换。|%d件の作品を含みます。既存の端末データは置き換わります。
+privacy.clearConfirm|Delete local content? Purchases are kept.|删除本地内容？已购资格保留。|端末の内容を削除しますか？購入資格は保持します。
+purchase.title|Pro access|Pro 权益|Proアクセス
+purchase.subtitle|More space for your own touch.|给自己的触感，多一些空间。|自分の感触に、もっと自由を。
+purchase.active|Pro is active.|Pro 已生效。|Proは有効です。
+purchase.free|Free access|免费体验|無料プラン
+purchase.once|One-time purchase. No automatic renewal.|一次性购买，无自动续费。|買い切り。自動更新はありません。
+purchase.patterns|All 16 vibration presets|16 个完整震动预设|全16種類の振動パターン
+purchase.music|Full local-song haptic following|本地完整曲目触觉跟随|ローカル曲全体の触覚追従
+purchase.create|Up to 200 custom saved patterns|最多 200 个自定义保存位|自作パターンを最大200件保存
+purchase.themes|Six light and dark themes|六套明暗主题|6種類のライト・ダークテーマ
+purchase.extra|Routines, optional cloud sync and remote sharing|组合、可选云同步与远程共享|組み合わせ・任意のクラウド同期とリモート共有
+purchase.buy|Unlock Pro|解锁 Pro|Proを解除
+purchase.restore|Restore purchases|恢复购买|購入を復元
+purchase.refund|Request a refund from Apple|向 Apple 申请退款|Appleに返金を申請
+purchase.terms|Terms of use|使用条款|利用規約
+purchase.unavailable|The store product is unavailable. Retry after checking your store account and the product configuration.|暂时无法取得商店商品，请核对商店账号和商品配置后重试。|ストア商品を取得できません。アカウントと商品設定を確認して再試行してください。
+purchase.view|View Pro access|查看 Pro 权益|Proの内容を見る
+purchase.processing|Waiting for the store…|等待商店处理…|ストアの処理を待っています…
+purchase.success|Purchase verified. Pro is unlocked.|购买验证通过，Pro 已解锁。|購入を検証しました。Proが有効です。
+purchase.cancelled|Purchase cancelled. Your draft is kept.|购买已取消，草稿保留。|購入をキャンセルしました。下書きは保持します。
+purchase.pending|Waiting for purchase approval. No new access has been granted yet.|等待购买批准，尚未授予新权益。|購入の承認待ちです。権限はまだ追加されていません。
+purchase.restored|Verified purchases restored.|已恢复验证通过的购买。|検証済みの購入を復元しました。
+purchase.none|No active purchase was found.|未找到有效购买。|有効な購入が見つかりませんでした。
+manual.title|Manual touch|手动触感|手動の感触
+manual.help|Hold to feel; release to stop. Continuous mode uses the session timer. A single hold is limited to 10 seconds.|按住感受，松手停止。连续模式使用会话计时，单次按住最多 10 秒。|押している間だけ動作します。連続モードはタイマーを使い、1回の長押しは10秒までです。
+manual.release|Release to stop|松手停止|離すと停止
+manual.hold|Hold to feel|按住感受|押して感触を試す
+manual.continuous|Continuous control|连续控制|連続操作
+manual.shortTest|Try a half-second touch|体验半秒触感|0.5秒の感触を試す
+sound.title|Soundscapes|声景|サウンドスケープ
+sound.help|Three original synthesized sounds. Start at low volume. Audio stops when the app leaves the foreground.|三种原创合成音色，从较低音量开始。离开前台时停止。|オリジナルの合成音3種類です。小さな音量で始めてください。バックグラウンドでは停止します。
+sound.rain|Rain|细雨|雨
+sound.air|Air|轻风|風
+sound.hum|Hum|低音|低い音
+sound.pause|Pause sounds|暂停声景|音を一時停止
+sound.start|Play sounds|播放声景|音を再生
+sound.withHaptics|Add the current vibration|搭配当前震动|現在の振動を合わせる
+breath.title|Breathing & touch|呼吸与轻触|呼吸とタッチ
+breath.custom|Adjust timing|调整节奏|タイミングを調整
+breath.even|Even 4 / 4|均匀 4 / 4|均等 4 / 4
+breath.slow|Gentle 4 / 6|舒缓 4 / 6|ゆったり 4 / 6
+breath.style|Breathing rhythm|呼吸节奏|呼吸のリズム
+breath.inhale|Breathe in|吸气|吸う
+breath.hold|Rest|停留|休む
+breath.exhale|Breathe out|呼气|吐く
+breath.start|Start guidance|开始引导|ガイドを開始
+breath.help|Follow your own comfortable pace. Stop if uncomfortable. This is a timing guide, not medical care.|按自己舒适的节奏进行，不适时停止。这是节奏提示，不是医疗服务。|無理のないペースで行い、不快に感じたら停止してください。時間のガイドであり医療行為ではありません。
+routine.title|Routines|组合会话|組み合わせ
+routine.edit|Arrange a routine|组合编排|組み合わせを編集
+routine.fade|Transition fade: %.1f s|段间淡化：%.1f 秒|切替フェード：%.1f秒
+routine.options|Routine options|组合选项|組み合わせの設定
+routine.sound|Include soundscape|搭配声景|音を合わせる
+routine.template|A gentle three minutes|轻柔三分钟|ゆったり3分間
+routine.total|Total|总时长|合計
+routine.untitled|My routine|我的组合|マイ組み合わせ
+routine.new|Create a routine|新建组合|組み合わせを作る
+routine.add|Add a step|添加一段|ステップを追加
+routine.next|Next step|下一段|次のステップ
+sync.title|iCloud sync|iCloud 同步|iCloud同期
+sync.account|Sign in to iCloud on this device before enabling sync.|请先在设备上登录 iCloud，再开启同步。|端末でiCloudにサインインしてから同期を有効にしてください。
+sync.status|Sync status|同步状态|同期状態
+sync.help|Sync patterns, favorites, themes and routines with your private iCloud database. Audio, history and feedback are not included.|使用 iCloud 私有数据库同步作品、收藏、主题和组合，不同步音频、历史与反馈。|プライベートiCloudに作品・お気に入り・テーマ・組み合わせを同期します。音声・履歴・フィードバックは含みません。
+sync.enable|Enable private iCloud sync|开启私有 iCloud 同步|プライベートiCloud同期を有効にする
+sync.now|Sync now|现在同步|今すぐ同期
+sync.disable|Turn off sync|关闭同步|同期をオフにする
+sync.delete|Delete the cloud copy|删除云端副本|クラウドのコピーを削除
+sync.conflictHelp|Both copies changed. Choose which to keep, or preserve both edits. Review a backup before replacing.|两份资料都发生了变化，可选择一份或保留两份。替换前核对备份。|両方のコピーが変更されています。片方を選ぶか両方を保存できます。置き換える前にバックアップをご確認ください。
+sync.choice.both|Keep both edits|保留两份修改|両方の変更を残す
+sync.choice.local|Keep this device|保留本机版本|この端末を優先
+sync.choice.remote|Use the cloud copy|采用云端版本|クラウド版を使う
+sync.state.off|Off|未开启|オフ
+sync.state.ready|Ready|可同步|準備完了
+sync.state.syncing|Syncing|同步中|同期中
+sync.state.conflict|Needs review|存在冲突|確認が必要
+sync.state.failed|Failed|同步失败|失敗
+remote.title|Remote sharing|远程共享|リモート共有
+remote.allow|Allow the other person to control|允许对方控制|相手からの操作を許可
+remote.connecting|Connecting…|正在连接…|接続中…
+remote.notConfigured|A relay server has not been configured for this build. Remote controls stay unavailable until deployment is configured.|此构建尚未配置中继服务器，配置实际部署后才能使用远控。|このビルドには中継サーバーが設定されていません。実際のサーバー設定後に利用できます。
+remote.pasteInvite|Paste an invitation link|粘贴邀请链接|招待リンクを貼り付け
+remote.peer|Other device|对方设备|相手の端末
+remote.reconnect|Reconnect and authorize again|重新连接并授权|再接続して再度許可
+remote.share|Share the invitation|分享邀请|招待を共有
+remote.timeout|The other device stopped responding. Permission was revoked and output stopped.|对方设备失去响应，已撤销许可并停止输出。|相手の応答がなくなりました。許可を取り消し出力を停止しました。
+remote.help|Only share invitations with someone you trust. The receiver must allow control and can stop at any time.|仅向信任的人分享邀请。接收者须主动许可，随时可以停止。|信頼できる相手にのみ招待を共有してください。受信者の許可が必要で、いつでも停止できます。
+remote.invite|Create an invitation|创建邀请|招待を作成
+remote.join|Accept invitation|接受邀请|招待を受ける
+remote.online|Connected|已连接|接続済み
+remote.waiting|Waiting|等待对方|待機中
+remote.limit|Receiver intensity limit|接收强度上限|受信する強さの上限
+remote.start|Request vibration|请求开始震动|振動をリクエスト
+remote.emergency|Stop and revoke permission|停止并撤销许可|停止して許可を取り消す
+remote.disconnect|Disconnect|断开连接|切断
+remote.safety|No automatic start after connecting. Leaving the foreground revokes permission. Reconnecting requires fresh consent.|连接后不会自动开始。离开前台即撤销许可，重新连接需要再次确认。|接続だけでは開始しません。バックグラウンドになると許可を取り消し、再接続には再確認が必要です。
+watch.title|Apple Watch|Apple Watch|Apple Watch
+watch.allow|Allow this Watch to control in foreground|允许手表在手机前台时控制|iPhoneが前面の間にWatchの操作を許可
+watch.install|Watch app installed|手表 App 已安装|Watchアプリのインストール
+watch.permission|Enable Watch control on the iPhone while PulseLoom is in the foreground.|请在手机前台运行触律并开启手表控制。|iPhoneでPulseLoomを前面に開き、Watchの操作を許可してください。
+watch.reachable|Watch is reachable|手表可连接|Watchに接続可能
+watch.help|Install the companion Watch app from the iPhone Watch app. A paired Watch can request controls only while this app is active and permission is on.|通过手机 Watch 应用安装配套手表 App。已配对手表只能在本 App 处于前台且获得许可时发起控制。|iPhoneのWatchアプリからインストールしてください。ペアリング済みでも、本アプリが前面で操作許可がオンの間だけ操作できます。
+watch.openPhone|Open PulseLoom on your iPhone.|在 iPhone 上打开触律。|iPhoneでPulseLoomを開いてください。
+watch.authorize|Enable Watch control on your iPhone.|在 iPhone 上允许手表控制。|iPhoneでWatchの操作を許可してください。
+widget.title|Quick access widgets|快捷组件|クイックアクセス
+widget.opensApp|Open app to confirm vibration|进入 App 后确认开始震动|アプリを開いて振動を確認
+widget.pattern|Shortcut pattern|快捷震动模式|ショートカットのパターン
+widget.private|Hide pattern name|隐藏模式名称|パターン名を隠す
+widget.privateTitle|My vibration|我的震动|マイ振動
+widget.addHelp|Long-press the Home Screen, add a widget and choose PulseLoom. Home and Lock Screen shortcuts open the app; they do not start hidden background vibration.|长按主屏幕添加组件并选择 PulseLoom。主屏与锁屏入口只打开 App，不启动隐藏的后台震动。|ホーム画面を長押ししてウィジェットからPulseLoomを選んでください。ショートカットはアプリを開くだけで、隠れたバックグラウンド振動は開始しません。
+icons.title|App icon|应用图标|アプリアイコン
+icons.default|Blush|柔绯|ブラッシュ
+icons.MistIcon|Mist|雾紫|ミスト
+icons.NightIcon|Night|夜纱|ナイト
+icons.system|The system confirms icon changes. This does not change your selected theme.|图标变化由系统确认，不改变已选主题。|アイコンの変更はシステムが確認します。選択中のテーマは変わりません。
+icons.unavailable|Alternate icons are unavailable on this device.|此设备无法更换备用图标。|この端末ではアイコンを変更できません。
+welcome.subtitle|Personal vibration, your own touch.|个人震动，触感由你。|自分だけの振動と感触。
+welcome.detail|Choose a preset, follow your music, or create a rhythm.|选择预设、跟随音乐，或创造自己的节奏。|パターンを選ぶ、音楽に合わせる、自分のリズムを作る。
+welcome.enter|Enter PulseLoom|进入触律|PulseLoomを開く
+welcome.guide|First-time guide|首次使用引导|はじめてのガイド
+welcome.guide1Title|Start with a simple touch.|从一次轻触开始。|ひとつのタッチから。
+welcome.guide1|Home is for regular vibration. Music follows a chosen song. Create saves your own touch. My keeps your library and settings.|首页是普通震动，音乐页跟随选定歌曲，创作页保存自定义触碰，我的页面管理作品和设置。|ホームは通常の振動、音楽は選んだ曲への追従、作成は自作リズム、マイページは作品と設定です。
+welcome.guide2Title|Always within your control.|控制始终在你手中。|操作はいつも自分の手で。
+welcome.guide2|Output requires a compatible iPhone. Start and stop are always explicit. The app pauses when it leaves the foreground; your saved work remains.|需要兼容的 iPhone。开始与停止由你操作，离开前台时暂停，已保存的作品保留。|対応するiPhoneが必要です。開始と停止は自分で操作し、バックグラウンドでは一時停止します。作品は保存されます。
+welcome.test|Test the device|测试设备触感|端末の感触を試す
+help.title|Help|帮助|ヘルプ
+help.troubleshoot|Haptic troubleshooting|触感故障排查|触覚のトラブル解決
+help.supported|This device supports Core Haptics.|设备支持 Core Haptics。|この端末はCore Hapticsに対応しています。
+help.testHelp|Hardware support and feeling a vibration are separate. Try three short levels and confirm what you feel.|硬件支持与实际感知分开判断。试三个级别的短触感，确认是否有感觉。|ハードウェア対応と実際に感じることは別です。3段階の短い感触で確認してください。
+help.test|Test three levels|测试三档触感|3段階で試す
+help.felt|I felt it|感觉到了|感じました
+help.confirmed|Your confirmation is noted for this test. It does not measure hardware strength.|已记录本次测试确认，不代表硬件强度测量。|今回の確認を記録しました。ハードウェアの強度測定ではありません。
+help.settings|If you feel nothing, check Settings → Accessibility → Touch → Vibration. The app cannot read or change this global switch.|没有感觉时，检查“设置 → 辅助功能 → 触控 → 振动”。App 不能读取或修改这个全局开关。|感じない場合は「設定 → アクセシビリティ → タッチ → バイブレーション」を確認してください。アプリはこの設定を読み書きできません。
+help.case|A thick case may affect perceived vibration. Compare carefully without pressing on or covering the device.|厚手机壳可能影响感知，可对比体验；不要压住或覆盖设备。|厚いケースは感触に影響する場合があります。端末を押さえたり覆ったりせず比較してください。
+help.foreground|Keep the app in the foreground. Returning from a call or lock screen does not automatically restart output.|保持 App 在前台；来电或锁屏后返回不会自动恢复输出。|アプリを前面に保ってください。通話やロック画面から戻っても自動では再開しません。
+help.temperature|Output stops at serious or critical thermal states. Let the device return to a suitable state before retrying.|设备温度状态达到严重或临界时停止输出，状态恢复后再尝试。|端末の温度状態が深刻・危険になると停止します。状態が改善してから再試行してください。
+help.noBoost|Software cannot increase the motor beyond device limits. Pro unlocks content and creation features, not extra hardware power.|软件不能突破马达硬件上限。Pro 解锁内容与创作能力，不增加硬件功率。|ソフトウェアはモーターの限界を超えられません。Proはコンテンツや作成機能を解除し、ハードウェア出力を増やしません。
+help.notMedical|This app is a personal haptic tool. It does not diagnose or treat health conditions.|本 App 是个人触觉工具，不诊断或治疗疾病。|個人向け触覚ツールであり、診断や治療は行いません。
+help.q.home|How do I use normal vibration?|如何使用普通震动？|通常の振動の使い方は？
+help.a.home|Choose a preset on Home, set intensity and tap Start vibration. Stop is always available.|在首页选择预设、调整强度，再点击开始震动。停止始终可用。|ホームでパターンと強さを選び「振動を開始」を押します。いつでも停止できます。
+help.q.music|How does music following work?|音乐跟随怎样工作？|音楽の追従はどのように動きますか？
+help.a.music|Import a local audio file. Its volume changes and short accents are analyzed on-device and mapped to vibration. Apple Music uses a separate system haptics path.|导入本地音频，设备分析音量变化与瞬态并映射到震动。Apple Music 使用独立的系统触感路径。|ローカル音声の音量変化とアクセントを端末で解析し振動にします。Apple Musicは別のシステム触覚経路を使います。
+help.q.create|How do I create my own pattern?|如何自定义模式？|自作パターンを作るには？
+help.a.create|Choose tap, arrange, draw or gesture. Preview your work, name it, and save. Drafts remain when changing tabs.|选择敲击、编排、绘制或手势，预览、命名后保存。切换标签保留草稿。|タップ・並べる・描く・ジェスチャーから選び、試して名前を付けて保存します。タブを変えても下書きは残ります。
+help.q.background|Does it run with the screen locked?|锁屏以后是否继续？|画面ロック後も続きますか？
+help.a.background|No. This app stops output on leaving the active foreground. You choose whether to resume.|不继续。本 App 离开活跃前台即停止输出，由你决定是否继续。|続きません。前面でなくなると停止し、再開は自分で選びます。
+help.q.backup|How do I keep my creations?|如何保留我的作品？|作品を保管するには？
+help.a.backup|Export a JSON backup in Privacy & data, or explicitly enable private iCloud sync. Original audio is not included.|在隐私与数据中导出 JSON 备份，或主动开启 iCloud 私有同步。原始音频不包含在内。|プライバシーとデータからJSONを書き出すか、任意でプライベートiCloud同期を有効にします。元の音声は含みません。
+help.q.remote|Who controls a remote session?|远控由谁掌握？|リモートの操作権は誰にありますか？
+help.a.remote|The receiver allows control, sets the maximum intensity, and can revoke permission immediately. Disconnects and backgrounding stop output.|接收者允许控制、设置强度上限，随时撤回许可。断线或进入后台停止输出。|受信者が操作を許可し強さの上限を決め、いつでも取り消せます。切断やバックグラウンド移行で停止します。
+help.q.privacy|What gets uploaded?|哪些资料会上传？|何がアップロードされますか？
+help.a.privacy|Normal use stays on-device. Optional iCloud and remote features use their described services. Audio and automatic behavior analytics are not uploaded.|普通使用留在本机。可选的 iCloud 与远控使用各自说明的服务，不上传音频或自动行为分析。|通常の利用は端末内です。任意のiCloudとリモートは記載のサービスを利用します。音声や自動行動分析は送信しません。
+diagnostics.enabled|Keep local diagnostic codes|记录本地诊断码|端末内の診断コードを記録
+diagnostics.export|Export diagnostic codes|导出诊断码|診断コードを書き出す
+feedback.title|Feedback notes|反馈记录|フィードバックメモ
+feedback.save|Save note locally|保存到本机|端末にメモを保存
+feedback.export|Export notes|导出反馈记录|メモを書き出す
+feedback.contact|Contact support|联系支持|サポートへ連絡
+feedback.limit|Use 1–2000 characters; at most 500 notes.|每条 1–2000 字，最多 500 条。|1件1〜2000文字、最大500件です。
+feedback.localOnly|No support website is configured for this development build. Notes stay on-device and can be exported.|此开发构建尚未配置支持网站，记录保存在本机，可自行导出。|この開発ビルドにはサポートサイトが設定されていません。メモは端末に保存し書き出せます。
+error.audioRoute|Audio output changed. Playback was paused.|音频输出变化，已暂停。|音声出力が変わったため一時停止しました。
+error.capacity|The local capacity limit has been reached.|已达到本地保存容量上限。|保存数の上限に達しました。
+error.catalog|The bundled pattern or theme catalog is incomplete.|内置模式或主题目录不完整。|内蔵パターンまたはテーマの一覧が不完全です。
+error.engineReset|The haptic engine reset. Tap to resume after checking the device.|触觉引擎已重置，检查设备后手动继续。|触覚エンジンがリセットされました。端末を確認して再開してください。
+error.foreground|Keep PulseLoom active on screen to use haptics.|使用触感时，请保持触律在前台。|触覚を使う間はPulseLoomを前面にしてください。
+error.hapticsUnavailable|Haptics are unavailable on this device. Use a supported physical iPhone.|此设备不可输出触感，请使用受支持的实体 iPhone。|この端末では触覚を出力できません。対応する実機iPhoneをご利用ください。
+error.interruption|Playback was interrupted. Resume when ready.|播放被中断，准备好后手动继续。|再生が中断されました。準備ができたら再開してください。
+error.name|Enter a valid name within the displayed limit.|请输入符合长度限制的名称。|表示された文字数制限内で名前を入力してください。
+error.temperature|The device temperature state is too high. Output stopped.|设备温度状态过高，已停止输出。|端末の温度状態が高いため停止しました。
+error.thermal|Haptics stopped due to the current thermal state.|当前温度状态不适合继续触感输出。|現在の温度状態では触覚を継続できません。
+error.unsupported|This device does not support the required haptic output.|设备不支持所需的触觉输出。|この端末は必要な触覚出力に対応していません。
+shortcut.open|Open PulseLoom|打开触律|PulseLoomを開く
+shortcut.description|Open PulseLoom. Vibration starts only after your confirmation.|打开触律，由你确认后才开始震动。|PulseLoomを開きます。振動は確認後に開始します。
+
+curve.template.wave|Wave|缓浪|ウェーブ
+curve.template.rise|Rise|渐起|上昇
+curve.template.fall|Fall|渐落|下降
+shortcut.pattern|Haptic preset|震动预设|振動プリセット
+pattern.category|Category|类别|カテゴリ
+category.基础|Basic|基础|基本
+category.轻柔|Gentle|轻柔|やさしい
+category.节奏|Rhythmic|节奏|リズム
+category.渐变|Flowing|渐变|変化
+category.custom|Custom|自创|自作
