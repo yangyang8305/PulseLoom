@@ -20,14 +20,14 @@ def main():
     passed, failures = [], []
     def check(name, condition):
         (passed if condition else failures).append(name)
-    native = sorted(p for base in ['App','WatchApp','Widgets','UITests'] for p in (ROOT/base).rglob('*.swift'))
+    native = sorted(p for base in ['App','WatchApp','Widgets','UITests','ServiceTests'] for p in (ROOT/base).rglob('*.swift'))
     core = sorted((ROOT/'Packages/PulseLoomCore/Sources').rglob('*.swift'))
     tests = sorted((ROOT/'Packages/PulseLoomCore/Tests').rglob('*.swift'))
     approval = json.loads((ROOT/'Reference/APPROVAL.json').read_text())
     check('Approved v0.6 reference preserved', hashlib.sha256((ROOT/'Reference/v0.6/index.html').read_bytes()).hexdigest() == approval['sha256'])
     manifest = json.loads((ROOT/'Config/project-manifest.json').read_text())
     check('All native Swift files are in generated project manifest', set(manifest['sourceFiles']) == {str(p.relative_to(ROOT)) for p in native})
-    check('Four native targets declared', len(manifest['targets']) == 4)
+    check('Four product/UI targets plus native service test target', len(manifest['targets']) == 5)
     pbx = (ROOT/'PulseLoom.xcodeproj/project.pbxproj').read_text()
     check('Native source references exist in project', all(str(p.relative_to(ROOT)) in pbx for p in native))
     for p in list((ROOT/'Config').glob('*.plist')) + list((ROOT/'Config').glob('*.entitlements')) + [ROOT/b/'Resources/PrivacyInfo.xcprivacy' for b in ['App','WatchApp','Widgets']]:
@@ -66,7 +66,7 @@ def main():
             if re.search(r'@(?:State|StateObject|Published|AppStorage)\b.*\bvar\s',line):
                 remainder=line.split('=',1)[-1]
                 check('property wrapper single binding '+str(p.relative_to(ROOT))+':'+line.strip(),not re.search(r',\s*\w+\s*=',remainder))
-        check('no production prototype unlock '+p.name, not re.search(r'\b(?:isPro|pro)\s*=\s*true\b',p.read_text()))
+        check('no production prototype unlock '+p.name, p.is_relative_to(ROOT/'ServiceTests') or not re.search(r'\b(?:isPro|pro)\s*=\s*true\b',p.read_text()))
         check('no pasted private token '+p.name,not re.search(r'github_pat_[A-Za-z0-9_]{30,}|ghp_[A-Za-z0-9]{30,}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----',p.read_text()))
     check('Four primary tabs in RootView', (ROOT/'App/Application/PulseLoomApp.swift').read_text().count('.tabItem')==4)
     parseCount=0

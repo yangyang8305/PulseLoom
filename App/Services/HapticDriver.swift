@@ -7,26 +7,41 @@ import UIKit
 @MainActor final class HapticDriver {
     var interrupted: ((String) -> Void)?
     var windowCompleted: (() -> Void)?
-    private var engine: CHHapticEngine?
-    private var player: CHHapticAdvancedPatternPlayer?
+    private var engine: (any HapticEngineIO)?
+    private var player: (any HapticPlayerIO)?
     private var generation: UInt64 = 0
     private var streaming = false
-    var supported: Bool { CHHapticEngine.capabilitiesForHardware().supportsHaptics }
+    private let makeEngine: () throws -> any HapticEngineIO
+    private let supportsHaptics: () -> Bool
+    private let isForeground: () -> Bool
+    private let thermalSafe: () -> Bool
+    init(
+        makeEngine: @escaping () throws -> any HapticEngineIO = { try AppleHapticEngine() },
+        supportsHaptics: @escaping () -> Bool = { CHHapticEngine.capabilitiesForHardware().supportsHaptics },
+        isForeground: @escaping () -> Bool = { UIApplication.shared.applicationState == .active },
+        thermalSafe: @escaping () -> Bool = {
+            let state = ProcessInfo.processInfo.thermalState
+            return state != .serious && state != .critical
+        }
+    ) {
+        self.makeEngine = makeEngine
+        self.supportsHaptics = supportsHaptics
+        self.isForeground = isForeground
+        self.thermalSafe = thermalSafe
+    }
+    var supported: Bool { supportsHaptics() }
     func prepare() throws {
         guard supported else {
             throw LoomError.unavailable(NSLocalizedString("error.unsupported", comment: ""))
         }
-        guard UIApplication.shared.applicationState == .active else {
+        guard isForeground() else {
             throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
         }
-        let thermal = ProcessInfo.processInfo.thermalState
-        guard thermal != .serious && thermal != .critical else {
+        guard thermalSafe() else {
             throw LoomError.unavailable(NSLocalizedString("error.thermal", comment: ""))
         }
         if engine == nil {
-            let e = try CHHapticEngine()
-            e.playsHapticsOnly = true
-            e.isAutoShutdownEnabled = true
+            let e = try makeEngine()
             e.stoppedHandler = { [weak self] reason in
                 Task { @MainActor in
                     guard let self else { return }

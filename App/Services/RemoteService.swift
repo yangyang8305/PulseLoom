@@ -35,7 +35,7 @@ import PulseLoomCore
     var onSafetyStop: (() -> Void)?
     var foreground = true
     var pro = false
-    private var socket: URLSessionWebSocketTask?
+    private var socket: (any RemoteSocketIO)?
     private var receiveTask: Task<Void, Never>?
     private var heartbeat: Task<Void, Never>?
     private var key: SymmetricKey?
@@ -46,7 +46,14 @@ import PulseLoomCore
     private var connectionNonce = UUID().uuidString
     private var peerNonce: String?
     private var storedInvitation: Invitation?
+    private let configuredServer: URL?
+    private let makeSocket: (URL) -> any RemoteSocketIO
+    init(server: URL? = nil, makeSocket: @escaping (URL) -> any RemoteSocketIO = { AppleRemoteSocket(url: $0) }) {
+        configuredServer = server
+        self.makeSocket = makeSocket
+    }
     var server: URL? {
+        if let configuredServer { return configuredServer }
         guard let s = Bundle.main.object(forInfoDictionaryKey: "RelayBaseURL") as? String,
             let url = URL(string: s), url.scheme == "https", url.host != nil
         else { return nil }
@@ -88,7 +95,7 @@ import PulseLoomCore
         }
         try connect(i, role: .receiver)
     }
-    private func connect(_ i: Invitation, role: Role) throws {
+    func connect(_ i: Invitation, role: Role) throws {
         guard let keyData = Data(base64Encoded: i.key), keyData.count == 32, i.room.count <= 64,
             i.token.count <= 128,
             let base = server
@@ -106,7 +113,7 @@ import PulseLoomCore
         var c = URLComponents(
             url: base.appendingPathComponent("v1/rooms/\(i.room)/ws"), resolvingAgainstBaseURL: false)!
         c.scheme = "wss"
-        let task = URLSession.shared.webSocketTask(with: c.url!)
+        let task = makeSocket(c.url!)
         socket = task
         task.resume()
         receiveTask = Task { [weak self] in
@@ -133,7 +140,7 @@ import PulseLoomCore
             }
         }
     }
-    private func handle(_ data: Data) throws {
+    func handle(_ data: Data) throws {
         guard data.count <= 65536,
             let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
             let type = object["type"] as? String
@@ -249,7 +256,7 @@ import PulseLoomCore
         generation = UUID()
         receiveTask?.cancel()
         heartbeat?.cancel()
-        socket?.cancel(with: .goingAway, reason: nil)
+        socket?.cancel()
         socket = nil
         key = nil
         state = .disconnected

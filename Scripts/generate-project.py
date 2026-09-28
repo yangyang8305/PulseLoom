@@ -27,7 +27,7 @@ def build_ref(t,f,attributes=None):
  return obj('build:'+t+':'+f,'PBXBuildFile',**kw)
 base=ref('Config/Base.xcconfig')
 # Top-level folders are real source groups, so Find Navigator and target membership stay usable.
-for folder in ['App','WatchApp','Widgets','UITests','Config','Docs','Scripts','Reference']:
+for folder in ['App','WatchApp','Widgets','UITests','ServiceTests','Config','Docs','Scripts','Reference']:
  group=obj('group:'+folder,'PBXGroup',name=folder,children=[],sourceTree='<group>');objects[main]['children'].append(group)
 for p in sorted((R/'Config').glob('*')):
  if p.is_file():objects[uid('group:Config')]['children'].append(ref(p.relative_to(R)))
@@ -40,7 +40,7 @@ for cfg in ['Debug','Release']:
  project_configs.append(obj('projectConfig:'+cfg,'XCBuildConfiguration',name=cfg,buildSettings=settings,baseConfigurationReference=base))
 config_list=obj('projectConfigs','XCConfigurationList',buildConfigurations=project_configs,defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
 targets={};target_products={}
-specs=[('PulseLoom','App','com.apple.product-type.application','iphoneos','17.0','$(APP_BUNDLE_ID)','app'),('PulseLoomWatch','WatchApp','com.apple.product-type.application','watchos','10.0','$(APP_BUNDLE_ID).watchkitapp','app'),('PulseLoomWidgets','Widgets','com.apple.product-type.app-extension','iphoneos','17.0','$(APP_BUNDLE_ID).widgets','appex'),('PulseLoomUITests','UITests','com.apple.product-type.bundle.ui-testing','iphoneos','17.0','$(APP_BUNDLE_ID).uitests','xctest')]
+specs=[('PulseLoom','App','com.apple.product-type.application','iphoneos','17.0','$(APP_BUNDLE_ID)','app'),('PulseLoomWatch','WatchApp','com.apple.product-type.application','watchos','10.0','$(APP_BUNDLE_ID).watchkitapp','app'),('PulseLoomWidgets','Widgets','com.apple.product-type.app-extension','iphoneos','17.0','$(APP_BUNDLE_ID).widgets','appex'),('PulseLoomServiceTests','ServiceTests','com.apple.product-type.bundle.unit-test','iphoneos','17.0','$(APP_BUNDLE_ID).servicetests','xctest'),('PulseLoomUITests','UITests','com.apple.product-type.bundle.ui-testing','iphoneos','17.0','$(APP_BUNDLE_ID).uitests','xctest')]
 for name,folder,ptype,sdk,minimum,bundle,ext in specs:
  tid=uid('target:'+name);targets[name]=tid
  product=obj('product:'+name,'PBXFileReference',explicitFileType='wrapper.application' if ext=='app' else 'wrapper.app-extension' if ext=='appex' else 'wrapper.cfbundle',includeInIndex=0,path=name+'.'+ext,sourceTree='BUILT_PRODUCTS_DIR')
@@ -64,7 +64,7 @@ for name,folder,ptype,sdk,minimum,bundle,ext in specs:
     vg=obj('variant:'+name+':'+filename,'PBXVariantGroup',name=filename,children=local,sourceTree='<group>');objects[uid('group:'+folder)]['children'].append(vg);resources.append(build_ref(name,vg))
  resource_phase=obj('resources:'+name,'PBXResourcesBuildPhase',buildActionMask=2147483647,files=resources,runOnlyForDeploymentPostprocessing=0)
  framework_files=[];package_products=[]
- if name=='PulseLoom':
+ if name in ['PulseLoom','PulseLoomServiceTests']:
   pp=obj('packageProduct:'+name,'XCSwiftPackageProductDependency',package=package,productName='PulseLoomCore');package_products.append(pp)
   framework_files.append(obj('packageBuild:'+name,'PBXBuildFile',productRef=pp))
  framework_phase=obj('frameworks:'+name,'PBXFrameworksBuildPhase',buildActionMask=2147483647,files=framework_files,runOnlyForDeploymentPostprocessing=0)
@@ -74,6 +74,7 @@ for name,folder,ptype,sdk,minimum,bundle,ext in specs:
   settings.update(INFOPLIST_FILE='Config/App-Info.plist',CODE_SIGN_ENTITLEMENTS='Config/App.entitlements',ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES=['MistIcon','NightIcon'],ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS='YES')
  elif name=='PulseLoomWatch':settings.update(INFOPLIST_FILE='Config/Watch-Info.plist',CODE_SIGN_ENTITLEMENTS='Config/Watch.entitlements',ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon')
  elif name=='PulseLoomWidgets':settings.update(INFOPLIST_FILE='Config/Widgets-Info.plist',CODE_SIGN_ENTITLEMENTS='Config/Widgets.entitlements',APPLICATION_EXTENSION_API_ONLY='YES',LD_RUNPATH_SEARCH_PATHS=['$(inherited)','@executable_path/Frameworks','@executable_path/../../Frameworks'])
+ elif name=='PulseLoomServiceTests':settings.update(GENERATE_INFOPLIST_FILE='YES',TEST_HOST='$(BUILT_PRODUCTS_DIR)/PulseLoom.app/PulseLoom',BUNDLE_LOADER='$(TEST_HOST)')
  else:settings.update(GENERATE_INFOPLIST_FILE='YES',TEST_TARGET_NAME='PulseLoom')
  configs=[]
  for cfg in ['Debug','Release']:
@@ -89,6 +90,7 @@ def dependency(parent,child):
  objects[targets[parent]]['dependencies'].append(dep)
 for child in ['PulseLoomWatch','PulseLoomWidgets']:dependency('PulseLoom',child)
 dependency('PulseLoomUITests','PulseLoom')
+dependency('PulseLoomServiceTests','PulseLoom')
 for child,phase_name,destination,path in [('PulseLoomWidgets','Embed Widgets',13,''),('PulseLoomWatch','Embed Watch Content',13 if args.watch_layout=='plugins' else 16,'' if args.watch_layout=='plugins' else '$(CONTENTS_FOLDER_PATH)/Watch')]:
  bf=build_ref('embed:'+child,target_products[child],['RemoveHeadersOnCopy'])
  phase=obj('embedPhase:'+child,'PBXCopyFilesBuildPhase',name=phase_name,buildActionMask=2147483647,dstPath=path,dstSubfolderSpec=destination,files=[bf],runOnlyForDeploymentPostprocessing=0)
@@ -110,22 +112,22 @@ project={'archiveVersion':1,'classes':{},'objectVersion':60,'objects':objects,'r
 w=p/'project.xcworkspace';w.mkdir(exist_ok=True);(w/'contents.xcworkspacedata').write_text('<?xml version="1.0" encoding="UTF-8"?><Workspace version="1.0"><FileRef location="self:"/></Workspace>\n')
 
 def buildable(parent,name):
- return ET.SubElement(parent,'BuildableReference',{'BuildableIdentifier':'primary','BlueprintIdentifier':targets[name],'BuildableName':name+'.'+('xctest' if name=='PulseLoomUITests' else 'appex' if name=='PulseLoomWidgets' else 'app'),'BlueprintName':name,'ReferencedContainer':'container:PulseLoom.xcodeproj'})
-def scheme(name,watch=False,fixture=False):
+ return ET.SubElement(parent,'BuildableReference',{'BuildableIdentifier':'primary','BlueprintIdentifier':targets[name],'BuildableName':name+'.'+('xctest' if name in ['PulseLoomUITests','PulseLoomServiceTests'] else 'appex' if name=='PulseLoomWidgets' else 'app'),'BlueprintName':name,'ReferencedContainer':'container:PulseLoom.xcodeproj'})
+def scheme(name,watch=False,fixture=False,services=False):
  s=ET.Element('Scheme',{'LastUpgradeVersion':'1600','version':'1.7'});primary='PulseLoomWatch' if watch else 'PulseLoom'
  ba=ET.SubElement(s,'BuildAction',{'parallelizeBuildables':'YES','buildImplicitDependencies':'YES'});entries=ET.SubElement(ba,'BuildActionEntries')
  e=ET.SubElement(entries,'BuildActionEntry',{k:'YES' for k in ['buildForTesting','buildForRunning','buildForProfiling','buildForArchiving','buildForAnalyzing']});buildable(e,primary)
  if not watch:
   ta=ET.SubElement(s,'TestAction',{'buildConfiguration':'Debug','selectedDebuggerIdentifier':'Xcode.DebuggerFoundation.Debugger.LLDB','selectedLauncherIdentifier':'Xcode.IDEFoundation.Launcher.LLDB','shouldUseLaunchSchemeArgsEnv':'YES'})
   expansion=ET.SubElement(ta,'MacroExpansion');buildable(expansion,primary)
-  ts=ET.SubElement(ta,'Testables');tr=ET.SubElement(ts,'TestableReference',{'skipped':'NO'});buildable(tr,'PulseLoomUITests')
+  ts=ET.SubElement(ta,'Testables');tr=ET.SubElement(ts,'TestableReference',{'skipped':'NO'});buildable(tr,'PulseLoomServiceTests' if services else 'PulseLoomUITests')
  launch=ET.SubElement(s,'LaunchAction',{'buildConfiguration':'Debug','selectedDebuggerIdentifier':'Xcode.DebuggerFoundation.Debugger.LLDB','selectedLauncherIdentifier':'Xcode.IDEFoundation.Launcher.LLDB','launchStyle':'0','useCustomWorkingDirectory':'NO','ignoresPersistentStateOnLaunch':'NO','debugDocumentVersioning':'YES','allowLocationSimulation':'NO'})
  run=ET.SubElement(launch,'BuildableProductRunnable',{'runnableDebuggingMode':'0'});buildable(run,primary)
  if fixture:ET.SubElement(launch,'StoreKitConfigurationFileReference',{'identifier':'../../Config/PulseLoom.storekit'})
  profile=ET.SubElement(s,'ProfileAction',{'buildConfiguration':'Release','shouldUseLaunchSchemeArgsEnv':'YES','savedToolIdentifier':'','useCustomWorkingDirectory':'NO','debugDocumentVersioning':'YES'});buildable(ET.SubElement(profile,'BuildableProductRunnable',{'runnableDebuggingMode':'0'}),primary)
  ET.SubElement(s,'AnalyzeAction',{'buildConfiguration':'Debug'});ET.SubElement(s,'ArchiveAction',{'buildConfiguration':'Release','revealArchiveInOrganizer':'YES'})
  out=p/'xcshareddata/xcschemes';out.mkdir(parents=True,exist_ok=True);ET.indent(s);ET.ElementTree(s).write(out/(name+'.xcscheme'),encoding='utf-8',xml_declaration=True)
-scheme('PulseLoom');scheme('PulseLoom-StoreKit',fixture=True);scheme('PulseLoomWatch',watch=True)
+scheme('PulseLoom');scheme('PulseLoom-StoreKit',fixture=True);scheme('PulseLoomWatch',watch=True);scheme('PulseLoom-ServiceTests',services=True)
 # Structural record is validation input; it does not assert SDK compilation.
-(R/'Config/project-manifest.json').write_text(json.dumps({'generator':1,'watchEmbedLayout':args.watch_layout,'targets':targets,'sourceFiles':[str(p.relative_to(R)) for folder in ['App','WatchApp','Widgets','UITests'] for p in sorted((R/folder).rglob('*.swift'))],'objectCount':len(objects)},indent=2)+'\n')
+(R/'Config/project-manifest.json').write_text(json.dumps({'generator':1,'watchEmbedLayout':args.watch_layout,'targets':targets,'sourceFiles':[str(p.relative_to(R)) for folder in ['App','WatchApp','Widgets','UITests','ServiceTests'] for p in sorted((R/folder).rglob('*.swift'))],'objectCount':len(objects)},indent=2)+'\n')
 print(f'Generated {p.name}: {len(targets)} targets, {len(objects)} objects; Watch embed={args.watch_layout}.')
