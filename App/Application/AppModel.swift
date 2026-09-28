@@ -21,12 +21,12 @@ struct SharedFile: Identifiable {
 
 @MainActor final class AppModel: ObservableObject {
     let library: LibraryStore
-    let playback = PlaybackCoordinator()
+    let playback: PlaybackCoordinator
     let music = MusicService()
     let sound = SoundscapeService()
     let purchase = PurchaseService()
     let cloud: CloudSyncService
-    let remote = RemoteService()
+    let remote: RemoteService
     let watch = WatchBridge()
     let systemMusic: SystemMusicService
     let diagnostics = Diagnostics()
@@ -45,12 +45,18 @@ struct SharedFile: Identifiable {
     var current: HapticPattern {
         library.pattern(prefs.lastPattern) ?? Catalog.presets.first ?? HapticPattern(name: "Unavailable")
     }
-    var pro: Bool { purchase.pro }
+    private let entitlementReader: (() -> Bool)?
+    var pro: Bool { entitlementReader?() ?? purchase.pro }
     var theme: ThemeDefinition {
         let fallback = Catalog.themes.first ?? .fallback
         return Catalog.themes.first { $0.id == prefs.theme && ($0.free || pro) } ?? fallback
     }
-    init(library store: LibraryStore? = nil, systemMusic musicService: SystemMusicService? = nil) {
+    init(library store: LibraryStore? = nil, systemMusic musicService: SystemMusicService? = nil,
+         playback coordinator: PlaybackCoordinator? = nil, remote remoteService: RemoteService? = nil,
+         entitlementReader: (() -> Bool)? = nil) {
+        self.playback = coordinator ?? PlaybackCoordinator()
+        self.remote = remoteService ?? RemoteService()
+        self.entitlementReader = entitlementReader
         self.library = store ?? LibraryStore()
         self.cloud = CloudSyncService(stagingRoot: self.library.root.appendingPathComponent("CloudStaging"))
         self.systemMusic = musicService ?? SystemMusicService()

@@ -48,3 +48,27 @@ final class CodecBoundaryTests: XCTestCase {
         }
     }
 }
+
+final class AccessRegressionCoreTests: XCTestCase {
+    func testAUD10FreePresetCannotBypassWholeRemoteFeatureEntitlement() throws {
+        var consent = RemoteConsent(); consent.grant()
+        XCTAssertThrowsError(try consent.accept(RemoteCommand(sequence: 1, action: "start", patternID: "p02", gain: 0.3), foreground: true, pro: false))
+        XCTAssertThrowsError(try consent.accept(RemoteCommand(sequence: 2, action: "gain", gain: 0.3), foreground: true, pro: false))
+    }
+    func testSafetyMessagesRemainUsableAfterEntitlementLoss() throws {
+        var consent = RemoteConsent(); consent.grant()
+        XCTAssertNoThrow(try consent.accept(RemoteCommand(sequence: 1, action: "stop"), foreground: false, pro: false))
+        XCTAssertTrue(consent.allowed, "Ordinary stop must not be changed into emergency revocation")
+        XCTAssertNoThrow(try consent.accept(RemoteCommand(sequence: 2, action: "emergencyStop"), foreground: false, pro: false))
+        XCTAssertFalse(consent.allowed)
+    }
+    func testAUD09JSONClaimOfOriginalCannotRemovePaidContentRestriction() throws {
+        var paid = Catalog.presets.first { $0.premium }!
+        paid.id = UUID().uuidString; paid.builtin = false; paid.premium = false; paid.sourcePremium = false
+        var json = try JSONSerialization.jsonObject(with: FileCodec.encode(paid)) as! [String: Any]
+        json["contentOrigin"] = "original"
+        let imported = try PatternImport.decode(JSONSerialization.data(withJSONObject: json))
+        XCTAssertFalse(Entitlements.canPlay(imported, pro: false), "External JSON is untrusted even when it claims original and strips the paid flags")
+        XCTAssertTrue(Entitlements.canPlay(imported, pro: true), "Imported content remains preserved for Pro, not deleted")
+    }
+}
