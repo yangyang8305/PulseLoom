@@ -21,6 +21,8 @@ import UIKit
     private var playbackObserver: AnyCancellable?
     private var choiceGeneration = UUID(), searchGeneration = UUID()
     private var ownsPlayback = false
+    private var requestGeneration = UUID()
+    @Published private(set) var startInFlight = false
     var willPlay: (() -> Void)?
     private let io: SystemMusicIO
     init(io: SystemMusicIO? = nil) {
@@ -82,33 +84,61 @@ import UIKit
         }
     }
     func play() async throws {
+        // A canceled framework start may still complete. Do not let a newer start
+        // overlap it: cleanup of the old operation must never pause a new song.
+        guard !startInFlight else {
+            throw LoomError.unavailable("The previous music request is still ending. Try again shortly.")
+        }
         guard let song = selected else { return }
-        guard systemEnabled, trackAvailable else {
+        guard systemEnabled, trackAvailable, io.enabled() else {
             throw LoomError.unavailable(NSLocalizedString("music.systemUnavailable", comment: ""))
         }
-        let generation = choiceGeneration
-        let canPlay = try await io.subscription()
-        guard generation == choiceGeneration else { return }
-        guard io.foreground() else {
-            throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
-        }
-        guard canPlay else {
-            throw LoomError.unavailable(NSLocalizedString("music.subscription", comment: ""))
-        }
-        willPlay?()
-        ownsPlayback = true
+        pause()
+        let request = UUID()
+        requestGeneration = request
+        let choice = choiceGeneration
+        startInFlight = true
+        defer { startInFlight = false }
         do {
-            try await io.play(song)
+            let canPlay = try await io.subscription()
+            guard isCurrent(request, choice: choice), !Task.isCancelled else { return }
             guard io.foreground() else {
-                pause()
+                throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
+            }
+            guard systemEnabled, trackAvailable, io.enabled() else {
+                throw LoomError.unavailable(NSLocalizedString("music.systemUnavailable", comment: ""))
+            }
+            guard canPlay else {
+                throw LoomError.unavailable(NSLocalizedString("music.subscription", comment: ""))
+            }
+            willPlay?()
+            // Source acquisition is synchronous but may reenter pause/choose.
+            guard isCurrent(request, choice: choice), !Task.isCancelled else { return }
+            ownsPlayback = true
+            try await io.play(song)
+            guard isCurrent(request, choice: choice), !Task.isCancelled,
+                io.foreground(), io.enabled(), systemEnabled, trackAvailable
+            else {
+                // Compensate a framework completion arriving after the immediate Stop.
+                finishOwnedPlayback(forcePause: true)
                 return
             }
             playing = true
             updateNowPlaying()
         } catch {
-            ownsPlayback = false
+            finishOwnedPlayback(forcePause: ownsPlayback)
+            if !isCurrent(request, choice: choice) || Task.isCancelled { return }
             throw error
         }
+    }
+    private func isCurrent(_ request: UUID, choice: UUID) -> Bool {
+        requestGeneration == request && choiceGeneration == choice
+    }
+    private func finishOwnedPlayback(forcePause: Bool) {
+        if forcePause { io.pause() }
+        playing = false
+        if ownsPlayback || forcePause { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
+        ownsPlayback = false
     }
     private func updateNowPlaying() {
         guard ownsPlayback, let selected else { return }
@@ -124,11 +154,8 @@ import UIKit
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     func pause() {
-        guard ownsPlayback else { return }
-        io.pause()
-        playing = false
-        updateNowPlaying()
-        ownsPlayback = false
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        // Invalidate even before a subscription check or player start has returned.
+        requestGeneration = UUID()
+        finishOwnedPlayback(forcePause: ownsPlayback)
     }
 }

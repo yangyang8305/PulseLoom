@@ -11,6 +11,11 @@ import UIKit
     private var player: (any HapticPlayerIO)?
     private var generation: UInt64 = 0
     private var streaming = false
+    private enum Termination { case none, inFlight, failed }
+    private var termination: Termination = .none
+    private var engineEpoch = UUID()
+    private var notifyingFailure = false
+    var shutdownPending: Bool { termination != .none }
     private let makeEngine: @MainActor () throws -> any HapticEngineIO
     private let supportsHaptics: @MainActor () -> Bool
     private let isForeground: @MainActor () -> Bool
@@ -31,6 +36,9 @@ import UIKit
     }
     var supported: Bool { supportsHaptics() }
     func prepare() throws {
+        guard !shutdownPending else {
+            throw LoomError.unavailable("Haptic shutdown is not confirmed. Stop again before restarting.")
+        }
         guard supported else {
             throw LoomError.unavailable(NSLocalizedString("error.unsupported", comment: ""))
         }
@@ -42,30 +50,37 @@ import UIKit
         }
         if engine == nil {
             let e = try makeEngine()
+            let epoch = UUID()
+            engineEpoch = epoch
             e.stoppedHandler = { [weak self] reason in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, self.engineEpoch == epoch else { return }
+                    // A stopped callback is also positive termination confirmation.
+                    if self.shutdownPending {
+                        self.releaseTerminatedEngine(epoch: epoch)
+                        return
+                    }
                     self.player = nil
                     self.streaming = false
                     self.generation &+= 1
                     if reason != .idleTimeout && reason != .notifyWhenFinished {
-                        self.interrupted?("Haptic engine stopped: \(reason.rawValue)")
+                        self.reportFailure("Haptic engine stopped: \(reason.rawValue)")
                     }
                 }
             }
             e.resetHandler = { [weak self] in
                 Task { @MainActor in
-                    guard let self else { return }
-                    self.player = nil
-                    self.engine = nil
-                    self.streaming = false
-                    self.generation &+= 1
-                    self.interrupted?(NSLocalizedString("error.engineReset", comment: ""))
+                    guard let self, self.engineEpoch == epoch else { return }
+                    self.releaseTerminatedEngine(epoch: epoch)
+                    self.reportFailure(NSLocalizedString("error.engineReset", comment: ""))
                 }
             }
             engine = e
         }
-        try engine?.start()
+        do { try engine?.start() } catch {
+            quarantineOutput()
+            throw error
+        }
     }
     func play(
         _ p: HapticPattern, phase: Double, length: Double, sessionElapsed: Double, sessionLimit: Double,
@@ -168,7 +183,10 @@ import UIKit
         }
         player = newPlayer
         streaming = false
-        try newPlayer.start(atTime: CHHapticTimeImmediate)
+        do { try newPlayer.start(atTime: CHHapticTimeImmediate) } catch {
+            quarantineOutput()
+            throw error
+        }
     }
     private func params(_ s: Segment, gain: Double, sharp: Double) -> [CHHapticEventParameter] {
         [
@@ -177,6 +195,9 @@ import UIKit
         ]
     }
     func stream(intensity: Double, sharpness: Double) throws {
+        guard !shutdownPending else {
+            throw LoomError.unavailable("Haptic shutdown is not confirmed.")
+        }
         if !streaming {
             try prepare()
             try stopPlayer()
@@ -194,10 +215,13 @@ import UIKit
             p.loopEnabled = true
             p.loopEnd = 1
             player = p
-            try p.start(atTime: CHHapticTimeImmediate)
+            do { try p.start(atTime: CHHapticTimeImmediate) } catch {
+                quarantineOutput()
+                throw error
+            }
             streaming = true
         }
-        try player?.sendParameters(
+        do { try player?.sendParameters(
             [
                 .init(
                     parameterID: .hapticIntensityControl, value: Float(min(1, max(0, intensity))),
@@ -206,13 +230,79 @@ import UIKit
                     parameterID: .hapticSharpnessControl, value: Float(min(1, max(0, sharpness))),
                     relativeTime: 0),
             ], atTime: CHHapticTimeImmediate)
+        } catch {
+            quarantineOutput()
+            throw error
+        }
     }
     private func stopPlayer() throws {
+        guard !shutdownPending else {
+            throw LoomError.unavailable("Haptic shutdown is not confirmed.")
+        }
         generation &+= 1
-        let old = player
-        player = nil
-        streaming = false
-        try old?.stop(atTime: CHHapticTimeImmediate)
+        // Retain both handles until stop succeeds; losing the handle is not a stop.
+        do {
+            try player?.stop(atTime: CHHapticTimeImmediate)
+            player = nil
+            streaming = false
+        } catch {
+            quarantineOutput()
+            throw error
+        }
     }
-    func stop() { do { try stopPlayer() } catch { interrupted?(error.localizedDescription) } }
+    private func quarantineOutput() {
+        generation &+= 1
+        streaming = false
+        if termination == .none { termination = .failed }
+        // Independent best-effort mitigations while awaiting engine shutdown.
+        engine?.isMutedForHaptics = true
+        player?.loopEnabled = false
+        try? player?.sendParameters([
+            .init(parameterID: .hapticIntensityControl, value: 0, relativeTime: 0)
+        ], atTime: CHHapticTimeImmediate)
+        requestEngineTermination()
+    }
+    private func requestEngineTermination() {
+        guard termination == .failed, let engine else { return }
+        termination = .inFlight
+        let epoch = engineEpoch
+        engine.stop { [weak self] error in
+            Task { @MainActor in
+                guard let self, self.engineEpoch == epoch, self.shutdownPending else { return }
+                if let error {
+                    self.termination = .failed
+                    // Reporting may call coordinator.interrupt -> stop. That is not an explicit retry.
+                    self.reportFailure("Haptic shutdown is not confirmed: " + error.localizedDescription)
+                } else {
+                    self.releaseTerminatedEngine(epoch: epoch)
+                }
+            }
+        }
+    }
+    private func releaseTerminatedEngine(epoch: UUID) {
+        guard engineEpoch == epoch else { return }
+        engineEpoch = UUID()
+        generation &+= 1
+        engine?.stoppedHandler = nil
+        engine?.resetHandler = nil
+        player?.completionHandler = nil
+        player = nil
+        engine = nil
+        streaming = false
+        termination = .none
+    }
+    private func reportFailure(_ message: String) {
+        guard !notifyingFailure else { return }
+        notifyingFailure = true
+        interrupted?(message)
+        notifyingFailure = false
+    }
+    @discardableResult func stop() -> Bool {
+        if shutdownPending {
+            if !notifyingFailure { requestEngineTermination() }
+            return false
+        }
+        do { try stopPlayer() } catch { reportFailure(error.localizedDescription) }
+        return !shutdownPending
+    }
 }

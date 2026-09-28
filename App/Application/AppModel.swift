@@ -20,7 +20,7 @@ struct SharedFile: Identifiable {
 }
 
 @MainActor final class AppModel: ObservableObject {
-    let library = LibraryStore()
+    let library: LibraryStore
     let playback = PlaybackCoordinator()
     let music = MusicService()
     let sound = SoundscapeService()
@@ -28,7 +28,7 @@ struct SharedFile: Identifiable {
     let cloud = CloudSyncService()
     let remote = RemoteService()
     let watch = WatchBridge()
-    let systemMusic = SystemMusicService()
+    let systemMusic: SystemMusicService
     let diagnostics = Diagnostics()
     @Published var tab: MainTab = .home
     @Published var sheet: SheetRoute?
@@ -48,7 +48,9 @@ struct SharedFile: Identifiable {
         let fallback = Catalog.themes.first ?? .fallback
         return Catalog.themes.first { $0.id == prefs.theme && ($0.free || pro) } ?? fallback
     }
-    init() {
+    init(library store: LibraryStore? = nil, systemMusic musicService: SystemMusicService? = nil) {
+        self.library = store ?? LibraryStore()
+        self.systemMusic = musicService ?? SystemMusicService()
         for publisher in [
             library.objectWillChange, playback.objectWillChange, music.objectWillChange,
             sound.objectWillChange, purchase.objectWillChange, cloud.objectWillChange,
@@ -90,7 +92,14 @@ struct SharedFile: Identifiable {
             self?.music.pause()
             self?.systemMusic.pause()
         }
-        systemMusic.willPlay = { [weak self] in self?.stopAll() }
+        systemMusic.willPlay = { [weak self] in
+            // Stop other owners without canceling the system-music request acquiring output.
+            guard let self else { return }
+            self.music.stop()
+            self.sound.stop()
+            self.playback.stop()
+            self.updatePreferences()
+        }
         remote.onSafetyStop = { [weak self] in if self?.playback.kind == "remote" { self?.playback.stop() } }
         remote.onCommand = { [weak self] command, gain in
             guard let self else { return }

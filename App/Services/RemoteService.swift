@@ -45,6 +45,7 @@ import PulseLoomCore
     private var generation = UUID()
     private var connectionNonce = UUID().uuidString
     private var peerNonce: String?
+    private var peerProtocol: Int?
     private var storedInvitation: Invitation?
     private let configuredServer: URL?
     private let makeSocket: (URL) -> any RemoteSocketIO
@@ -105,6 +106,7 @@ import PulseLoomCore
         let gen = generation
         connectionNonce = UUID().uuidString
         peerNonce = nil
+        peerProtocol = nil
         self.key = SymmetricKey(data: keyData)
         self.role = role
         room = i.room
@@ -154,10 +156,11 @@ import PulseLoomCore
             peerPresent = true
             peerAt = ProcessInfo.processInfo.systemUptime
             peerNonce = nil
+            peerProtocol = nil
             connectionNonce = UUID().uuidString
             consent.resetConnection()
             onSafetyStop?()
-            Task { do { try await send(action: "ping") } catch { self.error = error.localizedDescription } }
+            announceConnection()
             return
         }
         if type == "peer_left" {
@@ -174,14 +177,31 @@ import PulseLoomCore
         let command = try JSONDecoder().decode(RemoteCommand.self, from: plain)
         peerAt = ProcessInfo.processInfo.systemUptime
         peerPresent = true
-        if role == .sender && command.action == "ping" { peerNonce = command.connectionID }
+        if command.action == "ping" {
+            peerProtocol = command.protocolVersion
+            if peerProtocol != RemoteCommand.currentProtocol {
+                consent.revoke()
+                peerNonce = nil
+                onSafetyStop?()
+                error = "Both devices must support the current remote safety protocol."
+                return
+            }
+            if role == .sender { peerNonce = command.connectionID }
+        }
         if role == .receiver {
             if ["start", "gain"].contains(command.action), command.connectionID != connectionNonce {
                 throw LoomError.invalid("Command belongs to an old connection.")
             }
             do {
+                if ["start", "gain"].contains(command.action) {
+                    guard peerProtocol == RemoteCommand.currentProtocol,
+                        command.protocolVersion == RemoteCommand.currentProtocol
+                    else { throw LoomError.unavailable("Remote safety handshake is incomplete.") }
+                }
                 let actual = try consent.accept(command, foreground: foreground, pro: pro)
-                if command.action == "stop" {
+                if command.action == "emergencyStop" {
+                    latchEmergency()
+                } else if command.action == "stop" {
                     onSafetyStop?()
                 } else if command.action != "ping" {
                     onCommand?(command, actual)
@@ -190,7 +210,7 @@ import PulseLoomCore
                 self.error = error.localizedDescription
                 onSafetyStop?()
             }
-        } else if command.action == "stop" {
+        } else if command.action == "emergencyStop" || command.action == "stop" {
             onSafetyStop?()
         }
     }
@@ -198,7 +218,8 @@ import PulseLoomCore
         guard state == .connected, let socket, let key else {
             throw LoomError.unavailable("Remote connection is not ready.")
         }
-        if role == .sender && ["start", "gain"].contains(action) && peerNonce == nil {
+        if role == .sender && ["start", "gain"].contains(action)
+            && (peerNonce == nil || peerProtocol != RemoteCommand.currentProtocol) {
             throw LoomError.unavailable("Waiting for receiver handshake.")
         }
         sequence &+= 1
@@ -214,16 +235,52 @@ import PulseLoomCore
     }
     func authorize(_ value: Bool) {
         if value {
+            guard peerPresent, peerProtocol == RemoteCommand.currentProtocol else {
+                error = "Wait for a compatible receiver/sender handshake before allowing control."
+                return
+            }
             consent.grant()
         } else {
             consent.revoke()
+            if role == .receiver {
+                connectionNonce = UUID().uuidString
+                announceConnection()
+            }
             onSafetyStop?()
         }
     }
-    func emergency() {
+    private func latchEmergency() {
         consent.revoke()
+        if role == .receiver {
+            // Commands queued before the emergency cannot run after a new manual grant.
+            connectionNonce = UUID().uuidString
+            announceConnection()
+        }
         onSafetyStop?()
-        Task { do { try await send(action: "stop") } catch { self.error = error.localizedDescription } }
+    }
+    private func announceConnection() {
+        guard state == .connected else { return }
+        let expected = generation
+        Task {
+            guard generation == expected, state == .connected else { return }
+            do { try await send(action: "ping") } catch {
+                guard generation == expected else { return }
+                self.error = error.localizedDescription
+            }
+        }
+    }
+    func emergency() {
+        latchEmergency()
+        let expected = generation
+        Task {
+            // A delayed emergency from an old room must never target a new connection.
+            guard generation == expected, state == .connected else { return }
+            do { try await send(action: "emergencyStop") } catch {
+                guard generation == expected else { return }
+                self.error = error.localizedDescription
+                disconnect()
+            }
+        }
     }
     func reconnect() throws {
         guard let i = storedInvitation else {
@@ -261,6 +318,8 @@ import PulseLoomCore
         key = nil
         state = .disconnected
         peerPresent = false
+        peerNonce = nil
+        peerProtocol = nil
         consent.resetConnection()
         sequence = 0
         onSafetyStop?()

@@ -1,6 +1,9 @@
 import Foundation
 
 public struct RemoteCommand: Codable, Sendable {
+    /// Version 2 distinguishes ordinary stop from a latched emergency stop.
+    public static let currentProtocol = 2
+    public var protocolVersion: Int? = Self.currentProtocol
     public var connectionID: String?
     public var sequence: UInt64
     public var action: String
@@ -30,10 +33,15 @@ public struct RemoteConsent: Sendable {
     }
     public mutating func accept(_ c: RemoteCommand, foreground: Bool, pro: Bool) throws -> Double? {
         guard c.sequence > lastSequence else { throw LoomError.invalid("Stale remote command.") }
-        guard ["start", "stop", "gain", "ping"].contains(c.action) else {
+        guard ["start", "stop", "emergencyStop", "gain", "ping"].contains(c.action) else {
             throw LoomError.invalid("Unknown remote command.")
         }
         lastSequence = c.sequence
+        if c.action == "emergencyStop" {
+            revoke()
+            return nil
+        }
+        // Ordinary stop ends output, not the previously granted connection permission.
         if c.action == "stop" || c.action == "ping" { return nil }
         guard allowed, foreground else {
             throw LoomError.unavailable("The receiver must authorize control in the foreground.")

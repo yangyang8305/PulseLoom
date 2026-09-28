@@ -22,7 +22,7 @@ import UIKit
     private var resolver: ((String) -> HapticPattern?)?
     private var previousIdle = false
     private var savedIdle = false
-    let driver = HapticDriver()
+    let driver: HapticDriver
     var willAcquire: ((String) -> Void)?
     var didFinish: ((String, String, Double, String) -> Void)?
     var didStopExternal: ((String) -> Void)?
@@ -30,9 +30,10 @@ import UIKit
     var isPlaying: Bool { state == .playing }
     var elapsed: Double { clock.played }
     var foreground = true
-    init() {
-        driver.interrupted = { [weak self] reason in self?.interrupt(reason) }
-        driver.windowCompleted = { [weak self] in self?.nextWindow() }
+    init(driver: HapticDriver? = nil) {
+        self.driver = driver ?? HapticDriver()
+        self.driver.interrupted = { [weak self] reason in self?.interrupt(reason) }
+        self.driver.windowCompleted = { [weak self] in self?.nextWindow() }
         timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -119,10 +120,10 @@ import UIKit
             let played = clock.played
             driver.stop()
             restoreScreen()
-            state = .completed
+            state = driver.shutdownPending ? .failed : .completed
             level = 0
             routine = nil
-            didFinish?(finalTitle, finalKind, played, "completed")
+            didFinish?(finalTitle, finalKind, played, driver.shutdownPending ? "shutdown_failed" : "completed")
             didStopExternal?("completed")
         }
     }
@@ -132,7 +133,7 @@ import UIKit
         driver.stop()
         remaining = clock.remaining
         pausedAt = ProcessInfo.processInfo.systemUptime
-        state = .paused
+        state = driver.shutdownPending ? .failed : .paused
         level = 0
         restoreScreen()
     }
@@ -163,6 +164,7 @@ import UIKit
         streamSource = nil
         clock.stop()
         driver.stop()
+        if driver.shutdownPending { state = .failed }
         level = 0
         routine = nil
         guardEnabled = false
@@ -178,6 +180,7 @@ import UIKit
         pausedAt = ProcessInfo.processInfo.systemUptime
         streamSource = nil
         driver.stop()
+        if driver.shutdownPending { state = .failed }
         level = 0
         lastError = reason
         restoreScreen()
@@ -236,7 +239,7 @@ import UIKit
         streamSource = nil
         driver.stop()
         level = 0
-        if state == .preparing { state = .idle }
+        if driver.shutdownPending { state = .failed } else if state == .preparing { state = .idle }
         restoreScreen()
     }
     func playRoutine(_ r: Routine, resolver: @escaping (String) -> HapticPattern?, pro: Bool) throws {
