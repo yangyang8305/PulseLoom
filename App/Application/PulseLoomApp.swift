@@ -188,7 +188,12 @@ struct FocusView: View {
             Text(app.current.displayName()).font(.system(.largeTitle, design: .serif))
             TactileArt(style: app.theme.art, level: app.playback.level).frame(height: 235)
             Text(timeText(app.playback.remaining)).font(.title.monospacedDigit()).frame(maxWidth: .infinity)
-            Toggle(T("home.guard"), isOn: $app.playback.guardEnabled)
+            // Bind the mutable property on the existing coordinator; do not replace the service.
+            Toggle(
+                T("home.guard"),
+                isOn: Binding(
+                    get: { app.playback.guardEnabled },
+                    set: { app.playback.guardEnabled = $0 }))
             LoomSlider(title: "home.intensity", value: app.pref(\.gain)) { app.perform { try app.adjust() } }
                 .disabled(app.playback.guardEnabled)
             HapticDock()

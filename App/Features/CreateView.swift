@@ -251,90 +251,146 @@ struct NumberInput: View {
         }
     }
 }
+// Keep each view-builder expression small enough for Apple SDK type checking.
 struct CurveEditorView: View {
     @EnvironmentObject var editor: EditorModel
-    @Environment(\.loom) var c
+
     var body: some View {
         VStack(spacing: 15) {
-            GeometryReader { g in
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 20).fill(c.tint).onTapGesture(coordinateSpace: .local) {
-                        point in
-                        editor.addNode(time: (point.x - 12) / max(1, g.size.width - 24) * editor.draft.cycle)
-                    }
-                    Path { p in
-                        for (i, n) in editor.draft.nodes.enumerated() {
-                            let q = CGPoint(
-                                x: 12 + n.time / editor.draft.cycle * (g.size.width - 24),
-                                y: 12 + (1 - n.value) * (g.size.height - 24))
-                            if i == 0 { p.move(to: q) } else { p.addLine(to: q) }
-                        }
-                    }.stroke(c.accent, lineWidth: 1.5)
-                    ForEach(Array(editor.draft.nodes.enumerated()), id: \.element.id) { i, n in
-                        Circle().fill(c.surface).overlay(Circle().stroke(c.accent, lineWidth: 2)).frame(
-                            width: 22, height: 22
-                        ).position(
-                            x: 12 + n.time / editor.draft.cycle * (g.size.width - 24),
-                            y: 12 + (1 - n.value) * (g.size.height - 24)
-                        ).gesture(
-                            DragGesture(minimumDistance: 0, coordinateSpace: .named("curve")).onChanged { v in
-                                editor.nodeChanged(
-                                    i, time: (v.location.x - 12) / (g.size.width - 24) * editor.draft.cycle,
-                                    value: 1 - (v.location.y - 12) / (g.size.height - 24))
-                            }.onEnded { _ in editor.endEditingGesture() }
-                        ).accessibilityLabel(String(format: T("editor.node"), i + 1))
-                    }
-                }.coordinateSpace(name: "curve")
-            }.frame(height: 185)
-            Stepper(
-                String(format: T("editor.cycle"), editor.draft.cycle / 1000),
-                value: Binding(get: { editor.draft.cycle / 1000 }, set: { editor.length($0) }), in: 0.1...30,
-                step: 0.5)
-            HStack {
-                ForEach(["wave", "rise", "fall"], id: \.self) { name in
-                    Button(T("curve.template." + name)) { editor.applyCurveTemplate(name) }.frame(
-                        maxWidth: .infinity, minHeight: 44)
-                }
-            }
+            CurveCanvasView().frame(height: 185)
+            cycleControl
+            templateButtons
             LoomButton(title: "editor.addNode", symbol: "plus", secondary: true) { editor.addNode() }
             DisclosureGroup(T("editor.nodeValues")) {
-                ForEach(Array(editor.draft.nodes.enumerated()), id: \.element.id) { i, n in
-                    VStack {
-                        Text(String(format: T("editor.node"), i + 1)).font(.caption)
-                        HStack {
-                            TextField(
-                                T("editor.time"),
-                                value: Binding(
-                                    get: {
-                                        editor.draft.nodes.indices.contains(i)
-                                            ? editor.draft.nodes[i].time : 0
-                                    },
-                                    set: { v in
-                                        editor.nodeChanged(i, time: v, value: n.value)
-                                        editor.endEditingGesture()
-                                    }), format: .number
-                            ).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                            TextField(
-                                T("home.intensity"),
-                                value: Binding(
-                                    get: {
-                                        editor.draft.nodes.indices.contains(i)
-                                            ? editor.draft.nodes[i].value * 100 : 0
-                                    },
-                                    set: { v in
-                                        editor.nodeChanged(i, time: n.time, value: v / 100)
-                                        editor.endEditingGesture()
-                                    }), format: .number
-                            ).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                            Button {
-                                editor.removeNode(n.id)
-                            } label: {
-                                Image(systemName: "trash").frame(width: 44, height: 44)
-                            }.disabled(i == 0 || i == editor.draft.nodes.count - 1)
-                        }
-                    }.padding(.vertical, 6)
+                ForEach(editor.draft.nodes) { node in
+                    CurveNodeFields(nodeID: node.id)
                 }
             }
         }
+    }
+
+    private var cycleControl: some View {
+        Stepper(
+            String(format: T("editor.cycle"), editor.draft.cycle / 1000),
+            value: Binding(get: { editor.draft.cycle / 1000 }, set: { editor.length($0) }),
+            in: 0.1...30, step: 0.5)
+    }
+
+    private var templateButtons: some View {
+        HStack {
+            ForEach(["wave", "rise", "fall"], id: \.self) { name in
+                Button(T("curve.template." + name)) { editor.applyCurveTemplate(name) }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+        }
+    }
+}
+
+private struct CurveCanvasView: View {
+    @EnvironmentObject var editor: EditorModel
+    @Environment(\.loom) var c
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 20).fill(c.tint)
+                    .onTapGesture(coordinateSpace: .local) { point in
+                        editor.addNode(time: time(at: point.x, size: geometry.size))
+                    }
+                curvePath(in: geometry.size).stroke(c.accent, lineWidth: 1.5)
+                    .allowsHitTesting(false)
+                ForEach(editor.draft.nodes) { node in
+                    nodeHandle(node, size: geometry.size)
+                }
+            }.coordinateSpace(name: "curve")
+        }
+    }
+
+    private func position(_ node: CurveNode, size: CGSize) -> CGPoint {
+        let cycle = max(1, editor.draft.cycle)
+        let x = 12 + CGFloat(node.time / cycle) * max(1, size.width - 24)
+        let y = 12 + CGFloat(1 - node.value) * max(1, size.height - 24)
+        return CGPoint(x: x, y: y)
+    }
+
+    private func time(at x: CGFloat, size: CGSize) -> Double {
+        Double((x - 12) / max(1, size.width - 24)) * editor.draft.cycle
+    }
+
+    private func curvePath(in size: CGSize) -> Path {
+        Path { path in
+            for (index, node) in editor.draft.nodes.enumerated() {
+                let point = position(node, size: size)
+                if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+            }
+        }
+    }
+
+    private func nodeHandle(_ node: CurveNode, size: CGSize) -> some View {
+        let number = (editor.draft.nodes.firstIndex { $0.id == node.id } ?? 0) + 1
+        return Circle().fill(c.surface)
+            .overlay(Circle().stroke(c.accent, lineWidth: 2))
+            .frame(width: 22, height: 22)
+            .position(position(node, size: size))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .named("curve"))
+                    .onChanged { gesture in
+                        guard let index = editor.draft.nodes.firstIndex(where: { $0.id == node.id }) else {
+                            return
+                        }
+                        let value = 1 - Double((gesture.location.y - 12) / max(1, size.height - 24))
+                        editor.nodeChanged(index, time: time(at: gesture.location.x, size: size), value: value)
+                    }
+                    .onEnded { _ in editor.endEditingGesture() }
+            )
+            .accessibilityLabel(String(format: T("editor.node"), number))
+    }
+}
+
+private struct CurveNodeFields: View {
+    @EnvironmentObject var editor: EditorModel
+    let nodeID: UUID
+
+    private var index: Int? { editor.draft.nodes.firstIndex { $0.id == nodeID } }
+    private var node: CurveNode? { editor.draft.nodes.first { $0.id == nodeID } }
+
+    var body: some View {
+        if let index {
+            VStack {
+                Text(String(format: T("editor.node"), index + 1)).font(.caption)
+                HStack {
+                    TextField(T("editor.time"), value: timeBinding, format: .number)
+                        .keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    TextField(T("home.intensity"), value: intensityBinding, format: .number)
+                        .keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                    Button {
+                        editor.removeNode(nodeID)
+                    } label: {
+                        Image(systemName: "trash").frame(width: 44, height: 44)
+                    }.disabled(index == 0 || index == editor.draft.nodes.count - 1)
+                }
+            }.padding(.vertical, 6)
+        }
+    }
+
+    // Resolve by identity on every edit so deletion never leaves a stale captured index/value.
+    private var timeBinding: Binding<Double> {
+        Binding(
+            get: { node?.time ?? 0 },
+            set: { value in
+                guard let index, let node else { return }
+                editor.nodeChanged(index, time: value, value: node.value)
+                editor.endEditingGesture()
+            })
+    }
+
+    private var intensityBinding: Binding<Double> {
+        Binding(
+            get: { (node?.value ?? 0) * 100 },
+            set: { value in
+                guard let index, let node else { return }
+                editor.nodeChanged(index, time: node.time, value: value / 100)
+                editor.endEditingGesture()
+            })
     }
 }

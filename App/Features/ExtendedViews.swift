@@ -386,7 +386,11 @@ struct RemoteView: View {
                     Toggle(
                         T("remote.allow"),
                         isOn: Binding(get: { app.remote.consent.allowed }, set: { app.remote.authorize($0) }))
-                    LoomSlider(title: "remote.limit", value: $app.remote.limit)
+                    LoomSlider(
+                        title: "remote.limit",
+                        value: Binding(
+                            get: { app.remote.limit },
+                            set: { app.remote.limit = $0 }))
                 } else {
                     Picker(T("home.presets"), selection: $selected) {
                         ForEach(Catalog.presets) { p in Text(p.displayName()).tag(p.id) }
@@ -424,7 +428,12 @@ struct WatchSettingsView: View {
             ).padding()
             LabeledContent(T("watch.install"), value: T(app.watch.installed ? "common.yes" : "common.no"))
             LabeledContent(T("watch.reachable"), value: T(app.watch.reachable ? "common.yes" : "common.no"))
-            Toggle(T("watch.allow"), isOn: $app.watch.allowed).onChange(of: app.watch.allowed) { _, _ in
+            Toggle(
+                T("watch.allow"),
+                isOn: Binding(
+                    get: { app.watch.allowed },
+                    set: { app.watch.allowed = $0 })
+            ).onChange(of: app.watch.allowed) { _, _ in
                 app.updatePreferences()
             }
             Notice(text: "watch.help")
