@@ -15,3 +15,9 @@
 [第二阶段明细](AUDIT_PHASE2.md) · [QA](QA_REPORT.md) · [发布清单](RELEASE_CHECKLIST.md)。模拟器验证不代替签名、真机和真实服务。
 
 历史源码导入提交 `423045386b3c4f99b253feadcc78609c090ef290` 保留；归档上传临时物已在旧提交处理。`Scripts/publish-github.py` 针对尚未存在的仓库，不应用于本仓库重复建仓。
+
+## 后续三阶段记录
+
+AUD-09政策现已确认，AUD-09/10/15修复088387a通过 [36445005156](https://github.com/yangyang8305/PulseLoom/actions/runs/36445005156)，之前a179fac的 [36441193189](https://github.com/yangyang8305/PulseLoom/actions/runs/36441193189) 是有效失败证据。预览提交8b9bcd4通过 [36449339638](https://github.com/yangyang8305/PulseLoom/actions/runs/36449339638)，包含可下载且已解压安装启动的模拟器包。
+
+[访问政策与测试](ACCESS_POLICY_REVIEW.md) · [预览步骤](SIMULATOR_PREVIEW.md) · [实际数据流](DATA_FLOW.md)。第三阶段文档自己的SHA需独立等待全量Actions并核对main，不能预认证；实际最终SHA以提交历史和对应运行证据为准。

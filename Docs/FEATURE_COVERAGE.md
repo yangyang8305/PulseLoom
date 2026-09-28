@@ -2,7 +2,7 @@
 
 本表登记**源码位置与实现方式**，不表示47个流程已经在iOS运行通过。界面合并同一任务的状态，以保持用户已批准的四页简明结构；不强行把HTML47个演示route做成47个原生顶层页面。
 
-Apple SDK 已在 `790aee815f3b7c40f74ab30776635e5eb7199c69` 的 [Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36417214180) 完成 iPhone/Widget/Watch 模拟器编译。原生服务 34、UI 9、Core 87、Relay 15 项通过；**只有相应测试执行的路径是已验证，47 行的“源码位置”不等于 47 个完整场景通过**。生产 UI 没有默认模拟 Pro，外部服务没有用假成功替代。
+Apple SDK 已在 `8b9bcd4a2194fd0e9764e73587f823867e6d916a` 的 [Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36449339638) 完成 iPhone/Widget/Watch 模拟器编译。原生服务 55、UI 9、Core 90、Relay 15 项通过；**只有相应测试执行的路径是已验证，47 行的“源码位置”不等于 47 个完整场景通过**。生产 UI 没有默认模拟 Pro，外部服务没有用假成功替代。
 
 验证层级：**C**＝源码与 SDK 编译；**S**＝指定的部分模拟器用例；**H/A**＝硬件、账号及真实服务，全部仍未验收。下表保留源码映射，场景证据按后面的验证矩阵单独阅读。
 
@@ -39,7 +39,7 @@ Apple SDK 已在 `790aee815f3b7c40f74ab30776635e5eb7199c69` 的 [Actions](https:
 | S29 | 我的 | `MyView.swift` | 第四Tab；作品收藏历史主题设置与扩展入口 |
 | S30 | 已保存节奏 | `MyView.swift / SavedPatternsView；LibraryStore.swift` | 改名/复制/编辑/删除/导入导出/配额；不伪造保存成功 |
 | S31 | 收藏 | `MyView.swift / FavoritesView` | 收藏去重、移除、List重排、引用清理 |
-| S32 | 使用历史 | `MyView.swift / HistoryView；LibraryStore.swift` | 默认关闭；100条/30日；清空；备份排除 |
+| S32 | 使用历史 | `MyView.swift / HistoryView；LibraryStore.swift` | 默认关闭；加载/记录时内存筛选100条/30日，非磁盘TTL；清空主文件与副本；备份排除 |
 | S33 | Pro权益与购买 | `SupportViews.swift / PremiumView；PurchaseService.swift` | 真实本地化商品/买断/验签/恢复；不以原型Pro状态作为授权 |
 | S34 | 交易结果 | `PurchaseService.swift；PremiumView` | 成功取消pending失败恢复通过实际StoreKit结果呈现，不保留假交易按钮 |
 | S35 | 设置 | `MyView.swift / SettingsView` | 外观、减少动画、保持屏幕、历史、隐私等；大字号遵循系统Dynamic Type |
@@ -80,11 +80,13 @@ Apple SDK 已在 `790aee815f3b7c40f74ab30776635e5eb7199c69` 的 [Actions](https:
 | S01、S05、S07、S09、S15、S29、S35 | 原 8 项 UI：进入、四 Tab、预设标题、入口/弹层、同进程草稿名和计时选择 | 不含全流程音乐导入、全部编辑器及真正开始/停止马达 |
 | S04～06、S46 | HapticSafetyTests 5 项：生产 driver/coordinator 的停止失败、隔离、重试和正常路径 | 引擎边界替身；实体触觉未验证 |
 | S11 | SystemMusicSafetyTests 7 项：停止/取消/换曲竞态 | 真实授权、曲库、订阅和系统触感未验证；AUD-19 |
-| S15～19、S30、S32、S36 | DataSafety 4 + StorageBoundary 12 中的草稿、擦除、写入/恢复边界；恢复 UI 1 | 仅对应用例，不是完整编辑验收；AUD-09、11～14 |
+| S15～19、S30、S32、S36 | DataSafety 4 + StorageBoundary 12 中的草稿、擦除、写入/恢复边界；恢复 UI 1 | 仅对应用例，不是完整编辑验收；AUD-11～14 |
 | S39 | NativeDateSafety 1、Core 日期/编解码测试、延迟云结果的本地应用代次 | 无真实 CloudKit 多设备；AUD-07、22 |
-| S40、S41 | RemoteSafety 5 项：真实客户端加密帧经内存 socket，普通停止与紧急撤权 | 公网 WSS/两机未验证；AUD-10、15、21 |
+| S40、S41 | RemoteSafety 5 项：真实客户端加密帧经内存 socket，普通停止与紧急撤权 | 公网 WSS/两机未验证；AUD-21 |
 | S12 | Core 合成 PCM 分析测试 | 不能证明真实文件解码、音乐换曲或马达时序 |
 | S20～28、S31、S33～34、S37～38、S42～45、S47 | 有源码、相关目标编译；本轮无完整场景验收 | 声景组合、主题、真实购买、设备扩展、无障碍和人工文案等；AUD-16～19 |
+
+访问策略更新：AUD-09/10/15已在 [ACCESS_POLICY_REVIEW.md](ACCESS_POLICY_REVIEW.md) 的原生回归范围关闭。AccessPolicyTests共21项，验证即时权益、输出所有权、付费来源及整库导出阻断；没有真实服务验收。对外导出禁止受限/未验证内容，同账号CloudKit独立；原创JSON重新外部导入不获得可信原创身份。预览包的安装启动和手动步骤见 [SIMULATOR_PREVIEW.md](SIMULATOR_PREVIEW.md)，实际数据去向见 [DATA_FLOW.md](DATA_FLOW.md)。
 
 逐个测试名和 P1 限制见 [QA_REPORT.md](QA_REPORT.md) / [AUDIT_PHASE2.md](AUDIT_PHASE2.md)。
 机器可读 `feature-map.json` 的 native_validation 是**场景状态**；sdk_build 另列，不因编译通过而统一改为场景通过。

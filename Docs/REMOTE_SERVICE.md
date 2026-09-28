@@ -30,7 +30,7 @@ cp .env.example .env
 
 ## 协议
 
-1. `POST /v1/rooms` 生成随机房间及 sender/receiver 256-bit capability。服务器只存 hash，房间在内存中，一小时到期。
+1. `POST /v1/rooms` 生成随机房间及 sender/receiver 256-bit capability。Registry保存token hash，但第一帧鉴权会在服务端内存接触明文token；房间在内存中，建房后一小时到期并由15秒sweep回收。
 2. 客户端生成 256-bit AES key，发送方仅分享 receiver 邀请。邀请使用 `pulseloom://invite#...`，密钥置于 fragment，不作为中继查询参数。
 3. WebSocket 第一帧发送 role/token，5秒内鉴权。URL 不携带 capability。
 4. 业务载荷由 CryptoKit AES-GCM 加密；room ID 作 AAD。中继只能转发 opaque payload，不能读强度/模式内容。
@@ -48,3 +48,9 @@ cp .env.example .env
 - `.env` 被 Git 忽略；对用户分享的是邀请，不是中继管理权限。
 - 原生 CryptoKit↔服务两实体机互通、真实 NAT/移动网络/高延迟测试尚未执行。Python AES-GCM 测试只证明测试构造帧的加密/解密与中继转发，不能冒充原生端到端联调。
 - 直接 Python 依赖版本已固定；间接依赖、Docker image digest、Caddy版本与漏洞扫描需生产部署时锁定和复核。DoS和公网安全审查尚未完成。
+
+## 当前策略与留存补充（088387a之后）
+
+start/gain逐条核对即时Pro、前台、许可nonce与输出ID；本机新会话接管即撤权。普通stop保留许可，emergencyStop撤销许可；停止和ping不因Pro丢失被禁止。客户端disconnect为重连保留邀请key/token在进程内，不能把断线称为忘记邀请。
+
+建房队列的60秒窗口不是IP key保留期限；AUD-21仍存在，冷IP可能直到服务重启才释放。所有peer离开不立即删房间。Caddy/Docker/主机日志无已确定的生产保留策略；不要照本文直接生产上线。完整代码依据、失败残留及待决定事项见 [DATA_FLOW.md](DATA_FLOW.md)。这些运维风险本轮没有修改、部署或验收。
