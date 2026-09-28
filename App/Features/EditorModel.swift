@@ -23,6 +23,9 @@ import UIKit
     private var timer: Timer?
     private weak var app: AppModel?
     private var checkpoint: HapticPattern?
+    @Published private(set) var workspaceID = UUID()
+    private(set) var recordingID = UUID()
+    private var libraryGeneration: UUID?
     var canUndo: Bool { !history.undoStack.isEmpty }
     var canRedo: Bool { !history.redoStack.isEmpty }
     var validationError: String? {
@@ -33,17 +36,58 @@ import UIKit
     }
     init() {}
     func attach(_ app: AppModel) {
-        guard self.app == nil else { return }
+        guard self.app == nil else { refreshLibraryBoundary(); return }
         self.app = app
+        libraryGeneration = app.library.contentGeneration
         if let d = app.library.draft {
             draft = d
             tool = d.mode == .curve ? .curve : d.mode == .recorded ? .tap : .basic
         }
     }
+    /// A restore/erase boundary invalidates all old undo, drafts, timers and UI binding leases.
+    /// Normal cloud merges deliberately do not change this epoch or discard unsaved edits.
+    func refreshLibraryBoundary() { _ = ensureWorkspace() }
+    @discardableResult private func ensureWorkspace() -> Bool {
+        guard let app else { return true }
+        guard libraryGeneration == app.library.contentGeneration else {
+            timer?.invalidate()
+            timer = nil
+            recording = false
+            down = false
+            recordingID = UUID()
+            workspaceID = UUID()
+            checkpoint = nil
+            history = EditHistory()
+            recorder = TouchRecorder()
+            xy = []
+            touches = 0
+            seconds = 0
+            selected = 0
+            saved = false
+            error = nil
+            if app.playback.kind == "recording" { app.playback.stopStream() }
+            draft = app.library.draft ?? HapticPattern()
+            tool = draft.mode == .curve ? .curve : draft.mode == .recorded ? .tap : .basic
+            libraryGeneration = app.library.contentGeneration
+            return false
+        }
+        return !app.library.recoveryRequired
+    }
+    var nameBinding: Binding<String> {
+        let lease = workspaceID
+        return Binding(get: { self.draft.name }, set: { value in
+            guard self.ensureWorkspace(), self.workspaceID == lease else { return }
+            self.draft.name = String(value.prefix(30))
+            self.persist()
+        })
+    }
     func edit(_ p: HapticPattern, copy: Bool = false) {
+        guard ensureWorkspace() else { return }
         endTouch()
         end()
         history = EditHistory()
+        checkpoint = nil
+        workspaceID = UUID()
         draft = copy || p.builtin ? p.copyForEditing() : p
         tool = draft.mode == .curve ? .curve : .basic
         selected = 0
@@ -51,6 +95,7 @@ import UIKit
         persist()
     }
     func choose(_ t: Tool) {
+        guard ensureWorkspace() else { return }
         endTouch()
         end()
         tool = t
@@ -82,9 +127,12 @@ import UIKit
         }
     }
     func new() {
+        guard ensureWorkspace() else { return }
         endTouch()
         end()
         history = EditHistory()
+        checkpoint = nil
+        workspaceID = UUID()
         draft = HapticPattern()
         tool = .tap
         selected = 0
@@ -95,17 +143,23 @@ import UIKit
         persist()
     }
     func remember() {
+        guard ensureWorkspace() else { return }
         history.record(draft)
         saved = false
     }
     func change(_ action: (inout HapticPattern) -> Void) {
+        guard ensureWorkspace() else { return }
         remember()
         action(&draft)
         draft.updatedAt = Date()
         persist()
     }
-    func beginEditingGesture() { if checkpoint == nil { checkpoint = draft } }
+    func beginEditingGesture() {
+        guard ensureWorkspace() else { return }
+        if checkpoint == nil { checkpoint = draft }
+    }
     func endEditingGesture() {
+        guard ensureWorkspace() else { return }
         if let checkpoint, checkpoint != draft {
             history.record(checkpoint)
             saved = false
@@ -113,8 +167,12 @@ import UIKit
         checkpoint = nil
         persist()
     }
-    func persist() { app?.library.saveDraft(draft) }
+    func persist() {
+        guard ensureWorkspace(), let app, let libraryGeneration else { return }
+        app.library.saveDraft(draft, generation: libraryGeneration)
+    }
     func undo() {
+        guard ensureWorkspace() else { return }
         if let d = history.undo(draft) {
             draft = d
             selected = min(selected, max(0, draft.segments.count - 1))
@@ -122,6 +180,7 @@ import UIKit
         }
     }
     func redo() {
+        guard ensureWorkspace() else { return }
         if let d = history.redo(draft) {
             draft = d
             selected = min(selected, max(0, draft.segments.count - 1))
@@ -129,6 +188,7 @@ import UIKit
         }
     }
     func addSegment() {
+        guard ensureWorkspace() else { return }
         guard draft.segments.count < (draft.mode == .recorded ? 128 : 16) else {
             error = T("editor.segmentLimit")
             return
@@ -137,6 +197,7 @@ import UIKit
         selected = draft.segments.count - 1
     }
     func duplicate() {
+        guard ensureWorkspace() else { return }
         guard draft.segments.indices.contains(selected),
             draft.segments.count < (draft.mode == .recorded ? 128 : 16)
         else { return }
@@ -146,30 +207,33 @@ import UIKit
         selected += 1
     }
     func deleteSegment() {
+        guard ensureWorkspace() else { return }
         guard draft.segments.indices.contains(selected) else { return }
         change { $0.segments.remove(at: selected) }
         selected = max(0, selected - 1)
     }
     func move(_ direction: Int) {
+        guard ensureWorkspace() else { return }
         let next = selected + direction
         guard draft.segments.indices.contains(next) else { return }
         change { $0.segments.swapAt(selected, next) }
         selected = next
     }
     func segmentBinding(_ key: WritableKeyPath<Segment, Double>) -> Binding<Double> {
-        Binding(
-            get: {
-                self.draft.segments.indices.contains(self.selected)
-                    ? self.draft.segments[self.selected][keyPath: key] : 0
-            },
-            set: { v in
-                guard v.isFinite, self.draft.segments.indices.contains(self.selected) else { return }
+        let lease = workspaceID
+        let id = draft.segments.indices.contains(selected) ? draft.segments[selected].id : nil
+        return Binding(
+            get: { self.draft.segments.first { $0.id == id }?[keyPath: key] ?? 0 },
+            set: { value in
+                guard self.ensureWorkspace(), self.workspaceID == lease, value.isFinite,
+                    let index = self.draft.segments.firstIndex(where: { $0.id == id }) else { return }
                 self.beginEditingGesture()
-                self.draft.segments[self.selected][keyPath: key] = v
+                self.draft.segments[index][keyPath: key] = value
                 self.persist()
             })
     }
     func nodeChanged(_ index: Int, time: Double, value: Double) {
+        guard ensureWorkspace() else { return }
         guard time.isFinite, value.isFinite, draft.nodes.indices.contains(index) else { return }
         beginEditingGesture()
         let left = index == 0 ? 0 : draft.nodes[index - 1].time + 1
@@ -180,6 +244,7 @@ import UIKit
         persist()
     }
     func applyCurveTemplate(_ name: String) {
+        guard ensureWorkspace() else { return }
         change { p in
             p.mode = .curve
             p.segments = []
@@ -195,6 +260,7 @@ import UIKit
         }
     }
     func addNode(time: Double? = nil) {
+        guard ensureWorkspace() else { return }
         guard draft.nodes.count < 64 else { return }
         change { p in
             let intervals = zip(p.nodes, p.nodes.dropFirst()).map { ($0.0.time, $0.1.time) }
@@ -207,10 +273,12 @@ import UIKit
         }
     }
     func removeNode(_ id: UUID) {
+        guard ensureWorkspace() else { return }
         guard draft.nodes.first?.id != id, draft.nodes.last?.id != id else { return }
         change { $0.nodes.removeAll { $0.id == id } }
     }
     func length(_ seconds: Double) {
+        guard ensureWorkspace() else { return }
         guard (0.1...30).contains(seconds) else { return }
         change { p in
             let old = p.cycle
@@ -223,6 +291,7 @@ import UIKit
         }
     }
     func start() {
+        guard ensureWorkspace() else { return }
         guard !recording else { return }
         remember()
         saved = false
@@ -232,14 +301,21 @@ import UIKit
         xyStart = ProcessInfo.processInfo.systemUptime
         recorder.start(now: xyStart)
         recording = true
+        recordingID = UUID()
+        let lease = workspaceID
+        let take = recordingID
         app?.stopAll()
         timer?.invalidate()
         timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
+            MainActor.assumeIsolated {
+                guard let self, self.workspaceID == lease, self.recordingID == take else { return }
+                self.tick()
+            }
         }
         RunLoop.main.add(timer!, forMode: .common)
     }
     func touchBegan(_ point: CGPoint) {
+        guard ensureWorkspace() else { return }
         guard recording, !down else { return }
         down = true
         let now = ProcessInfo.processInfo.systemUptime
@@ -253,12 +329,14 @@ import UIKit
         sendLevel()
     }
     func touchMoved(_ point: CGPoint) {
+        guard ensureWorkspace() else { return }
         guard recording, down, tool == .xy else { return }
         x = point.x
         y = 1 - point.y
         sendLevel()
     }
-    func endTouch() {
+    func endTouch(recording expected: UUID? = nil) {
+        guard ensureWorkspace(), expected == nil || expected == recordingID else { return }
         guard down else { return }
         down = false
         recorder.up(now: ProcessInfo.processInfo.systemUptime)
@@ -267,6 +345,7 @@ import UIKit
         touches = recorder.segments.count
     }
     private func sendLevel() {
+        guard ensureWorkspace() else { return }
         guard let app else { return }
         guard app.playback.driver.supported else { return }
         do {
@@ -279,6 +358,7 @@ import UIKit
         }
     }
     private func tick() {
+        guard ensureWorkspace() else { return }
         guard recording else { return }
         let now = ProcessInfo.processInfo.systemUptime
         seconds = min(30, now - xyStart)
@@ -294,9 +374,11 @@ import UIKit
         }
     }
     func end() {
+        guard ensureWorkspace() else { return }
         guard recording else { return }
         endTouch()
         recording = false
+        recordingID = UUID()
         timer?.invalidate()
         timer = nil
         recorder.finish(now: ProcessInfo.processInfo.systemUptime)
@@ -324,6 +406,7 @@ import UIKit
         } catch { self.error = error.localizedDescription }
     }
     func removeLastTouch() {
+        guard ensureWorkspace() else { return }
         if recording {
             recorder.undo()
             touches = recorder.segments.count
@@ -332,6 +415,7 @@ import UIKit
         }
     }
     func save() {
+        guard ensureWorkspace() else { return }
         end()
         guard let app else { return }
         app.perform {
@@ -343,6 +427,7 @@ import UIKit
         }
     }
     func preview() {
+        guard ensureWorkspace() else { return }
         end()
         guard let app else { return }
         app.perform {

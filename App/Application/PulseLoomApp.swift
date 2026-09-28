@@ -14,7 +14,9 @@ struct RootView: View {
     var dark: Bool { app.prefs.appearance == .dark || app.prefs.appearance == .auto && scheme == .dark }
     var body: some View {
         Group {
-            if !app.prefs.onboarded {
+            if app.library.recoveryRequired {
+                LibraryRecoveryView()
+            } else if !app.prefs.onboarded {
                 WelcomeView()
             } else {
                 TabView(selection: $app.tab) {
@@ -78,6 +80,9 @@ struct RootView: View {
                 editor.endTouch()
                 editor.end()
             }
+        }
+        .onChange(of: app.library.contentGeneration) { _, _ in
+            editor.refreshLibraryBoundary()
         }
         .onOpenURL { app.handleURL($0) }
         .task {

@@ -1,0 +1,8 @@
+"title" = "Recover your library";
+"detail" = "Your library could not be opened, or a previous erase/restore needs to finish. Retry or restore a backup before editing.";
+"retry" = "Retry recovery";
+"previous" = "Restore previous local copy";
+"import" = "Choose a backup file";
+"export" = "Export original library file";
+"erase" = "Erase local content and start again";
+"boundary" = "No automatic reset. Erasing local content does not delete cloud data, copies you exported, or device backups.";

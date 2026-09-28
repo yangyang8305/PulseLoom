@@ -9,6 +9,7 @@ struct CreateView: View {
     @State private var confirmNew = false
     @FocusState private var nameFocused: Bool
     var body: some View {
+        let workspace = editor.workspaceID
         PlainScene {
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
@@ -41,8 +42,9 @@ struct CreateView: View {
                         Text(T("record.startHint")).font(.system(.title3, design: .serif))
                     }
                     TouchSurface(
-                        began: { editor.touchBegan($0) }, moved: { editor.touchMoved($0) },
-                        ended: { editor.endTouch() })
+                        began: { if editor.workspaceID == workspace { editor.touchBegan($0) } },
+                        moved: { if editor.workspaceID == workspace { editor.touchMoved($0) } },
+                        ended: { if editor.workspaceID == workspace { editor.endTouch() } })
                 }.frame(height: 240)
                 Text(timeText(editor.seconds) + " / 00:30").font(.title2.monospacedDigit()).frame(
                     maxWidth: .infinity)
@@ -64,7 +66,11 @@ struct CreateView: View {
                 if editor.recording {
                     Button(T("record.accessibleTap")) {
                         editor.touchBegan(CGPoint(x: editor.x, y: 1 - editor.y))
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { editor.endTouch() }
+                        let take = editor.recordingID
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            guard editor.workspaceID == workspace else { return }
+                            editor.endTouch(recording: take)
+                        }
                     }.frame(minHeight: 44)
                 }
                 if editor.tool == .xy {
@@ -78,12 +84,7 @@ struct CreateView: View {
             }
             TextField(
                 T("editor.name"),
-                text: Binding(
-                    get: { editor.draft.name },
-                    set: { v in
-                        editor.draft.name = String(v.prefix(30))
-                        editor.persist()
-                    })
+                text: editor.nameBinding
             ).textFieldStyle(.roundedBorder).accessibilityIdentifier("patternName")
                 .focused($nameFocused)
                 .submitLabel(.done)

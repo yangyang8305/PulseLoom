@@ -1,40 +1,98 @@
 import Foundation
 
 public enum FileCodec {
+    public static let defaultMaxBytes = 5 * 1024 * 1024
+    /// A local library can contain many individually valid 256 KiB patterns.
+    /// Apply the SAME bound at every library write/read/import/CloudKit staging boundary.
+    public static let libraryMaxBytes = 64 * 1024 * 1024
+    private struct ExactDate: Codable { let referenceSeconds: Double }
     public static func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            let seconds = date.timeIntervalSinceReferenceDate
+            guard seconds.isFinite else { throw LoomError.invalid("Non-finite date.") }
+            try ExactDate(referenceSeconds: seconds).encode(to: encoder)
+        }
         return try encoder.encode(value)
     }
-    public static func decode<T: Decodable>(_ type: T.Type, _ data: Data, maxBytes: Int = 5 * 1024 * 1024)
+    public static func decode<T: Decodable>(_ type: T.Type, _ data: Data, maxBytes: Int = defaultMaxBytes)
         throws -> T
     {
-        guard data.count <= maxBytes else { throw LoomError.invalid("File exceeds the size limit.") }
+        guard maxBytes > 0, data.count <= maxBytes else { throw LoomError.invalid("File exceeds the size limit.") }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            // New files round-trip Date's actual binary64 reference epoch value.
+            // Legacy ISO8601 files remain readable; their already-lost fractions cannot be recovered.
+            if let exact = try? ExactDate(from: decoder) {
+                guard exact.referenceSeconds.isFinite else { throw LoomError.invalid("Non-finite date.") }
+                return Date(timeIntervalSinceReferenceDate: exact.referenceSeconds)
+            }
+            let single = try decoder.singleValueContainer()
+            let text = try single.decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: text) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            guard let date = formatter.date(from: text) else { throw LoomError.invalid("Invalid date.") }
+            return date
+        }
         return try decoder.decode(type, from: data)
     }
-    public static func write<T: Encodable>(_ value: T, to url: URL) throws {
+    public static func write<T: Encodable>(
+        _ value: T, to url: URL, maxBytes: Int = defaultMaxBytes, preservePrevious: Bool = true
+    ) throws {
+        // Preflight before touching either the current file OR its recovery copy.
+        let data = try encode(value)
+        guard maxBytes > 0, data.count <= maxBytes else { throw LoomError.storage("The library size limit would be exceeded. Nothing was replaced.") }
         let fm = FileManager.default
         try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let data = try encode(value)
-        if fm.fileExists(atPath: url.path) {
+        if preservePrevious, fm.fileExists(atPath: url.path) {
             let backup = url.appendingPathExtension("previous")
-            if fm.fileExists(atPath: backup.path) { try fm.removeItem(at: backup) }
-            try fm.copyItem(at: url, to: backup)
+            let previous = try readData(from: url, maxBytes: maxBytes)
+            #if os(iOS) || os(watchOS)
+                try previous.write(to: backup, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            #else
+                try previous.write(to: backup, options: .atomic)
+            #endif
         }
-        try data.write(to: url, options: .atomic)
         #if os(iOS) || os(watchOS)
-            try fm.setAttributes(
-                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: url.path)
+            try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        #else
+            try data.write(to: url, options: .atomic)
         #endif
     }
-    public static func read<T: Decodable>(_ type: T.Type, from url: URL) throws -> T {
-        try decode(type, Data(contentsOf: url))
+    public static func readData(from url: URL, maxBytes: Int = defaultMaxBytes) throws -> Data {
+        guard maxBytes > 0, maxBytes < Int.max else { throw LoomError.invalid("Invalid file limit.") }
+        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size > 0, size <= maxBytes else { throw LoomError.invalid("File too large or empty.") }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        // Bounded read also checks a file that grows after resourceValues was read.
+        var data = Data()
+        data.reserveCapacity(size)
+        while data.count <= maxBytes {
+            let chunk = try handle.read(upToCount: min(64 * 1024, maxBytes + 1 - data.count)) ?? Data()
+            if chunk.isEmpty { break }
+            data.append(chunk)
+        }
+        guard !data.isEmpty, data.count <= maxBytes else { throw LoomError.invalid("File too large or empty.") }
+        return data
+    }
+    public static func read<T: Decodable>(
+        _ type: T.Type, from url: URL, maxBytes: Int = defaultMaxBytes
+    ) throws -> T {
+        try decode(type, readData(from: url, maxBytes: maxBytes), maxBytes: maxBytes)
+    }
+    /// Logical removal of app-owned files, not a promise of physical flash/OS-backup erasure.
+    public static func erase(_ url: URL) throws {
+        let fm = FileManager.default
+        for item in [url, url.appendingPathExtension("previous")] {
+            if fm.fileExists(atPath: item.path) { try fm.removeItem(at: item) }
+        }
     }
 }
+
 public enum PatternImport {
     /// Accept native files plus the approved prototype's schemaVersion=2 DTO; never trust privilege flags from JSON.
     public static func decode(_ data: Data) throws -> HapticPattern {

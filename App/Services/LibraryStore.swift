@@ -8,10 +8,14 @@ import PulseLoomCore
     @Published var loadError: String?
     @Published var draft: HapticPattern?
     let root: URL
+    @Published private(set) var contentGeneration = UUID()
+    @Published private(set) var recoveryRequired = false
     private var writable = true
+    private let removeFile: (URL) throws -> Void
     private var draftTask: Task<Void, Never>?
     var allPatterns: [HapticPattern] { Catalog.presets + snapshot.custom }
-    init(root: URL? = nil) {
+    init(root: URL? = nil, removeFile: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }) {
+        self.removeFile = removeFile
         var resolved = root
         #if DEBUG
             if resolved == nil, let testID = ProcessInfo.processInfo.environment["PULSELOOM_UI_TEST_ID"],
@@ -27,34 +31,53 @@ import PulseLoomCore
             .appendingPathComponent("PulseLoom", isDirectory: true)
         #if DEBUG
             do { try RecoveryFixture.seedIfRequested(at: self.root) } catch {
-                loadError = error.localizedDescription
-                writable = false
+                failRecovery(error)
                 return
             }
         #endif
-        let url = self.root.appendingPathComponent("library.json")
+        do {
+            try LibraryErasure.finish(root: self.root, remove: removeFile)
+            try LibraryReplacement.finish(root: self.root, remove: removeFile)
+            try loadCurrentFiles()
+        } catch { failRecovery(error) }
+    }
+    private func failRecovery(_ error: Error) {
+        writable = false
+        recoveryRequired = true
+        loadError = error.localizedDescription
+    }
+    private func loadCurrentFiles() throws {
+        let url = root.appendingPathComponent("library.json")
+        var current = LibrarySnapshot()
         if FileManager.default.fileExists(atPath: url.path) {
-            do {
-                let s = try FileCodec.read(LibrarySnapshot.self, from: url)
-                try Validation.snapshot(s)
-                snapshot = s
-            } catch {
-                loadError = error.localizedDescription
-                writable = false
-            }
+            current = try FileCodec.read(LibrarySnapshot.self, from: url, maxBytes: FileCodec.libraryMaxBytes)
+            try Validation.snapshot(current)
         }
-        let historyURL = self.root.appendingPathComponent("Private/history.json")
+        snapshot = current
+        let historyURL = root.appendingPathComponent("Private/history.json")
+        history = []
         if FileManager.default.fileExists(atPath: historyURL.path) {
-            do {
-                history = try FileCodec.read([HistoryEntry].self, from: historyURL)
-                pruneHistory()
-            } catch { loadError = error.localizedDescription }
+            do { history = try FileCodec.read([HistoryEntry].self, from: historyURL); pruneHistory() }
+            catch { loadError = error.localizedDescription }
         }
-        let draftURL = self.root.appendingPathComponent("draft.json")
+        draft = nil
+        let draftURL = root.appendingPathComponent("draft.json")
         if FileManager.default.fileExists(atPath: draftURL.path) {
-            do { draft = try FileCodec.read(HapticPattern.self, from: draftURL) } catch {
-                loadError = error.localizedDescription
-            }
+            do { draft = try FileCodec.read(HapticPattern.self, from: draftURL) }
+            catch { loadError = error.localizedDescription }
+        }
+        writable = true
+        recoveryRequired = false
+    }
+    private func invalidateDraftWriters() {
+        draftTask?.cancel()
+        draftTask = nil
+        draft = nil
+        contentGeneration = UUID()
+    }
+    private func requireWritable() throws {
+        guard writable, !recoveryRequired else {
+            throw LoomError.storage("The original library is preserved. Finish recovery before editing.")
         }
     }
     func pattern(_ id: String) -> HapticPattern? { allPatterns.first { $0.id == id } }
@@ -66,7 +89,7 @@ import PulseLoomCore
         try change(&next)
         next.updatedAt = Date()
         try Validation.snapshot(next)
-        try FileCodec.write(next, to: root.appendingPathComponent("library.json"))
+        try FileCodec.write(next, to: root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
         snapshot = next
         NotificationCenter.default.post(name: .loomLibraryChanged, object: nil)
     }
@@ -108,50 +131,80 @@ import PulseLoomCore
             if s.favorites.contains(id) { s.favorites.removeAll { $0 == id } } else { s.favorites.append(id) }
         }
     }
-    func saveDraft(_ p: HapticPattern?) {
+    func saveDraft(_ p: HapticPattern?, generation: UUID? = nil) {
+        guard writable, !recoveryRequired, generation == nil || generation == contentGeneration else { return }
         draft = p
         draftTask?.cancel()
+        let expected = contentGeneration
         draftTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: 500_000_000)
-                try self?.flushDraft()
+                guard let self, self.contentGeneration == expected, !Task.isCancelled else { return }
+                try self.flushDraft()
             } catch is CancellationError {} catch { self?.loadError = error.localizedDescription }
         }
     }
     func flushDraft() throws {
-        guard writable else { throw LoomError.storage("Cannot overwrite a library awaiting recovery.") }
+        try requireWritable()
         let u = root.appendingPathComponent("draft.json")
-        if let draft {
-            try FileCodec.write(draft, to: u)
-        } else if FileManager.default.fileExists(atPath: u.path) {
-            try FileManager.default.removeItem(at: u)
-        }
+        if let draft { try FileCodec.write(draft, to: u) }
+        else { try FileCodec.erase(u) }
     }
     func restorePrevious() throws {
-        let s = try FileCodec.read(
-            LibrarySnapshot.self, from: root.appendingPathComponent("library.json.previous"))
+        // An unfinished explicit erasure takes precedence over old recovery content.
+        guard !FileManager.default.fileExists(atPath: root.appendingPathComponent(LibraryErasure.markerName).path) else {
+            throw LoomError.storage("Finish the pending erasure before restoring other content.")
+        }
+        let s = try FileCodec.read(LibrarySnapshot.self,
+                                  from: root.appendingPathComponent("library.json.previous"), maxBytes: FileCodec.libraryMaxBytes)
+        try replace(s, preservePrevious: false)
+    }
+    func replace(_ s: LibrarySnapshot, preservePrevious: Bool = true) throws {
+        guard !FileManager.default.fileExists(atPath: root.appendingPathComponent(LibraryErasure.markerName).path) else {
+            throw LoomError.storage("Finish the pending erasure first.")
+        }
         try Validation.snapshot(s)
-        try FileCodec.write(s, to: root.appendingPathComponent("library.json"))
+        try LibraryReplacement.begin(s, preservePrevious: preservePrevious, root: root)
+        invalidateDraftWriters()
+        writable = false
+        recoveryRequired = true
+        do { try LibraryReplacement.finish(root: root, remove: removeFile) }
+        catch { failRecovery(error); throw error }
         snapshot = s
         writable = true
+        recoveryRequired = false
         loadError = nil
     }
-    func replace(_ s: LibrarySnapshot) throws {
+    /// A normal cloud refresh preserves unsaved local drafts. A restore/wipe boundary rejects old requests.
+    @discardableResult func applyCloud(_ s: LibrarySnapshot, generation: UUID) throws -> Bool {
+        guard generation == contentGeneration else { return false }
+        try requireWritable()
         try Validation.snapshot(s)
-        try FileCodec.write(s, to: root.appendingPathComponent("library.json"))
+        try FileCodec.write(s, to: root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
         snapshot = s
-        writable = true
-        loadError = nil
+        return true
+    }
+    func retryRecovery() throws {
+        invalidateDraftWriters()
+        do {
+            try LibraryErasure.finish(root: root, remove: removeFile)
+            try LibraryReplacement.finish(root: root, remove: removeFile)
+            loadError = nil
+            try loadCurrentFiles()
+        } catch { failRecovery(error); throw error }
     }
     func record(title: String, kind: String, seconds: Double, reason: String) {
-        guard snapshot.preferences.historyEnabled, seconds > 0 else { return }
+        guard writable, !recoveryRequired, snapshot.preferences.historyEnabled, seconds > 0 else { return }
         history.insert(HistoryEntry(title: title, kind: kind, seconds: seconds, reason: reason), at: 0)
         pruneHistory()
         do { try saveHistory() } catch { loadError = error.localizedDescription }
     }
     func clearHistory() throws {
+        try requireWritable()
+        try LibraryErasure.begin(.history, preferences: snapshot.preferences, root: root)
         history = []
-        try saveHistory()
+        do { try LibraryErasure.finish(root: root, remove: removeFile) }
+        catch { failRecovery(error); throw error }
     }
     private func pruneHistory() {
         let cutoff = Date().addingTimeInterval(-30 * 86400)
@@ -166,13 +219,18 @@ import PulseLoomCore
         try folder.setResourceValues(flags)
     }
     func clearUserContent() throws {
-        var fresh = LibrarySnapshot()
-        fresh.preferences = snapshot.preferences
-        fresh.preferences.lastPattern = "p02"
-        try replace(fresh)
-        draft = nil
-        try flushDraft()
-        try clearHistory()
+        // Record intent first. If that fails, no old writer or content is changed.
+        try LibraryErasure.begin(.content, preferences: snapshot.preferences, root: root)
+        invalidateDraftWriters()
+        writable = false
+        recoveryRequired = true
+        history = []
+        do {
+            try LibraryErasure.finish(root: root, remove: removeFile)
+            try LibraryReplacement.finish(root: root, remove: removeFile)
+            loadError = nil
+            try loadCurrentFiles()
+        } catch { failRecovery(error); throw error }
     }
 }
 extension Notification.Name { static let loomLibraryChanged = Notification.Name("PulseLoom.libraryChanged") }

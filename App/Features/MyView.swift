@@ -416,7 +416,7 @@ struct PrivacyView: View {
             if let e = app.library.loadError {
                 Notice(text: e)
                 LoomButton(title: "privacy.previous", secondary: true) {
-                    app.perform { try app.library.restorePrevious() }
+                    app.perform { try app.restorePreviousLibrary() }
                 }
             }
         }.navigationTitle(T("privacy.title")).fileImporter(
@@ -424,8 +424,8 @@ struct PrivacyView: View {
         ) { r in
             app.perform {
                 let u = try r.get()
-                let data = try app.read(u)
-                let candidate = try FileCodec.decode(LibrarySnapshot.self, data)
+                let data = try app.read(u, max: FileCodec.libraryMaxBytes)
+                let candidate = try FileCodec.decode(LibrarySnapshot.self, data, maxBytes: FileCodec.libraryMaxBytes)
                 try Validation.snapshot(candidate)
                 proposed = candidate
             }
@@ -436,8 +436,7 @@ struct PrivacyView: View {
         ) {
             Button(T("privacy.replace"), role: .destructive) {
                 if let s = proposed {
-                    app.stopAll()
-                    app.perform { try app.library.replace(s) }
+                    app.perform { try app.replaceLibrary(s) }
                 }
                 proposed = nil
             }
@@ -447,9 +446,7 @@ struct PrivacyView: View {
         }
         .confirmationDialog(T("privacy.clearConfirm"), isPresented: $clear) {
             Button(T("common.delete"), role: .destructive) {
-                app.stopAll()
-                app.perform { try app.library.clearUserContent() }
-                app.diagnostics.clear()
+                app.perform { try app.clearLocalContent() }
             }
         }
     }

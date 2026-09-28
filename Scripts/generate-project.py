@@ -55,7 +55,7 @@ for name,folder,ptype,sdk,minimum,bundle,ext in specs:
   for p in sorted(resource_root.iterdir()):
    if p.name.endswith('.lproj'):continue
    f=ref(p.relative_to(R));objects[uid('group:'+folder)]['children'].append(f);resources.append(build_ref(name,f))
-  for filename in ['Localizable.strings','InfoPlist.strings']:
+  for filename in ['Localizable.strings','InfoPlist.strings','Recovery.strings']:
    local=[]
    for lang in ['en','zh-Hans','ja']:
     path=resource_root/(lang+'.lproj')/filename

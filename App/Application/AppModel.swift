@@ -25,7 +25,7 @@ struct SharedFile: Identifiable {
     let music = MusicService()
     let sound = SoundscapeService()
     let purchase = PurchaseService()
-    let cloud = CloudSyncService()
+    let cloud: CloudSyncService
     let remote = RemoteService()
     let watch = WatchBridge()
     let systemMusic: SystemMusicService
@@ -39,6 +39,8 @@ struct SharedFile: Identifiable {
     @Published var showInvite = false
     private var observers = Set<AnyCancellable>()
     private var notifications: [NSObjectProtocol] = []
+    private var pendingShare: Task<Void, Never>?
+    private var shareGeneration = UUID()
     var prefs: Preferences { library.snapshot.preferences }
     var current: HapticPattern {
         library.pattern(prefs.lastPattern) ?? Catalog.presets.first ?? HapticPattern(name: "Unavailable")
@@ -50,6 +52,7 @@ struct SharedFile: Identifiable {
     }
     init(library store: LibraryStore? = nil, systemMusic musicService: SystemMusicService? = nil) {
         self.library = store ?? LibraryStore()
+        self.cloud = CloudSyncService(stagingRoot: self.library.root.appendingPathComponent("CloudStaging"))
         self.systemMusic = musicService ?? SystemMusicService()
         for publisher in [
             library.objectWillChange, playback.objectWillChange, music.objectWillChange,
@@ -189,7 +192,7 @@ struct SharedFile: Identifiable {
     }
     func asyncPerform(_ operation: @escaping @MainActor () async throws -> Void) {
         Task {
-            do { try await operation() } catch LoomError.entitlement { sheet = .premium } catch {
+            do { try await operation() } catch is CancellationError {} catch LoomError.entitlement { sheet = .premium } catch {
                 self.error = error.localizedDescription
             }
         }
@@ -267,7 +270,7 @@ struct SharedFile: Identifiable {
         playback.interrupt(reason)
         remote.authorize(false)
         watch.allowed = false
-        perform { try library.flushDraft() }
+        if !library.recoveryRequired { perform { try library.flushDraft() } }
     }
     func phase(_ phase: ScenePhase) {
         let active = phase == .active
@@ -285,33 +288,77 @@ struct SharedFile: Identifiable {
     }
     func export<TValue: Encodable>(_ value: TValue, name: String) {
         perform {
-            let u = FileManager.default.temporaryDirectory.appendingPathComponent(name + ".json")
-            try FileCodec.encode(value).write(to: u, options: .atomic)
+            let u = try exportFolder().appendingPathComponent(name + ".json")
+            try FileCodec.write(value, to: u, maxBytes: FileCodec.libraryMaxBytes, preservePrevious: false)
             presentShare(u)
         }
     }
     func exportDiagnostics() {
         perform {
-            let u = FileManager.default.temporaryDirectory.appendingPathComponent(
-                "PulseLoom-diagnostics.json")
-            try diagnostics.data().write(to: u, options: .atomic)
+            let folder = try exportFolder()
+            let u = folder.appendingPathComponent("PulseLoom-diagnostics.json")
+            try diagnostics.data().write(to: u, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             presentShare(u)
         }
     }
+    private func exportFolder() throws -> URL {
+        var folder = library.root.appendingPathComponent("Exports")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var flags = URLResourceValues()
+        flags.isExcludedFromBackup = true
+        try folder.setResourceValues(flags)
+        return folder
+    }
+    private func cancelPendingShare() {
+        pendingShare?.cancel()
+        pendingShare = nil
+        shareGeneration = UUID()
+        share = nil
+    }
     private func presentShare(_ url: URL) {
+        cancelPendingShare()
+        let generation = library.contentGeneration
+        let request = shareGeneration
         if sheet != nil {
             sheet = nil
-            Task {
-                try? await Task.sleep(nanoseconds: 350_000_000)
+            pendingShare = Task {
+                do { try await Task.sleep(nanoseconds: 350_000_000) } catch { return }
+                guard !Task.isCancelled, library.contentGeneration == generation,
+                    shareGeneration == request, !library.recoveryRequired else { return }
                 share = SharedFile(url: url)
             }
         } else {
             share = SharedFile(url: url)
         }
     }
+    func clearLocalContent() throws {
+        stopAll()
+        cloud.disable()
+        cancelPendingShare()
+        music.clear()
+        diagnostics.clear()
+        try library.clearUserContent()
+        updatePreferences()
+    }
+    func replaceLibrary(_ snapshot: LibrarySnapshot) throws {
+        stopAll()
+        cloud.disable()
+        cancelPendingShare()
+        try library.replace(snapshot)
+        updatePreferences()
+    }
+    func restorePreviousLibrary() throws {
+        stopAll()
+        cloud.disable()
+        cancelPendingShare()
+        try library.restorePrevious()
+        updatePreferences()
+    }
     /// Cloud requests yield the main actor. Never replace edits made while awaiting the network.
     func syncLibrary(choice: String? = nil) async throws {
         guard pro else { throw LoomError.entitlement }
+        let generation = library.contentGeneration
+        guard !library.recoveryRequired else { throw LoomError.storage("Finish library recovery first.") }
         let before = library.snapshot
         let incoming: LibrarySnapshot?
         if let choice {
@@ -319,7 +366,14 @@ struct SharedFile: Identifiable {
         } else {
             incoming = try await cloud.synchronize(before)
         }
-        guard var incoming else { return }
+        guard let incoming else { return }
+        try applySyncResult(incoming, before: before, generation: generation)
+    }
+    /// The same epoch check is exercised with delayed results in Apple SDK tests.
+    /// Passing a snapshot here is not evidence that an external CloudKit request succeeded.
+    func applySyncResult(_ result: LibrarySnapshot, before: LibrarySnapshot, generation: UUID) throws {
+        guard generation == library.contentGeneration, !library.recoveryRequired else { return }
+        var incoming = result
         let latest = library.snapshot
         if latest != before {
             incoming = try CloudMerge.preservingBoth(local: latest, remote: incoming)
@@ -329,14 +383,12 @@ struct SharedFile: Identifiable {
             let ids = Set((Catalog.presets + incoming.custom).map(\.id))
             if !ids.contains(incoming.preferences.lastPattern) { incoming.preferences.lastPattern = "p02" }
         }
-        try library.replace(incoming)
+        try library.applyCloud(incoming, generation: generation)
     }
     func read(_ url: URL, max: Int = 5 * 1024 * 1024) throws -> Data {
         let accessible = url.startAccessingSecurityScopedResource()
         defer { if accessible { url.stopAccessingSecurityScopedResource() } }
-        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size > 0, size <= max else { throw LoomError.invalid("File too large or empty.") }
-        return try Data(contentsOf: url)
+        return try FileCodec.readData(from: url, maxBytes: max)
     }
     func handleURL(_ url: URL) {
         guard url.scheme == "pulseloom" else { return }
@@ -355,7 +407,7 @@ struct SharedFile: Identifiable {
         // External links never start haptics or a transaction.
     }
     private func consumeShortcut() {
-        guard playback.foreground,
+        guard playback.foreground, !library.recoveryRequired,
             let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
             let preferences = UserDefaults(suiteName: group),
             let id = preferences.string(forKey: "shortcutPattern")
