@@ -171,6 +171,7 @@ struct SavedPatternsView: View {
                     }
                 }.padding(.vertical, 7)
             }
+            Text(ContentPolicy.importNotice).font(.footnote).foregroundStyle(.secondary)
             LoomButton(title: "common.import", symbol: "square.and.arrow.down", secondary: true) {
                 importing = true
             }
@@ -409,6 +410,7 @@ struct PrivacyView: View {
             LoomButton(title: "privacy.export", symbol: "square.and.arrow.up", secondary: true) {
                 app.export(app.library.snapshot, name: "PulseLoom-backup")
             }
+            Text(ContentPolicy.backupNotice).font(.footnote).foregroundStyle(.secondary)
             LoomButton(title: "privacy.restore", symbol: "square.and.arrow.down", secondary: true) {
                 importing = true
             }

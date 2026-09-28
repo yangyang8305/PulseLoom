@@ -43,6 +43,7 @@ public struct RemoteConsent: Sendable {
         }
         // Ordinary stop ends output, not the previously granted connection permission.
         if c.action == "stop" || c.action == "ping" { return nil }
+        guard pro else { throw LoomError.entitlement }
         guard allowed, foreground else {
             throw LoomError.unavailable("The receiver must authorize control in the foreground.")
         }

@@ -28,12 +28,13 @@ struct LibraryRecoveryView: View {
                 }.frame(minHeight: 44).accessibilityIdentifier("recoveryRestorePrevious")
                 Button(recoveryText("import")) { importing = true }.frame(minHeight: 44)
                 Button(recoveryText("export")) {
-                    let url = app.library.root.appendingPathComponent("library.json")
-                    app.share = SharedFile(url: url)
+                    app.exportRecoveryLibrary()
                 }.frame(minHeight: 44)
                     .disabled(!FileManager.default.fileExists(atPath: app.library.root.appendingPathComponent("library.json").path))
                 Button(recoveryText("erase"), role: .destructive) { erase = true }.frame(minHeight: 44)
                 Text(recoveryText("boundary")).font(.footnote).foregroundStyle(.secondary)
+                Text(ContentPolicy.backupNotice).font(.footnote).foregroundStyle(.secondary)
+                Text(ContentPolicy.importNotice).font(.footnote).foregroundStyle(.secondary)
             }.navigationTitle(recoveryText("title"))
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in

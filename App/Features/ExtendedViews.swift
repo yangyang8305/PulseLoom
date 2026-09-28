@@ -271,7 +271,14 @@ struct RoutineEditorView: View {
                 if app.library.snapshot.routines.contains(where: { $0.id == routine.id }) {
                     LoomButton(title: "common.delete", secondary: true, destructive: true) { delete = true }
                 }
-            }.navigationTitle(T("routine.edit")).toolbar {
+            }.navigationTitle(T("routine.edit"))
+            .onChange(of: routine.items) { previous, _ in
+                var before = routine
+                before.items = previous
+                routine.contentOrigin = ContentPolicy.combine(
+                    ContentPolicy.routineOrigin(before, patterns: app.library.allPatterns),
+                    ContentPolicy.routineOrigin(routine, patterns: app.library.allPatterns))
+            }.toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(T("common.close")) { dismiss() } }
             }
         }

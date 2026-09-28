@@ -150,7 +150,9 @@ import UIKit
     func change(_ action: (inout HapticPattern) -> Void) {
         guard ensureWorkspace() else { return }
         remember()
+        let source = draft
         action(&draft)
+        draft.inheritSource(from: source)
         draft.updatedAt = Date()
         persist()
     }
@@ -395,11 +397,13 @@ import UIKit
                 var candidate = HapticPattern(
                     name: draft.name, mode: .recorded, segments: Array(segments.prefix(128)))
                 candidate.id = draft.id
+                candidate.inheritSource(from: draft)
                 try Validation.pattern(candidate, requireName: false)
                 draft = candidate
             } else if !recorder.segments.isEmpty {
                 var p = try recorder.pattern(name: draft.name)
                 p.id = draft.id
+                p.inheritSource(from: draft)
                 draft = p
             }
             persist()

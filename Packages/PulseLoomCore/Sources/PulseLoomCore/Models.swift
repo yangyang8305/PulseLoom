@@ -1,5 +1,7 @@
 import Foundation
 
+public enum ContentOrigin: String, Codable, Sendable { case original, restricted, unverified }
+
 public enum PatternMode: String, Codable, CaseIterable, Sendable { case basic, curve, recorded }
 public enum EventKind: String, Codable, Sendable { case continuous, transient }
 public struct Segment: Codable, Equatable, Identifiable, Sendable {
@@ -50,6 +52,8 @@ public struct HapticPattern: Codable, Equatable, Identifiable, Sendable {
     public var premium: Bool
     public var builtin: Bool
     public var sourcePremium: Bool
+    /// Nil is legacy/unverifiable, not an assertion of originality. External imports always normalize it.
+    public var contentOrigin: ContentOrigin?
     public var updatedAt: Date
     public init(
         id: String = UUID().uuidString, name: String = "", englishName: String = "",
@@ -77,6 +81,7 @@ public struct HapticPattern: Codable, Equatable, Identifiable, Sendable {
         self.premium = premium
         self.builtin = builtin
         self.sourcePremium = sourcePremium
+        self.contentOrigin = sourcePremium || premium ? .restricted : .original
         self.updatedAt = updatedAt
     }
     public var durationMS: Double {
@@ -93,12 +98,18 @@ public struct HapticPattern: Codable, Equatable, Identifiable, Sendable {
     public func copyForEditing() -> HapticPattern {
         var p = self
         p.id = UUID().uuidString
+        p.contentOrigin = ContentPolicy.origin(self)
         p.builtin = false
-        p.sourcePremium = sourcePremium || premium
+        p.sourcePremium = ContentPolicy.origin(self) == .restricted
         p.premium = false
         p.updatedAt = Date()
         return p
     }
+    public mutating func inheritSource(from source: HapticPattern) {
+        contentOrigin = ContentPolicy.combine(ContentPolicy.origin(self), ContentPolicy.origin(source))
+        sourcePremium = sourcePremium || source.sourcePremium || source.premium || contentOrigin == .restricted
+    }
+
 }
 public enum Appearance: String, Codable, CaseIterable, Sendable { case auto, light, dark }
 public struct Preferences: Codable, Equatable, Sendable {
@@ -140,6 +151,7 @@ public struct Routine: Codable, Equatable, Identifiable, Sendable {
     public var crossfade: Double
     public var sound: Bool
     public var updatedAt: Date
+    public var contentOrigin: ContentOrigin?
     public init(
         id: String = UUID().uuidString, name: String = "", items: [RoutineItem] = [],
         crossfade: Double = 0, sound: Bool = false, updatedAt: Date = Date()
@@ -150,6 +162,7 @@ public struct Routine: Codable, Equatable, Identifiable, Sendable {
         self.crossfade = crossfade
         self.sound = sound
         self.updatedAt = updatedAt
+        self.contentOrigin = .original
     }
     public var duration: Double { items.reduce(0) { $0 + $1.seconds } }
 }
@@ -264,9 +277,108 @@ public enum LoomError: Error, LocalizedError, Equatable {
 }
 public enum Entitlements {
     public static func canPlay(_ p: HapticPattern, pro: Bool) -> Bool {
-        pro || (!p.premium && !p.sourcePremium)
+        pro || (!p.premium && !p.sourcePremium && p.contentOrigin != .restricted && p.contentOrigin != .unverified)
     }
     public static func canSave(isNew: Bool, count: Int, pro: Bool) -> Bool {
         !isNew || count < (pro ? 200 : 3)
+    }
+}
+
+
+/// Provenance is trusted only inside the local store / same-account CloudKit boundary.
+/// External JSON is never an authority for an "original" label. This is not a DRM claim.
+public enum ContentPolicy {
+    public static var importNotice: String { message("export.importNotice") }
+    public static var backupNotice: String { message("export.backupNotice") }
+    private static func message(_ key: String) -> String {
+        let fallback = [
+            "export.restricted": "This file contains paid presets or derived content. Export and sharing are blocked, including for Pro. No partial backup was created.",
+            "export.unverified": "The origin of this imported or legacy work cannot be verified. Export and sharing are blocked; the work has not been deleted.",
+            "export.importNotice": "Imported JSON cannot prove originality. Imported works are retained as unverified, require Pro for playback, and cannot be re-exported. Legacy local works remain playable but need verified origin for export.",
+            "export.backupNotice": "A backup is exported only when all its works and content references are exportable. Paid, derived or unverified content blocks the whole backup; nothing is silently omitted. Same-account iCloud sync is separate."
+        ][key] ?? key
+        return NSLocalizedString(key, tableName: "Recovery", bundle: .main, value: fallback, comment: "Export provenance policy")
+    }
+    public static func combine(_ a: ContentOrigin, _ b: ContentOrigin) -> ContentOrigin {
+        if a == .restricted || b == .restricted { return .restricted }
+        if a == .unverified || b == .unverified { return .unverified }
+        return .original
+    }
+    public static func origin(_ p: HapticPattern) -> ContentOrigin {
+        if p.premium || p.sourcePremium || p.contentOrigin == .restricted { return .restricted }
+        if p.builtin {
+            guard let known = Catalog.presets.first(where: { $0.id == p.id }) else { return .unverified }
+            return known.premium ? .restricted : .original
+        }
+        return p.contentOrigin ?? .unverified
+    }
+    public static func imported(_ p: HapticPattern) -> HapticPattern {
+        var result = p
+        // Retain restrictive evidence, never accept a permissive flag from an external file.
+        let paidID = Catalog.presets.contains { $0.id == p.id && $0.premium }
+        let restricted = p.premium || p.sourcePremium || p.contentOrigin == .restricted || paidID
+        result.contentOrigin = restricted ? .restricted : .unverified
+        result.sourcePremium = restricted
+        result.builtin = false
+        result.premium = false
+        return result
+    }
+    public static func externalSnapshot(_ source: LibrarySnapshot) throws -> LibrarySnapshot {
+        try Validation.snapshot(source)
+        var result = source
+        result.custom = source.custom.map(imported)
+        result.routines = source.routines.map { routine in
+            var value = routine
+            value.contentOrigin = routine.contentOrigin == .restricted ? .restricted : .unverified
+            return value
+        }
+        propagate(&result)
+        return result
+    }
+    public static func routineOrigin(_ routine: Routine, patterns: [HapticPattern]) -> ContentOrigin {
+        var origin = routine.contentOrigin ?? .unverified
+        for item in routine.items {
+            guard let pattern = patterns.first(where: { $0.id == item.patternID }) else { return combine(origin, .unverified) }
+            origin = combine(origin, self.origin(pattern))
+        }
+        return origin
+    }
+    /// Sticky across rename/edit/recording/combination and deletion of a previously-used member.
+    public static func propagate(_ snapshot: inout LibrarySnapshot, previous: LibrarySnapshot? = nil) {
+        for i in snapshot.custom.indices {
+            if let old = previous?.custom.first(where: { $0.id == snapshot.custom[i].id }) {
+                snapshot.custom[i].inheritSource(from: old)
+            }
+        }
+        let patterns = Catalog.presets + snapshot.custom
+        for i in snapshot.routines.indices {
+            var origin = routineOrigin(snapshot.routines[i], patterns: patterns)
+            if let old = previous?.routines.first(where: { $0.id == snapshot.routines[i].id }) {
+                origin = combine(origin, routineOrigin(old, patterns: Catalog.presets + (previous?.custom ?? [])))
+            }
+            snapshot.routines[i].contentOrigin = origin
+        }
+    }
+    private static func check(_ origin: ContentOrigin) throws {
+        guard origin == .original else {
+            throw LoomError.invalid(message(origin == .restricted ? "export.restricted" : "export.unverified"))
+        }
+    }
+    public static func assertExportable(_ pattern: HapticPattern) throws { try check(origin(pattern)) }
+    public static func assertExportable(_ routine: Routine, patterns: [HapticPattern]) throws {
+        try check(routineOrigin(routine, patterns: patterns))
+    }
+    public static func assertExportable(_ snapshot: LibrarySnapshot) throws {
+        try Validation.snapshot(snapshot)
+        try snapshot.custom.forEach(assertExportable)
+        let patterns = Catalog.presets + snapshot.custom
+        for routine in snapshot.routines { try assertExportable(routine, patterns: patterns) }
+        // No silent filtering. Explicitly stored content references also belong to the backup.
+        let references = snapshot.favorites + [snapshot.preferences.lastPattern, snapshot.preferences.widgetPattern]
+            + snapshot.mixes.map { $0.configuration.overlay }
+        for id in references {
+            guard let pattern = patterns.first(where: { $0.id == id }) else { throw LoomError.invalid("Missing backup content reference.") }
+            try assertExportable(pattern)
+        }
     }
 }

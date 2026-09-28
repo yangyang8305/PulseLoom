@@ -202,3 +202,208 @@ import CoreHaptics
         XCTAssertNil(app.error, "Tests the local cloud-application boundary, not a real CloudKit connection")
     }
 }
+
+@MainActor private final class AccessWire: RemoteSocketIO {
+    var frames: [Data] = []
+    private var waiting: CheckedContinuation<URLSessionWebSocketTask.Message, Error>?
+    private var cancelled = false
+    func resume() {}
+    func send(_ message: URLSessionWebSocketTask.Message) async throws {
+        if cancelled { throw CancellationError() }
+        switch message {
+        case .data(let data): frames.append(data)
+        case .string(let text): frames.append(Data(text.utf8))
+        @unknown default: throw LoomError.invalid("Unknown wire frame")
+        }
+    }
+    func receive() async throws -> URLSessionWebSocketTask.Message {
+        if cancelled { throw CancellationError() }
+        return try await withCheckedThrowingContinuation { waiting = $0 }
+    }
+    func cancel() { cancelled = true; waiting?.resume(throwing: CancellationError()); waiting = nil }
+    var dataFrames: [Data] { frames.filter { (try? JSONSerialization.jsonObject(with: $0) as? [String: Any])?["type"] as? String == "data" } }
+}
+
+extension AccessPolicyTests {
+    private func requireHandshake(_ condition: () -> Bool) async throws {
+        for _ in 0..<100 {
+            if condition() { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("The real client did not emit the expected handshake")
+        throw LoomError.invalid("Handshake timeout")
+    }
+    private func connectedApp(root: URL, engine: PolicyEngine, pro: @escaping () -> Bool = { true }) async throws -> (AppModel, RemoteService, AccessWire, AccessWire) {
+        let outgoing = AccessWire(), incoming = AccessWire()
+        let url = URL(string: "https://relay.invalid")!
+        let receiver = RemoteService(server: url, makeSocket: { _ in incoming })
+        let sender = RemoteService(server: url, makeSocket: { _ in outgoing })
+        sender.pro = true
+        let driver = HapticDriver(makeEngine: { engine }, supportsHaptics: { true }, isForeground: { true }, thermalSafe: { true })
+        let app = AppModel(library: LibraryStore(root: root), playback: PlaybackCoordinator(driver: driver), remote: receiver, entitlementReader: pro)
+        let invite = RemoteService.Invitation(room: "policy-room", token: "test-only", key: Data(repeating: 7, count: 32).base64EncodedString(), server: url.absoluteString)
+        try sender.connect(invite, role: .sender)
+        try receiver.connect(invite, role: .receiver)
+        for service in [sender, receiver] {
+            try service.handle(Data("{\"type\":\"ready\"}".utf8))
+            try service.handle(Data("{\"type\":\"peer_joined\"}".utf8))
+        }
+        try await requireHandshake { !outgoing.dataFrames.isEmpty && !incoming.dataFrames.isEmpty }
+        try sender.handle(incoming.dataFrames.last!)
+        try receiver.handle(outgoing.dataFrames.last!)
+        receiver.authorize(true)
+        XCTAssertTrue(receiver.consent.allowed)
+        return (app, sender, outgoing, incoming)
+    }
+    func testEncryptedRemoteCommandsStopOnLiveRevocationAndCannotResumeOnOldGrant() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let engine = PolicyEngine(); var livePro = true
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: engine, pro: { livePro })
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertTrue(app.playback.isPlaying)
+        let count = engine.scheduled
+        livePro = false // Mirror remains true to expose the previously stale-snapshot race.
+        XCTAssertTrue(app.remote.pro)
+        try await sender.send(action: "gain", gain: 1)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertEqual(engine.scheduled, count)
+        XCTAssertFalse(app.playback.isPlaying)
+        XCTAssertFalse(app.remote.consent.allowed)
+        livePro = true
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        do { try app.remote.handle(wire.dataFrames.last!) } catch { /* old nonce is an expected rejection */ }
+        XCTAssertEqual(engine.scheduled, count, "Regaining Pro must not silently restore a revoked grant")
+        XCTAssertFalse(app.playback.isPlaying)
+    }
+    func testEntitlementCallbackStopsRemoteButLeavesNewLocalOwnerRunning() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let engine = PolicyEngine(); var livePro = true
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: engine, pro: { livePro })
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertTrue(app.playback.isPlaying)
+        livePro = false
+        app.refreshEntitlement() // Same synchronous callback that PurchaseService invokes after a real change.
+        XCTAssertFalse(app.playback.isPlaying)
+        XCTAssertFalse(app.remote.consent.allowed)
+        try app.beginCurrent()
+        XCTAssertEqual(app.playback.kind, "pattern")
+        app.refreshEntitlement()
+        XCTAssertTrue(app.playback.isPlaying, "Revocation cannot stop a newly acquired free local session")
+    }
+    func testLocalAcquisitionRevokesRemoteAndEncryptedQueuedGainCannotChangeIt() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let engine = PolicyEngine()
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: engine)
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertEqual(app.playback.kind, "remote")
+        try await sender.send(action: "gain", gain: 0.9)
+        let queued = wire.dataFrames.last!
+        try app.beginCurrent()
+        let scheduled = engine.scheduled
+        XCTAssertFalse(app.remote.consent.allowed)
+        do { try app.remote.handle(queued) } catch { /* rejected stale authorization */ }
+        XCTAssertEqual(engine.scheduled, scheduled)
+        XCTAssertTrue(app.playback.isPlaying)
+        XCTAssertEqual(app.playback.kind, "pattern")
+    }
+    func testOwnerIdentityRejectsGainEvenWhenHigherLevelRevocationHookIsBypassed() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let engine = PolicyEngine()
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: engine)
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertTrue(app.playback.isPlaying)
+        app.playback.willAcquire = nil // Deliberately remove first defense; test the independent owner boundary.
+        try app.beginCurrent()
+        XCTAssertTrue(app.remote.consent.allowed)
+        let count = engine.scheduled
+        try await sender.send(action: "gain", gain: 0.9)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertEqual(engine.scheduled, count)
+        XCTAssertTrue(app.playback.isPlaying)
+        XCTAssertEqual(app.playback.kind, "pattern")
+        XCTAssertNotNil(app.error)
+    }
+    func testValidRemoteGainAndOrdinaryStopStillWork() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let engine = PolicyEngine()
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: engine)
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        let count = engine.scheduled
+        try await sender.send(action: "gain", gain: 0.7)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertGreaterThan(engine.scheduled, count)
+        try await sender.send(action: "stop")
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertFalse(app.playback.isPlaying)
+        XCTAssertTrue(app.remote.consent.allowed)
+        try await sender.send(action: "start", patternID: "p02", gain: 0.4)
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertTrue(app.playback.isPlaying)
+    }
+    func testSenderRejectsOutputAfterRevocationButCanStillStopPeer() async throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let (app, sender, wire, _) = try await connectedApp(root: folder, engine: PolicyEngine())
+        defer { sender.disconnect(); app.remote.disconnect(); app.stopAll() }
+        sender.pro = false
+        let count = wire.dataFrames.count
+        do { try await sender.send(action: "start", patternID: "p02", gain: 0.5); XCTFail("Revoked sender") }
+        catch let error as LoomError { XCTAssertEqual(error, .entitlement) }
+        XCTAssertEqual(wire.dataFrames.count, count)
+        try await sender.send(action: "stop")
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertTrue(app.remote.consent.allowed)
+        try await sender.send(action: "emergencyStop")
+        try app.remote.handle(wire.dataFrames.last!)
+        XCTAssertFalse(app.remote.consent.allowed)
+    }
+    func testFullOriginalBackupExportsAllWorksWithoutFiltering() throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let app = makeApp(root: folder, engine: PolicyEngine(), pro: { false })
+        try app.library.save(HapticPattern(name: "one"), pro: false)
+        try app.library.save(HapticPattern(name: "two"), pro: false)
+        let snapshot = app.library.snapshot
+        app.export(snapshot, name: "original-backup")
+        let url = try XCTUnwrap(app.share?.url)
+        XCTAssertEqual(try FileCodec.read(LibrarySnapshot.self, from: url), snapshot)
+    }
+    func testPaidRoutineTaintRemainsAfterRemovingMemberAndAfterReload() throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let store = LibraryStore(root: folder)
+        let paid = Catalog.presets.first { $0.premium }!
+        try store.commit { $0.routines = [Routine(name: "composition", items: [RoutineItem(patternID: paid.id), RoutineItem(patternID: "p02")])] }
+        try store.commit { $0.routines[0].items.removeFirst() }
+        let reopened = LibraryStore(root: folder)
+        XCTAssertEqual(reopened.snapshot.routines[0].contentOrigin, .restricted)
+        XCTAssertThrowsError(try ContentPolicy.assertExportable(reopened.snapshot))
+    }
+    func testFreshWorkspaceResetsOriginButEditingToolsDoNot() throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let app = makeApp(root: folder, engine: PolicyEngine()); let editor = EditorModel(); editor.attach(app)
+        editor.edit(Catalog.presets.first { $0.premium }!, copy: true)
+        editor.choose(.curve); editor.choose(.basic); editor.undo(); editor.redo()
+        XCTAssertThrowsError(try ContentPolicy.assertExportable(editor.draft))
+        editor.new(); editor.change { $0.name = "a new work" }
+        XCTAssertNoThrow(try ContentPolicy.assertExportable(editor.draft))
+    }
+    func testRecoveryExportCannotBypassRestrictedOrUndecodableContent() throws {
+        let folder = root(); defer { try? FileManager.default.removeItem(at: folder) }
+        let app = makeApp(root: folder, engine: PolicyEngine())
+        try app.library.save(Catalog.presets.first { $0.premium }!.copyForEditing(), pro: true)
+        app.exportRecoveryLibrary()
+        assertExportBlocked(app, root: folder)
+        app.error = nil
+        try Data("{broken".utf8).write(to: folder.appendingPathComponent("library.json"))
+        app.exportRecoveryLibrary()
+        assertExportBlocked(app, root: folder)
+    }
+}

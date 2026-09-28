@@ -423,7 +423,7 @@ final class RemoteTests: XCTestCase {
         XCTAssertEqual(
             try s.accept(
                 RemoteCommand(sequence: 1, action: "start", patternID: "p01", gain: 0.9), foreground: true,
-                pro: false), 0.4)
+                pro: true), 0.4) // Clamping is tested after the whole remote feature has Pro.
     }
     func testBackgroundDenied() {
         var s = RemoteConsent()

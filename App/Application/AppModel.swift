@@ -41,6 +41,7 @@ struct SharedFile: Identifiable {
     private var notifications: [NSObjectProtocol] = []
     private var pendingShare: Task<Void, Never>?
     private var shareGeneration = UUID()
+    private var remoteOutputID: UUID?
     var prefs: Preferences { library.snapshot.preferences }
     var current: HapticPattern {
         library.pattern(prefs.lastPattern) ?? Catalog.presets.first ?? HapticPattern(name: "Unavailable")
@@ -67,8 +68,10 @@ struct SharedFile: Identifiable {
         ] {
             publisher.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observers)
         }
+        remote.entitlementReader = { [weak self] in self?.pro ?? false }
         playback.willAcquire = { [weak self] kind in
             guard let self else { return }
+            if kind != "remote" { self.relinquishRemoteControl() }
             if kind != "music" { self.music.pause() }
             self.systemMusic.pause()
             if kind != "routine" && kind != "breath" { self.sound.stop() }
@@ -83,6 +86,7 @@ struct SharedFile: Identifiable {
         }
         music.acquire = { [weak self] in
             guard let self else { return }
+            self.relinquishRemoteControl()
             self.systemMusic.pause()
             self.sound.stop()
             self.playback.stop(reason: "music", notifyExternal: false)
@@ -98,32 +102,23 @@ struct SharedFile: Identifiable {
             self?.library.record(title: title, kind: "music", seconds: seconds, reason: reason)
         }
         sound.willStart = { [weak self] in
+            self?.relinquishRemoteControl()
             self?.music.pause()
             self?.systemMusic.pause()
         }
         systemMusic.willPlay = { [weak self] in
             // Stop other owners without canceling the system-music request acquiring output.
             guard let self else { return }
+            self.relinquishRemoteControl()
             self.music.stop()
             self.sound.stop()
             self.playback.stop()
             self.updatePreferences()
         }
-        remote.onSafetyStop = { [weak self] in if self?.playback.kind == "remote" { self?.playback.stop() } }
+        remote.onSafetyStop = { [weak self] in self?.stopRemoteOutput() }
         remote.onCommand = { [weak self] command, gain in
             guard let self else { return }
-            self.perform {
-                switch command.action {
-                case "start":
-                    guard let p = self.library.pattern(command.patternID ?? "") else {
-                        throw LoomError.invalid("Unknown pattern.")
-                    }
-                    try self.playback.begin(
-                        p, duration: min(600, self.prefs.timer), gain: gain ?? 0, kind: "remote")
-                case "gain": try self.playback.adjust(gain: gain ?? 0, speed: 1, sharp: self.prefs.sharpness)
-                default: break
-                }
-            }
+            self.perform { try self.applyRemoteCommand(command, gain: gain) }
         }
         watch.onCommand = { [weak self] message in
             guard let self else { return ["ok": false] }
@@ -146,16 +141,8 @@ struct SharedFile: Identifiable {
         }
         library.$snapshot.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.updatePreferences() }
         }.store(in: &observers)
-        purchase.$pro.sink { [weak self] value in
-            Task { @MainActor in
-                guard let self else { return }
-                self.music.pro = value
-                self.remote.pro = value
-                if let p = self.playback.activePattern, !Entitlements.canPlay(p, pro: value) {
-                    self.playback.stop()
-                }
-            }
-        }.store(in: &observers)
+        purchase.entitlementDidChange = { [weak self] in self?.refreshEntitlement() }
+        refreshEntitlement()
         let center = NotificationCenter.default
         notifications.append(
             center.addObserver(forName: .loomShortcutRequested, object: nil, queue: .main) { [weak self] _ in
@@ -190,6 +177,51 @@ struct SharedFile: Identifiable {
         if Catalog.presets.count != 16 || Catalog.themes.count != 6 { error = T("error.catalog") }
     }
     deinit { notifications.forEach { NotificationCenter.default.removeObserver($0) } }
+    /// Shared by StoreKit's synchronous change callback and controlled Apple SDK regression tests.
+    func refreshEntitlement() {
+        let current = pro
+        music.pro = current
+        remote.pro = current
+        if !current { relinquishRemoteControl() }
+        if let p = playback.activePattern, !Entitlements.canPlay(p, pro: current) { playback.stop() }
+    }
+    private func stopRemoteOutput() {
+        let owned = remoteOutputID
+        remoteOutputID = nil
+        guard let owned, owned == playback.outputID, playback.kind == "remote" else { return }
+        playback.stop()
+    }
+    private func relinquishRemoteControl() {
+        remote.authorize(false)
+        stopRemoteOutput()
+    }
+    private func applyRemoteCommand(_ command: RemoteCommand, gain: Double?) throws {
+        // No await between live entitlement, current authorization, owner check and mutation.
+        guard pro else { relinquishRemoteControl(); throw LoomError.entitlement }
+        guard remote.state == .connected, remote.role == .receiver, remote.foreground,
+              remote.consent.allowed, command.connectionID == remote.controlID else {
+            throw LoomError.unavailable("Remote authorization is not current.")
+        }
+        switch command.action {
+        case "start":
+            guard ![.playing, .preparing, .paused].contains(playback.state)
+                    || (remoteOutputID == playback.outputID && playback.kind == "remote") else {
+                throw LoomError.unavailable("Stop the local session before granting remote output.")
+            }
+            guard let pattern = library.pattern(command.patternID ?? ""), Entitlements.canPlay(pattern, pro: pro) else {
+                throw LoomError.entitlement
+            }
+            try playback.begin(pattern, duration: min(600, prefs.timer), gain: gain ?? 0, kind: "remote")
+            remoteOutputID = playback.outputID
+        case "gain":
+            guard remoteOutputID == playback.outputID, playback.kind == "remote",
+                  [.playing, .paused].contains(playback.state) else {
+                throw LoomError.unavailable("The remote connection does not own the current output.")
+            }
+            try playback.adjust(gain: gain ?? 0, speed: 1, sharp: prefs.sharpness)
+        default: throw LoomError.invalid("Unsupported output command.")
+        }
+    }
     func perform(_ operation: () throws -> Void) {
         do { try operation() } catch LoomError.entitlement { sheet = .premium } catch {
             self.error = error.localizedDescription
@@ -293,10 +325,28 @@ struct SharedFile: Identifiable {
         }
     }
     func export<TValue: Encodable>(_ value: TValue, name: String) {
+        cancelPendingShare()
         perform {
+            // Single gate for every UI export/share entry, before creating any file.
+            switch value {
+            case let pattern as HapticPattern: try ContentPolicy.assertExportable(pattern)
+            case let patterns as [HapticPattern]: try patterns.forEach(ContentPolicy.assertExportable)
+            case let snapshot as LibrarySnapshot: try ContentPolicy.assertExportable(snapshot)
+            case let routine as Routine: try ContentPolicy.assertExportable(routine, patterns: library.allPatterns)
+            case is [FeedbackNote]: break
+            default: throw LoomError.invalid("Unsupported external export type.")
+            }
             let u = try exportFolder().appendingPathComponent(name + ".json")
             try FileCodec.write(value, to: u, maxBytes: FileCodec.libraryMaxBytes, preservePrevious: false)
             presentShare(u)
+        }
+    }
+    func exportRecoveryLibrary() {
+        cancelPendingShare()
+        perform {
+            let snapshot = try FileCodec.read(LibrarySnapshot.self, from: library.root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
+            try ContentPolicy.assertExportable(snapshot)
+            export(snapshot, name: "PulseLoom-recovery-backup")
         }
     }
     func exportDiagnostics() {
@@ -350,7 +400,7 @@ struct SharedFile: Identifiable {
         stopAll()
         cloud.disable()
         cancelPendingShare()
-        try library.replace(snapshot)
+        try library.replace(ContentPolicy.externalSnapshot(snapshot))
         updatePreferences()
     }
     func restorePreviousLibrary() throws {

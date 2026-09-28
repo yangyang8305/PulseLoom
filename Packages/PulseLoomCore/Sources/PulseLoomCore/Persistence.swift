@@ -115,10 +115,10 @@ public enum PatternImport {
                 sharpness: d.sharp ?? 0.25, loop: d.loop ?? true, fadeIn: d.fadeIn ?? 0,
                 fadeOut: d.fadeOut ?? 0)
         }
+        p = ContentPolicy.imported(p)
         p.id = UUID().uuidString
         p.builtin = false
         p.premium = false
-        p.sourcePremium = false
         p.category = "custom"
         p.updatedAt = Date()
         try Validation.pattern(p)

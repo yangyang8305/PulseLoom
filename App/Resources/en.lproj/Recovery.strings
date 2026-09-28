@@ -3,6 +3,10 @@
 "retry" = "Retry recovery";
 "previous" = "Restore previous local copy";
 "import" = "Choose a backup file";
-"export" = "Export original library file";
+"export" = "Validate and export library";
 "erase" = "Erase local content and start again";
 "boundary" = "No automatic reset. Erasing local content does not delete cloud data, copies you exported, or device backups.";
+"export.restricted" = "This file contains paid presets or derived content. Export and sharing are blocked, including for Pro. No partial backup was created.";
+"export.unverified" = "The origin of this imported or legacy work cannot be verified. Export and sharing are blocked; the work has not been deleted.";
+"export.importNotice" = "Imported JSON cannot prove originality. Imported works are retained as unverified, require Pro for playback, and cannot be re-exported. Legacy local works remain playable but need verified origin for export.";
+"export.backupNotice" = "A backup is exported only when all its works and content references are exportable. Paid, derived or unverified content blocks the whole backup; nothing is silently omitted. Same-account iCloud sync is separate.";

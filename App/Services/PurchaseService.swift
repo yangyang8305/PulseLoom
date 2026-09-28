@@ -9,7 +9,11 @@ import UIKit
         case idle, purchasing, success, cancelled, pending, restored, none
         case failed(String)
     }
-    @Published private(set) var pro = false
+    /// Called synchronously after the authoritative entitlement value changes on MainActor.
+    var entitlementDidChange: (() -> Void)?
+    @Published private(set) var pro = false {
+        didSet { if pro != oldValue { entitlementDidChange?() } }
+    }
     @Published private(set) var product: Product?
     @Published private(set) var outcome: Outcome = .idle
     @Published private(set) var loading = false

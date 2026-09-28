@@ -87,6 +87,7 @@ import PulseLoomCore
         }
         var next = snapshot
         try change(&next)
+        ContentPolicy.propagate(&next, previous: snapshot)
         next.updatedAt = Date()
         try Validation.snapshot(next)
         try FileCodec.write(next, to: root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
@@ -179,9 +180,11 @@ import PulseLoomCore
     @discardableResult func applyCloud(_ s: LibrarySnapshot, generation: UUID) throws -> Bool {
         guard generation == contentGeneration else { return false }
         try requireWritable()
-        try Validation.snapshot(s)
-        try FileCodec.write(s, to: root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
-        snapshot = s
+        var merged = s
+        ContentPolicy.propagate(&merged, previous: snapshot)
+        try Validation.snapshot(merged)
+        try FileCodec.write(merged, to: root.appendingPathComponent("library.json"), maxBytes: FileCodec.libraryMaxBytes)
+        snapshot = merged
         return true
     }
     func retryRecovery() throws {

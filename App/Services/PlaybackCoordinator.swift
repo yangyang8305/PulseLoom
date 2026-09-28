@@ -13,6 +13,7 @@ import UIKit
     @Published var lastError: String?
     @Published var guardEnabled = false
     @Published private(set) var routineIndex = 0
+    private(set) var outputID = UUID()
     private var clock = SessionClock(), phase = 0.0, lastTick = 0.0, windowEnd = 0.0
     private var gain = 0.55, speed = 1.0, sharp = 0.25
     private var timer: Timer?
@@ -159,6 +160,7 @@ import UIKit
             clock.pause(now: ProcessInfo.processInfo.systemUptime)
             didFinish?(title, kind, clock.played, reason)
         }
+        outputID = UUID()
         state = .idle
         pausedAt = nil
         streamSource = nil
@@ -172,6 +174,7 @@ import UIKit
         if notifyExternal { didStopExternal?(reason) }
     }
     func interrupt(_ reason: String) {
+        outputID = UUID()
         if [.playing, .paused].contains(state) {
             clock.pause(now: ProcessInfo.processInfo.systemUptime, interrupted: true)
             state = .interrupted
@@ -236,6 +239,7 @@ import UIKit
         holdScreen()
     }
     func stopStream() {
+        outputID = UUID()
         streamSource = nil
         driver.stop()
         level = 0

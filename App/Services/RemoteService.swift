@@ -34,7 +34,12 @@ import PulseLoomCore
     var onCommand: ((RemoteCommand, Double?) -> Void)?
     var onSafetyStop: (() -> Void)?
     var foreground = true
-    var pro = false
+    var entitlementReader: (() -> Bool)?
+    var hasPro: Bool { entitlementReader?() ?? pro }
+    var controlID: String { connectionNonce }
+    var pro = false {
+        didSet { if !pro && oldValue { authorize(false) } }
+    }
     private var socket: (any RemoteSocketIO)?
     private var receiveTask: Task<Void, Never>?
     private var heartbeat: Task<Void, Never>?
@@ -61,6 +66,7 @@ import PulseLoomCore
         return url
     }
     func create() async throws {
+        guard hasPro, foreground else { throw LoomError.entitlement }
         guard let server else {
             throw LoomError.unavailable(NSLocalizedString("remote.notConfigured", comment: ""))
         }
@@ -71,6 +77,7 @@ import PulseLoomCore
         guard (res as? HTTPURLResponse)?.statusCode == 201 else {
             throw LoomError.unavailable("Relay could not create a room.")
         }
+        guard hasPro, foreground else { throw LoomError.entitlement }
         let r = try JSONDecoder().decode(Created.self, from: data)
         let symmetric = SymmetricKey(size: .bits256)
         let encoded = symmetric.withUnsafeBytes { Data($0).base64EncodedString() }
@@ -97,6 +104,7 @@ import PulseLoomCore
         try connect(i, role: .receiver)
     }
     func connect(_ i: Invitation, role: Role) throws {
+        guard hasPro, foreground else { throw LoomError.entitlement }
         guard let keyData = Data(base64Encoded: i.key), keyData.count == 32, i.room.count <= 64,
             i.token.count <= 128,
             let base = server
@@ -198,7 +206,7 @@ import PulseLoomCore
                         command.protocolVersion == RemoteCommand.currentProtocol
                     else { throw LoomError.unavailable("Remote safety handshake is incomplete.") }
                 }
-                let actual = try consent.accept(command, foreground: foreground, pro: pro)
+                let actual = try consent.accept(command, foreground: foreground, pro: hasPro)
                 if command.action == "emergencyStop" {
                     latchEmergency()
                 } else if command.action == "stop" {
@@ -208,13 +216,17 @@ import PulseLoomCore
                 }
             } catch {
                 self.error = error.localizedDescription
-                onSafetyStop?()
+                if !hasPro { authorize(false) } else { onSafetyStop?() }
             }
         } else if command.action == "emergencyStop" || command.action == "stop" {
             onSafetyStop?()
         }
     }
     func send(action: String, patternID: String? = nil, gain: Double? = nil) async throws {
+        guard ["start", "gain", "stop", "emergencyStop", "ping"].contains(action) else { throw LoomError.invalid("Unknown command.") }
+        if ["start", "gain"].contains(action) {
+            guard hasPro, foreground, role == .sender else { throw LoomError.entitlement }
+        }
         guard state == .connected, let socket, let key else {
             throw LoomError.unavailable("Remote connection is not ready.")
         }
@@ -235,6 +247,10 @@ import PulseLoomCore
     }
     func authorize(_ value: Bool) {
         if value {
+            guard hasPro, foreground, state == .connected else {
+                error = "Pro and foreground access are required before authorizing remote control."
+                return
+            }
             guard peerPresent, peerProtocol == RemoteCommand.currentProtocol else {
                 error = "Wait for a compatible receiver/sender handshake before allowing control."
                 return

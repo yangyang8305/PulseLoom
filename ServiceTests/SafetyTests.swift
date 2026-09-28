@@ -151,6 +151,7 @@ private enum InjectedFailure: Error { case stop, cancelled }
         let sender = RemoteService(server: url, makeSocket: { _ in a })
         let receiver = RemoteService(server: url, makeSocket: { _ in b })
         let invitation = RemoteService.Invitation(room: "fixture", token: "fixture-token", key: Data(repeating: 1, count: 32).base64EncodedString(), server: url.absoluteString)
+        sender.pro = true; receiver.pro = true // Both sides have an explicit test entitlement before connecting.
         try sender.connect(invitation, role: .sender)
         try receiver.connect(invitation, role: .receiver)
         receiver.pro = true
