@@ -23,9 +23,9 @@ import Foundation
 @MainActor final class AppleHapticEngine: HapticEngineIO {
     private let engine: CHHapticEngine
     var stoppedHandler: ((CHHapticEngine.StoppedReason) -> Void)? {
-        didSet { engine.stoppedHandler = stoppedHandler }
+        didSet { engine.stoppedHandler = stoppedHandler ?? { _ in } }
     }
-    var resetHandler: (() -> Void)? { didSet { engine.resetHandler = resetHandler } }
+    var resetHandler: (() -> Void)? { didSet { engine.resetHandler = resetHandler ?? {} } }
     var isMutedForHaptics: Bool {
         get { engine.isMutedForHaptics }
         set { engine.isMutedForHaptics = newValue }
@@ -44,7 +44,7 @@ import Foundation
 
 @MainActor private final class AppleHapticPlayer: HapticPlayerIO {
     private let player: any CHHapticAdvancedPatternPlayer
-    var completionHandler: ((Error?) -> Void)? { didSet { player.completionHandler = completionHandler } }
+    var completionHandler: ((Error?) -> Void)? { didSet { player.completionHandler = completionHandler ?? { _ in } } }
     var loopEnabled: Bool {
         get { player.loopEnabled }
         set { player.loopEnabled = newValue }

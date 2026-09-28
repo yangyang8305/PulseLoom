@@ -9,7 +9,8 @@ import Foundation
 
 @MainActor final class AppleRemoteSocket: RemoteSocketIO {
     private let task: URLSessionWebSocketTask
-    init(url: URL) { task = URLSession.shared.webSocketTask(with: url) }
+    // URLSession task construction is thread-safe; all socket operations stay on MainActor.
+    nonisolated init(url: URL) { task = URLSession.shared.webSocketTask(with: url) }
     func resume() { task.resume() }
     func send(_ message: URLSessionWebSocketTask.Message) async throws { try await task.send(message) }
     func receive() async throws -> URLSessionWebSocketTask.Message { try await task.receive() }

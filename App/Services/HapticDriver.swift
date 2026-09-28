@@ -11,23 +11,23 @@ import UIKit
     private var player: (any HapticPlayerIO)?
     private var generation: UInt64 = 0
     private var streaming = false
-    private let makeEngine: () throws -> any HapticEngineIO
-    private let supportsHaptics: () -> Bool
-    private let isForeground: () -> Bool
-    private let thermalSafe: () -> Bool
+    private let makeEngine: @MainActor () throws -> any HapticEngineIO
+    private let supportsHaptics: @MainActor () -> Bool
+    private let isForeground: @MainActor () -> Bool
+    private let thermalSafe: @MainActor () -> Bool
     init(
-        makeEngine: @escaping () throws -> any HapticEngineIO = { try AppleHapticEngine() },
-        supportsHaptics: @escaping () -> Bool = { CHHapticEngine.capabilitiesForHardware().supportsHaptics },
-        isForeground: @escaping () -> Bool = { UIApplication.shared.applicationState == .active },
-        thermalSafe: @escaping () -> Bool = {
+        makeEngine: (@MainActor () throws -> any HapticEngineIO)? = nil,
+        supportsHaptics: (@MainActor () -> Bool)? = nil,
+        isForeground: (@MainActor () -> Bool)? = nil,
+        thermalSafe: (@MainActor () -> Bool)? = nil
+    ) {
+        self.makeEngine = makeEngine ?? { try AppleHapticEngine() }
+        self.supportsHaptics = supportsHaptics ?? { CHHapticEngine.capabilitiesForHardware().supportsHaptics }
+        self.isForeground = isForeground ?? { UIApplication.shared.applicationState == .active }
+        self.thermalSafe = thermalSafe ?? {
             let state = ProcessInfo.processInfo.thermalState
             return state != .serious && state != .critical
         }
-    ) {
-        self.makeEngine = makeEngine
-        self.supportsHaptics = supportsHaptics
-        self.isForeground = isForeground
-        self.thermalSafe = thermalSafe
     }
     var supported: Bool { supportsHaptics() }
     func prepare() throws {
