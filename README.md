@@ -11,7 +11,7 @@
 - 原生 Swift 文件进行了语法解析、项目成员和资源结构检查；这些检查不代替 Xcode 类型检查、链接、签名和运行。
 - 8 项原生 UI 测试已写入，当前环境没有 Xcode，因此执行数为 0。
 - App Store 内购、iCloud、Apple Music、Watch、Widget App Group 与公网 WSS 需要真实账号配置/设备验证；源码中没有默认 Pro、假支付成功或假远控连接。
-- 本地 Git 主分支为 `main`。**当前 ChatGPT GitHub 连接只提供读取接口，远程 `yangyang8305/PulseLoom` 尚未创建或推送。**
+- 源码已提交到 [GitHub PulseLoom](https://github.com/yangyang8305/PulseLoom) 的 `main` 分支；提交和 Actions 状态见 [Docs/GITHUB_STATUS.md](Docs/GITHUB_STATUS.md)。
 
 完整核验结果：[Docs/QA_REPORT.md](Docs/QA_REPORT.md)。具体覆盖及差异：[Docs/FEATURE_COVERAGE.md](Docs/FEATURE_COVERAGE.md)。必须完成的后续验证：[Docs/RELEASE_CHECKLIST.md](Docs/RELEASE_CHECKLIST.md)。
 
@@ -77,20 +77,9 @@ bash Scripts/test.sh
 
 纯 Swift 包无第三方依赖。Python 直接依赖按此次测试环境锁定；间接依赖与基础 Docker image 未完全内容寻址锁定，生产部署前需生成锁文件、镜像摘要及漏洞扫描报告。
 
-## 创建 GitHub 私有项目
+## GitHub 源码
 
-本次未获得 GitHub 写入能力。使用提供的 `PulseLoom-main.bundle` 能保留本地提交：
-
-```bash
-git clone PulseLoom-main.bundle PulseLoom
-cd PulseLoom
-gh auth login --hostname github.com --scopes repo,workflow
-python3 Scripts/publish-github.py --create
-```
-
-脚本只允许已登录账号 `yangyang8305`；目标是新的私有 `PulseLoom`；上传 `main` 并核对远程 SHA、私有状态及默认分支。遇到已有同名仓库、其他网络 remote、脏工作区或错误账号时停止；不覆盖、不 force push、不清除仓库内容。由交付 bundle 克隆出来的本地 origin 会先验证 bundle，再替换为新建仓库；已有网络 remote 不替换。**仓库创建成功而推送失败是两种不同结果，重试前检查实际状态。**
-
-若从源代码 ZIP 解压，脚本可在此项目根目录初始化 `main` 并建立导入提交；该提交哈希与 bundle 中交付的原始提交不同。
+原生工程、测试、资源与 v0.6 参考原型已上传到 `yangyang8305/PulseLoom` 的 `main`。`Scripts/publish-github.py` 是仓库创建前交付的建仓脚本；目标仓库现已存在，不应再次运行它来建仓。原始离线 bundle 和 ZIP 保留在本地交付目录中。
 
 ## 目录
 
@@ -107,4 +96,4 @@ Docs/                      覆盖、配置、质量记录、发布阻断项
 Reference/v0.6/             只作对照的已批准 HTML；不嵌入原生 App
 ```
 
-项目默认私有，未指定开源许可证。应用图形由本项目生成，不含外部字体、商业音乐或他人 UI 截图；不对音乐原文件作再分发。
+仓库未指定开源许可证。应用图形由本项目生成，不含外部字体、商业音乐或他人 UI 截图；不对音乐原文件作再分发。

@@ -1,16 +1,11 @@
 # GitHub 交付状态
 
-核查账号：`yangyang8305`。期望项目：`PulseLoom`，私有；期望默认分支：`main`。
+2026-09-28，在账号 `yangyang8305` 下核对仓库 [PulseLoom](https://github.com/yangyang8305/PulseLoom)，默认分支为 `main`。
 
-本会话通过已连接GitHub工具读取了当前身份；目标repo读取得到404。**404表示本连接未读到该目标，不足以区分不存在和不可访问。**已再次发现当前工具列表：仅有48个读取工具，未提供create/write/push。插件目录中的GitHub已安装，不存在通过再次安装自动获得写入的证据。容器没有已登录GitHub CLI或授权凭据。
+另一上传流程只把源码归档拆成 9 个 Base64 分片提交到远端，没有提交触发导入的 `READY` 文件，因此远端当时没有可浏览的原生工程，也没有对应 Actions 运行记录。本次保留了这些远端提交，直接在其后提交完整源码，并移除临时导入分片与工作流。
 
-因此：
-- 本地原生项目与本地main提交可以交付。
-- 本会话没有执行GitHub建仓、推送、设置远程默认分支或运行Actions。
-- 不把本地commit称作“已提交到GitHub”。
+源码导入提交：`423045386b3c4f99b253feadcc78609c090ef290`。推送后 `git ls-remote` 返回的 `main` SHA 与该提交一致。此后若文档更新，`main` 会有新的 SHA，以远端实际值为准。
 
-附带 `Scripts/publish-github.py --create` 为用户在已登录GitHub CLI的电脑上执行的明确写操作。脚本会建立**新的私有**repo，push main并验证；已有同名repo则停止，不覆盖。
+源码校验工作流：[Source and Apple SDK validation](https://github.com/yangyang8305/PulseLoom/actions/workflows/validate.yml)。工作流运行结果应以 GitHub Actions 页面为准；源码推送成功不等于 Xcode 编译、真机验收或发布完成。
 
-若建仓成功但推送失败，保留该repo，核实日志后在当前本地repo重试正常 `git push -u origin main`；不要重置/删除远程来绕过错误。用户未授权的其他仓库不作任何修改。
-
-GitHub CLI OAuth登录需允许创建私有仓库并提交workflow（例如 `gh auth login --hostname github.com --scopes repo,workflow`）。认证在用户自己的电脑完成，不在聊天中提供token。使用其他凭据类型时按GitHub实际允许的repo/Contents/Workflows权限配置；推送被拒就停止，不规避权限。
+此前的 `PulseLoom-main.bundle` 和 `PulseLoom_Native_Source_v1.0.zip` 是本地离线交付物。`Scripts/publish-github.py` 针对尚未存在的私有仓库，现在不适用于重复建仓。
