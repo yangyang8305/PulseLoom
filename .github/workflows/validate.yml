@@ -17,14 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Capture immutable audit source input
-        run: git archive --format=tar HEAD -o "${RUNNER_TEMP}/review-input.tar"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: reviewed-source-${{ github.sha }}
-          path: ${{ runner.temp }}/review-input.tar
-          retention-days: 1
-          if-no-files-found: error
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -51,11 +43,20 @@ jobs:
       - name: Native UI tests
         if: ${{ !cancelled() }}
         run: bash Scripts/test-ui.sh
+      - name: Package and launch exact simulator ZIP
+        run: bash Scripts/package-simulator-preview.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-preview-${{ github.sha }}
+          path: Artifacts/Preview/
+          retention-days: 14
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: apple-sdk-validation
           path: |
             Artifacts/*.log
+            Artifacts/Preview/preview-smoke.log
             Artifacts/*.xcresult
           if-no-files-found: ignore
