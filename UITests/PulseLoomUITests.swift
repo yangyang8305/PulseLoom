@@ -37,8 +37,22 @@ final class PulseLoomUITests: XCTestCase {
         if !name.isHittable { app.swipeUp() }
         name.tap()
         name.typeText("My touch")
-        app.tabBars.buttons["My"].tap()
-        app.tabBars.buttons["Create"].tap()
+        // Complete text entry through the same visible control as a user. The
+        // keyboard must finish dismissing before coordinates for a tab are used.
+        let done = app.buttons["editorKeyboardDone"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        done.tap()
+        let keyboardHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardHidden], timeout: 5), .completed)
+        let my = app.tabBars.buttons["My"]
+        XCTAssertTrue(my.isHittable)
+        my.tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 5))
+        let create = app.tabBars.buttons["Create"]
+        XCTAssertTrue(create.isHittable)
+        create.tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
         XCTAssertEqual(name.value as? String, "My touch")
     }
     func testTimerChoiceAppliesWithoutSecondConfirmation() {

@@ -7,6 +7,7 @@ struct CreateView: View {
     @Environment(\.loom) var c
     @Environment(\.scenePhase) var scenePhase
     @State private var confirmNew = false
+    @FocusState private var nameFocused: Bool
     var body: some View {
         PlainScene {
             HStack {
@@ -84,6 +85,9 @@ struct CreateView: View {
                         editor.persist()
                     })
             ).textFieldStyle(.roundedBorder).accessibilityIdentifier("patternName")
+                .focused($nameFocused)
+                .submitLabel(.done)
+                .onSubmit { finishNameEditing() }
             if let e = editor.validationError { Text(e).font(.caption).foregroundStyle(.red) }
             LoomButton(title: editor.saved ? "editor.saved" : "editor.save", symbol: "checkmark") {
                 editor.save()
@@ -119,12 +123,23 @@ struct CreateView: View {
                 }
             }
             Notice(text: "editor.localHelp")
-        }.toolbar(.hidden, for: .navigationBar).onAppear { editor.attach(app) }.onDisappear {
+        }.toolbar(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(T("common.done")) { finishNameEditing() }
+                    .accessibilityIdentifier("editorKeyboardDone")
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .onAppear { editor.attach(app) }.onDisappear {
+            nameFocused = false
             editor.endTouch()
             editor.end()
             editor.persist()
         }.onChange(of: scenePhase) { _, p in
             if p != .active {
+                nameFocused = false
                 editor.endTouch()
                 editor.end()
             }
@@ -143,6 +158,11 @@ struct CreateView: View {
         } message: {
             Text(editor.error ?? "")
         }
+    }
+
+    private func finishNameEditing() {
+        nameFocused = false
+        editor.persist()
     }
 }
 struct SegmentEditorView: View {
