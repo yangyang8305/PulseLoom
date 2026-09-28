@@ -25,6 +25,13 @@ import PulseLoomCore
             resolved
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("PulseLoom", isDirectory: true)
+        #if DEBUG
+            do { try RecoveryFixture.seedIfRequested(at: self.root) } catch {
+                loadError = error.localizedDescription
+                writable = false
+                return
+            }
+        #endif
         let url = self.root.appendingPathComponent("library.json")
         if FileManager.default.fileExists(atPath: url.path) {
             do {
