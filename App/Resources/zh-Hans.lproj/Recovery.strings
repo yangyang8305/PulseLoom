@@ -10,3 +10,5 @@
 "export.unverified" = "该导入或旧版作品的来源无法核实，暂不能导出或分享。作品仍保留，没有被删除。";
 "export.importNotice" = "外部 JSON 无法证明原创性。导入作品按来源未验证保存，需要 Pro 播放且不能再次导出。旧版本地作品保持原有播放权限，但来源未验证时不能导出。";
 "export.backupNotice" = "整库备份包含付费、派生、未验证内容或相关引用时，会阻止整份导出，不静默遗漏作品。同账号 iCloud 私有同步不适用对外导出规则。";
+"shortcut.unknown" = "此预设已不可用。请打开 PulseLoom 重新选择。";
+"shortcut.storage" = "共享存储不可用。请打开 PulseLoom 继续。";

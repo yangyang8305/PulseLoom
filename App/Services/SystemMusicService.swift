@@ -61,14 +61,14 @@ import UIKit
         let generation = UUID()
         searchGeneration = generation
         searching = true
+        defer { if searchGeneration == generation { searching = false } }
         do {
-            var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
-            request.limit = 20
-            let result = try await request.response()
-            guard searchGeneration == generation else { return }
-            songs = Array(result.songs)
+            // Consume MusicKit's non-Sendable response away from the UI actor.
+            // Only framework-defined Sendable Song values cross this boundary.
+            let result = try await SystemMusicCatalog.songs(matching: query)
+            guard searchGeneration == generation, authorized, !Task.isCancelled else { return }
+            songs = result
         } catch { if searchGeneration == generation { self.error = error.localizedDescription } }
-        if searchGeneration == generation { searching = false }
     }
     func choose(_ song: Song) async { await choose(SystemMusicTrack(song: song)) }
     func choose(_ song: SystemMusicTrack) async {

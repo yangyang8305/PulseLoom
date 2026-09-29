@@ -58,3 +58,14 @@ struct SystemMusicTrack {
             playbackTime: { ApplicationMusicPlayer.shared.playbackTime })
     }
 }
+
+/// The response stays in one nonisolated async context; no unchecked Sendable
+/// conformance or preconcurrency suppression is used for MusicKit objects.
+enum SystemMusicCatalog {
+    nonisolated static func songs(matching query: String) async throws -> [Song] {
+        var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
+        request.limit = 20
+        let response = try await request.response()
+        return Array(response.songs)
+    }
+}

@@ -99,3 +99,30 @@ final class P2MergeControlTests: XCTestCase {
         XCTAssertEqual(p.segments[0].duration + p.segments[0].gap, 400, accuracy: 0.001)
     }
 }
+
+final class WidgetAppearanceTests: XCTestCase {
+    func testAllThemesRespectExplicitLightAndDarkInsteadOfThemeName() {
+        XCTAssertEqual(Catalog.themes.count, 6)
+        for theme in Catalog.themes {
+            for systemDark in [false, true] {
+                let light = WidgetPalette(themeID: theme.id, appearance: "light", systemDark: systemDark)
+                let dark = WidgetPalette(themeID: theme.id, appearance: "dark", systemDark: systemDark)
+                XCTAssertFalse(light.isDark); XCTAssertTrue(dark.isDark)
+                XCTAssertEqual(light.background, theme.light[0]); XCTAssertEqual(dark.background, theme.dark[0])
+                XCTAssertEqual(light.foreground, theme.light[5]); XCTAssertEqual(dark.foreground, theme.dark[5])
+            }
+        }
+    }
+    func testAutoAndLegacyPreferencesFollowSystemAtRenderTime() {
+        for raw: String? in [nil, "auto", "unknown-old-value"] {
+            XCTAssertFalse(WidgetPalette(themeID: "night", appearance: raw, systemDark: false).isDark)
+            XCTAssertTrue(WidgetPalette(themeID: "blush", appearance: raw, systemDark: true).isDark)
+        }
+    }
+    func testUnknownThemeHasLegiblePairedFallback() {
+        let value = WidgetPalette(themeID: "removed", appearance: "dark", systemDark: false)
+        XCTAssertEqual(value.background, ThemeDefinition.fallback.dark[0])
+        XCTAssertEqual(value.foreground, ThemeDefinition.fallback.dark[5])
+        XCTAssertNotEqual(value.background, value.foreground)
+    }
+}

@@ -238,3 +238,49 @@ import AppIntents
         XCTAssertNil(defaults.string(forKey: "shortcutPattern"))
     }
 }
+
+@MainActor final class PlatformPositiveTests: XCTestCase {
+    private func defaults() throws -> UserDefaults {
+        let group = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String)
+        return try XCTUnwrap(UserDefaults(suiteName: group))
+    }
+    func testAutomaticWidgetAppearanceIsPublishedWithoutRevealingPrivateTitle() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let m = AppModel(library: LibraryStore(root: root)), d = try defaults()
+        let previous = ["appearance", "title", "theme", "patternID", "widgetPalette"].map { ($0, d.object(forKey: $0)) }
+        defer {
+            for (key, value) in previous {
+                if let value { d.set(value, forKey: key) } else { d.removeObject(forKey: key) }
+            }
+            m.stopAll()
+        }
+        try m.library.preferences { $0.appearance = .auto; $0.theme = "night"; $0.widgetPrivate = true }
+        m.publishWidget()
+        XCTAssertEqual(d.string(forKey: "appearance"), "auto")
+        XCTAssertEqual(d.string(forKey: "title"), T("widget.privateTitle"))
+        let theme = try XCTUnwrap(Catalog.themes.first { $0.id == "night" })
+        let palettes = try XCTUnwrap(d.dictionary(forKey: "widgetPalette"))
+        XCTAssertEqual(palettes["light"] as? [String], [theme.light[0], theme.light[5], theme.light[4]])
+        XCTAssertEqual(palettes["dark"] as? [String], [theme.dark[0], theme.dark[5], theme.dark[4]])
+    }
+    func testPlainOpenSupersedesStaleSelectionWithoutStartingPlayback() async throws {
+        let d = try defaults(), prior = d.object(forKey: "shortcutPattern")
+        defer { if let prior { d.set(prior, forKey: "shortcutPattern") } else { d.removeObject(forKey: "shortcutPattern") } }
+        d.set("p02", forKey: "shortcutPattern")
+        let intent = OpenPulseLoomIntent()
+        _ = try await intent.perform()
+        XCTAssertNil(d.string(forKey: "shortcutPattern"))
+    }
+    func testKnownPresetCanResolveAndPerformNavigation() async throws {
+        let ids = ["p02", "nonexistent"]
+        let entities = try await PresetQuery().entities(for: ids)
+        XCTAssertEqual(entities.map(\.id), ["p02"])
+        let d = try defaults(), prior = d.object(forKey: "shortcutPattern")
+        defer { if let prior { d.set(prior, forKey: "shortcutPattern") } else { d.removeObject(forKey: "shortcutPattern") } }
+        var intent = OpenPulseLoomIntent()
+        intent.pattern = try XCTUnwrap(entities.first)
+        // perform emits navigation only; actual Siri discovery remains a separate acceptance task.
+        _ = try await intent.perform()
+    }
+}

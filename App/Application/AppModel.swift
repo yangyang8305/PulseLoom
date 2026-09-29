@@ -503,6 +503,12 @@ struct SharedFile: Identifiable {
                 : (library.pattern(prefs.widgetPattern)?.displayName() ?? T("app.name")), forKey: "title")
         d.set(prefs.widgetPattern, forKey: "patternID")
         d.set(prefs.theme, forKey: "theme")
+        d.set(prefs.appearance.rawValue, forKey: "appearance")
+        let light = WidgetPalette(themeID: prefs.theme, appearance: prefs.appearance.rawValue, systemDark: false)
+        let dark = WidgetPalette(themeID: prefs.theme, appearance: prefs.appearance.rawValue, systemDark: true)
+        // Publish both render-time variants in one value; auto tracks the widget's environment.
+        d.set(["light": [light.background, light.foreground, light.accent],
+               "dark": [dark.background, dark.foreground, dark.accent]], forKey: "widgetPalette")
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

@@ -390,7 +390,7 @@ import UIKit
         let now = ProcessInfo.processInfo.systemUptime
         seconds = min(30, now - xyStart)
         recorder.tick(now: now)
-        if tool == .xy, down, xy.last.map { seconds - $0.0 >= 0.25 } ?? true, xy.count < 128 {
+        if tool == .xy, down, xy.last.map({ seconds - $0.0 >= 0.25 }) ?? true, xy.count < 128 {
             xy.append((seconds, x, y))
         }
         if tool != .xy, down, !recorder.isDown { endTouch() }

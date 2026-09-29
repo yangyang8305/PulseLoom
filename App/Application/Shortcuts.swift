@@ -25,13 +25,22 @@ struct OpenPulseLoomIntent: AppIntent {
     static var openAppWhenRun = true
     @Parameter(title: "shortcut.pattern") var pattern: PresetEntity?
     @MainActor func perform() async throws -> some IntentResult {
-        if let pattern,
-            let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
-            let preferences = UserDefaults(suiteName: group)
-        {
-            preferences.set(pattern.id, forKey: "shortcutPattern")
-            NotificationCenter.default.post(name: .loomShortcutRequested, object: nil)
+        let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String
+        let preferences = group.flatMap { $0.isEmpty ? nil : UserDefaults(suiteName: $0) }
+        // A plain Open action supersedes stale pending selections; it never starts output.
+        guard let pattern else {
+            preferences?.removeObject(forKey: "shortcutPattern")
+            return .result()
         }
+        guard Catalog.presets.contains(where: { $0.id == pattern.id }) else {
+            preferences?.removeObject(forKey: "shortcutPattern")
+            throw LoomError.invalid(NSLocalizedString("shortcut.unknown", tableName: "Recovery", comment: ""))
+        }
+        guard let preferences else {
+            throw LoomError.unavailable(NSLocalizedString("shortcut.storage", tableName: "Recovery", comment: ""))
+        }
+        preferences.set(pattern.id, forKey: "shortcutPattern")
+        NotificationCenter.default.post(name: .loomShortcutRequested, object: nil)
         return .result()
     }
 }

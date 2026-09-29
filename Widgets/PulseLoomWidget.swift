@@ -5,11 +5,13 @@ struct LoomEntry: TimelineEntry {
     let date: Date
     let title: String
     let patternID: String
-    let dark: Bool
+    let light: [String]
+    let dark: [String]
 }
 struct LoomProvider: TimelineProvider {
     func placeholder(in context: Context) -> LoomEntry {
-        LoomEntry(date: Date(), title: "Pulse Loom", patternID: "p02", dark: false)
+        LoomEntry(date: Date(), title: "Pulse Loom", patternID: "p02",
+                  light: ["#fcf7f3", "#423238", "#966879"], dark: ["#15151a", "#f1eef7", "#d6a9bd"])
     }
     func getSnapshot(in context: Context, completion: @escaping (LoomEntry) -> Void) { completion(entry()) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<LoomEntry>) -> Void) {
@@ -17,17 +19,34 @@ struct LoomProvider: TimelineProvider {
     }
     private func entry() -> LoomEntry {
         let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String ?? ""
-        let d = UserDefaults(suiteName: group)
-        let id = d?.string(forKey: "patternID") ?? "p02"
+        let d = group.isEmpty ? nil : UserDefaults(suiteName: group)
+        let requested = d?.string(forKey: "patternID") ?? "p02"
+        let id = requested.range(of: "^p(0[1-9]|1[0-6])$", options: .regularExpression) != nil ? requested : "p02"
+        let palettes = d?.dictionary(forKey: "widgetPalette")
+        let light = palettes?["light"] as? [String] ?? []
+        let dark = palettes?["dark"] as? [String] ?? []
         return LoomEntry(
             date: Date(),
             title: d?.string(forKey: "title") ?? NSLocalizedString("widget.privateTitle", comment: ""),
-            patternID: id, dark: d?.string(forKey: "theme") == "night")
+            patternID: id,
+            light: light.count == 3 ? light : ["#fcf7f3", "#423238", "#966879"],
+            dark: dark.count == 3 ? dark : ["#15151a", "#f1eef7", "#d6a9bd"])
     }
+}
+private func widgetColor(_ hex: String) -> Color {
+    let number = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0
+    return Color(.sRGB, red: Double((number >> 16) & 255) / 255,
+                 green: Double((number >> 8) & 255) / 255,
+                 blue: Double(number & 255) / 255, opacity: 1)
 }
 struct LoomWidgetView: View {
     @Environment(\.widgetFamily) var family
+    @Environment(\.colorScheme) var colorScheme
     let entry: LoomEntry
+    // Explicit light/dark overrides are already resolved in the published pair.
+    // No theme-name heuristic: switching system appearance can render immediately.
+    private var colors: [String] { colorScheme == .dark ? entry.dark : entry.light }
+    private var accessory: Bool { family == .accessoryCircular || family == .accessoryRectangular }
     var body: some View {
         Group {
             if family == .accessoryCircular {
@@ -45,9 +64,12 @@ struct LoomWidgetView: View {
                     Label("widget.opensApp", systemImage: "hand.tap").font(.caption)
                 }.padding(3)
             }
-        }.containerBackground(for: .widget) {
-            entry.dark ? Color(red: 0.10, green: 0.09, blue: 0.14) : Color(red: 0.97, green: 0.93, blue: 0.93)
-        }.widgetURL(URL(string: "pulseloom://pattern/" + entry.patternID))
+        }
+        // Lock-screen accessories use the system's monochrome rendering semantics.
+        .foregroundStyle(accessory ? AnyShapeStyle(.primary) : AnyShapeStyle(widgetColor(colors[1])))
+        .tint(widgetColor(colors[2]))
+        .containerBackground(for: .widget) { widgetColor(colors[0]) }
+        .widgetURL(URL(string: "pulseloom://pattern/" + entry.patternID))
     }
 }
 @main struct PulseLoomWidget: Widget {

@@ -43,3 +43,22 @@ extension ThemeDefinition {
             "#27232b", "#43313d", "#765566",
         ])
 }
+
+/// Shared rendering policy for WidgetKit and deterministic appearance tests.
+public struct WidgetPalette: Equatable, Sendable {
+    public let isDark: Bool
+    public let background: String
+    public let foreground: String
+    public let accent: String
+    public init(themeID: String, appearance: String?, systemDark: Bool) {
+        let selected = Appearance(rawValue: appearance ?? "") ?? .auto
+        isDark = selected == .dark || (selected == .auto && systemDark)
+        let theme = Catalog.themes.first { $0.id == themeID } ?? .fallback
+        let requested = isDark ? theme.dark : theme.light
+        let fallback = isDark ? ThemeDefinition.fallback.dark : ThemeDefinition.fallback.light
+        let colors = requested.count == 12 ? requested : fallback
+        background = colors[0]
+        foreground = colors[5]
+        accent = colors[4]
+    }
+}

@@ -10,3 +10,5 @@
 "export.unverified" = "The origin of this imported or legacy work cannot be verified. Export and sharing are blocked; the work has not been deleted.";
 "export.importNotice" = "Imported JSON cannot prove originality. Imported works are retained as unverified, require Pro for playback, and cannot be re-exported. Legacy local works remain playable but need verified origin for export.";
 "export.backupNotice" = "A backup is exported only when all its works and content references are exportable. Paid, derived or unverified content blocks the whole backup; nothing is silently omitted. Same-account iCloud sync is separate.";
+"shortcut.unknown" = "This preset is no longer available. Open PulseLoom and choose a preset.";
+"shortcut.storage" = "Shared app storage is unavailable. Open PulseLoom to continue.";
