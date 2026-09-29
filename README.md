@@ -1,46 +1,76 @@
 # PulseLoom
 
-原生iPhone项目，沿用批准的HTML v0.6四页：**首页 / 音乐 / 创作 / 我的**。参考模型在Reference/v0.6，不以WebView替代。当前还不是全功能真机验收或App Store发布版本。
+依据已批准 HTML v0.6 的原生 iPhone 触觉节奏应用，主导航固定为 **首页 / 音乐 / 创作 / 我的**。含 SwiftUI、Core Haptics、本地 PCM 分析、MusicKit、StoreKit 2、CloudKit、Watch、Widget、Shortcuts 和独立远控中继源码。
 
-## 当前状态与可操作预览
+## 当前状态与证据
 
-- AUD-09/10/15修复：`088387a07800ac7fab7a1055f8045348d5b32530`，[Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36445005156)全部结束通过；[失败前/修复后证据与内容政策](Docs/ACCESS_POLICY_REVIEW.md)。
-- 原生预览：`8b9bcd4a2194fd0e9764e73587f823867e6d916a`，[Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36449339638)通过。55原生服务、9UI、90Core、15Relay通过；iPhone/Widget/Watch模拟器编译通过；精确ZIP解压、安装、启动通过。
-- Windows下载运行页的 `ios-simulator-preview-<SHA>`，解压外层，手动将内层 `.app.zip` 上传Appetize。[操作步骤与限制](Docs/SIMULATOR_PREVIEW.md)。没有自动上传、假Pro或模拟器真实震动。
-- [实际数据流](Docs/DATA_FLOW.md)列出本地、可选CloudKit、内存中继、StoreKit和失败残留；没有创建用户数据库或部署服务。
+本轮 11 项 P2 及额外音乐失败路径的代码修复已建立有效回归。固定已核查产品版本 **`aeac0a801a366b6617e96edc4bf7e3ec020ee807`** 的 [Actions](https://github.com/yangyang8305/PulseLoom/actions/runs/36521494999) 全部结束通过：**101 Core、76 原生服务、9 UI、19 Relay、6 检查器测试**，以及无签名 SDK 构建、真实 App Intents 元数据和精确预览 ZIP 启动。本文之后的每个 SHA 仍需核对自身运行。
 
-上述证据只属于对应SHA；本次文档提交及后续提交必须检查自己的Actions，不能继承旧绿色状态。P1的7项历史关闭证据见 [AUDIT_PHASE2.md](Docs/AUDIT_PHASE2.md)。原14项P2剩11项，详见 [发布清单](Docs/RELEASE_CHECKLIST.md)。
+**这些是限定的模拟器/代码验证，不是全功能真机验收或立即可上架的成品证明。**外部服务未配置时显示实际不可用，没有默认假 Pro、假购买或假云端成功。测试的受控硬件/账号/socket 不代替真实系统。
 
-## 内容与远控规则
+- [P2 修复与红绿证据](Docs/P2_REMEDIATION.md)：AUD-07、11、12、13、14、16、17、18、19、21、22 和额外音乐失败处理。
+- [QA 实际运行](Docs/QA_REPORT.md)、[功能覆盖](Docs/FEATURE_COVERAGE.md)、[发布门槛](Docs/RELEASE_CHECKLIST.md)。
+- [数据流与残留](Docs/DATA_FLOW.md)、[历史 P1](Docs/AUDIT_PHASE2.md)、[远控与内容政策](Docs/ACCESS_POLICY_REVIEW.md)。历史通过不替代当前提交检查。
 
-付费预设及其派生文件禁止外部导出/分享，Pro也不例外；应用中新建原创可导出。整库包含受限或未验证来源时解释并阻止，不静默漏作品。外部JSON不能证明原创，导入内容被标为未验证/受限；当前没有签名原创文件交换格式。**同账号私有CloudKit同步是独立内部路径，保留来源，不作为外部分享许可。**
+## 无需签名的构建与测试
 
-远控start/gain核对即时Pro、当前许可及输出所有者；本机接管后旧连接不得控制它。普通stop保权、紧急停止撤权；安全停止不因Pro失效而失效。真实购买退款和公网两机验证尚未完成。
-
-## 构建与测试
-
-需macOS及完整Xcode、iOS Simulator。iOS部署目标17、系统Music Haptics分支18、Watch目标10。已实测Xcode16.4、iOS Simulator18.5和watchOS Simulator11.5，不自动认证其他SDK。
+CI 固定 macOS 15 / **Xcode 26.3**。iOS 最低 17、watchOS 最低 10；系统 Music Haptics 分支需要 iOS 18+ 及实际服务条件。项目仍用现有 Swift 5 / targeted 设置，不声称全工程 Swift 6 严格并发迁移完成。旧 Xcode 16.4 元数据问题保留在历史日志，不宣称旧工具链也通过当前门槛。
 
 ```bash
-python3 Scripts/check-generated-project.py
 open PulseLoom.xcodeproj
+python3 Scripts/check-generated-project.py
 bash Scripts/build-ios.sh
 bash Scripts/test-services.sh
 bash Scripts/test-ui.sh
+python3 Scripts/check-apple-diagnostics.py
 bash Scripts/package-simulator-preview.sh
-swift test --package-path Packages/PulseLoomCore
-python -m pip install -r Server/requirements-dev.txt
-python -m pytest Server/tests -q
 ```
 
-5个targets；共享schemes包括PulseLoom、PulseLoom-StoreKit、PulseLoomWatch、PulseLoom-ServiceTests。仓库默认plugins布局，build-ios按Xcode16选择watch布局；先检查默认生成一致性。模拟器包默认免费、不配置账号，StoreKit商品或硬件不可用时保留真实错误，不通过假成功绕过。
+`python3 Scripts/generate-project.py` 确定性生成项目，无 XcodeGen/CocoaPods。CI 检查 7 个生成文件与 HEAD 逐字节一致、重复生成不变；构建随后采用 SDK 对应 Watch 嵌入布局。元数据来自真实编译 bundle，不生成伪文件或过滤错误。
 
-## 模块与验收边界
+纯逻辑及中继/检查器：
 
-首页16预设/计时/触感控制，音乐本地PCM分析及独立MusicKit路径，创作分段/曲线/敲击/XY，作品/收藏/主题/隐私，组合/声景/呼吸，StoreKit、CloudKit、远控和Watch/Widget/Shortcuts均有源码。**源码入口和编译不代表全场景通过。**
+```bash
+swift test --package-path Packages/PulseLoomCore
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r Server/requirements-dev.txt
+python -m pytest Server/tests -q
+python -m unittest discover -s Scripts/tests -v
+python Scripts/validate-source.py --no-swift-parse
+```
 
-[QA](Docs/QA_REPORT.md) · [逐功能覆盖](Docs/FEATURE_COVERAGE.md) · [架构](Docs/ARCHITECTURE.md) · [配置](Docs/SETUP.md) · [隐私](Docs/PRIVACY_AND_SECURITY.md) · [中继](Docs/REMOTE_SERVICE.md)。配置文件中的Team、中继/支持URL为空；正式账号、签名与部署需另行处理，不提交Local.xcconfig、.env、证书或密钥。
+## Windows 原生预览
 
-App在App/，核心包Packages/PulseLoomCore/，ServiceTests/与UITests/为原生测试，Server/为Python中继，WatchApp/、Widgets/为扩展，Config/与Scripts/维护工程。源码已在GitHub main，保留历史；不要再次运行publish-github.py重新建仓。
+Actions 下载 `ios-simulator-preview-<SHA>`，解压外层取 `PulseLoom-Simulator.app.zip`。Windows 浏览器手动上传 Appetize 的步骤见 [SIMULATOR_PREVIEW](Docs/SIMULATOR_PREVIEW.md)。CI 安装并启动的是同一个解压包，无测试/Pro 参数。没有自动上传第三方；模拟器无法验证真实震动，Appetize 本身仍待手动运行。
 
-仓库未指定开源许可证。无外部字体或商业音乐随包分发，合成示例由本项目生成。模拟器、内存socket及OS边界替身测试不证明真机触感/功耗、真实StoreKit/MusicKit/CloudKit或公网服务；未部署、未上架。
+## 功能与验收边界
+
+| 页面/模块 | 实现范围 | 未验证 |
+|---|---|---|
+| 首页 | 6 快捷/16 完整预设、强度/速度/质感、计时、启停、防误触、手动控制 | 真实马达、温度、功耗、设备中断 |
+| 音乐 | 本地分析/映射、偏移/区间/配置；MusicKit 独立路径 | 实际格式/路由矩阵、账号/地区曲库与触觉同步 |
+| 创作 | 分段、曲线、敲击、XY、撤销、草稿、保存、复制、导入导出 | 全触摸、无障碍和小屏体验 |
+| 我的 | 作品、收藏、可选历史、备份恢复、六主题明暗、设置、反馈 | 设备备份、全部恢复组合、人工文案/视觉 |
+| 扩展 | 组合/呼吸/声景、Watch、Widget、Shortcuts | 配对、系统安装/着色、Siri 发现、音质 |
+| 云/远控 | 私有 CloudKit、稳定冲突合并、HTTPS/WSS 加密命令 | 多设备真实云、公网网络/日志/运维 |
+| 购买 | StoreKit 商品、验证交易、恢复/退款入口 | 正式商品、真实退款、离线权益 |
+
+**付费预设及派生文件禁止外部导出分享，原创可导出；整库含受限/未验证内容时整份阻止并解释，不静默漏掉作品。**外部 JSON 不能自证原创；自己导出的文件再次导入也会成为未验证，当前没有签名交换格式。同账号 CloudKit 与对外导出分别处理。政策未因本轮 P2 修复而变更。
+
+真实设备和上架阶段再按 [SETUP](Docs/SETUP.md) 配置自己的 Team、bundle IDs、App Group、CloudKit、真实商品/服务地址。`Config/Local.xcconfig`、证书/私钥/token 不提交。本轮没有进行这些配置。`PulseLoom-StoreKit` 是本机开发 fixture，无实际扣费；清作品不取消购买、关同步不删云、断线不等于忘记邀请。
+
+## 目录
+
+```text
+App/                     SwiftUI、原生服务与资源
+Packages/PulseLoomCore/   数据/校验/合并/时序/音频/协议
+ServiceTests/ UITests/    Apple SDK 服务回归和 9 项 UI
+WatchApp/ Widgets/       系统扩展目标
+Server/                  内存中继与测试，无用户数据库
+Scripts/ Config/         生成/CI/构建和配置
+Docs/                    证据、数据流、范围与发布门槛
+Reference/v0.6/          批准 HTML 对照，不嵌入 App
+```
+
+远端仓库已存在，不重新运行旧 publish-github.py --create；保留历史且不 force push。未指定开源许可证，不含外部商业音乐或字体。临时数据、分享和服务保留边界详见 DATA_FLOW。

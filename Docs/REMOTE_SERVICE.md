@@ -1,56 +1,40 @@
-# 远控中继：运行与安全边界
+# 远控中继：实现、测试与部署边界
 
-`Server/app.py` 是实际 FastAPI HTTP/WebSocket 服务，不是原型房间模拟器。当前没有替用户部署任何公网服务。
+`Server/app.py` 是 FastAPI HTTP/WebSocket 服务。当前未部署公网实例、未配置 Apple 账号、未创建持久用户数据库。本轮 AUD-21 修复以进程内 Registry 测试验证，不代替公网安全测试。数据去向见 [DATA_FLOW.md](DATA_FLOW.md)。
 
 ## 本地测试
-
-在仓库根目录：
 
 ```bash
 python -m pip install -r Server/requirements-dev.txt
 python -m pytest Server/tests -q
+# 以下只供开发者自行进行本机联调；本轮没有部署执行。
 python -m uvicorn Server.app:app --host 127.0.0.1 --port 8080 --workers 1 --no-access-log
 ```
 
-本地 HTTP 仅供测试；iOS RemoteService 只接受 HTTPS/WSS。不能将关闭 ATS 作为生产接入方式。
+iOS 客户端要求 HTTPS/WSS；本机 HTTP 不能通过关闭 ATS 作为生产接入方案。Docker Compose/Caddy 配置保留在 Server，实际 DNS、TLS、镜像锁定、访问策略、日志轮转和公网防护要经过独立验收后再部署。
 
-## TLS 部署
+## 协议和授权
 
-准备有 DNS 指向服务器的专用域名，开放 80/443，安装 Docker Compose。
+POST /v1/rooms 生成随机房间和双方 256-bit capability。服务端 Registry 保存摘要，但第一帧在 TLS 中鉴权时会处理明文 token。客户端单独生成 AES-256 key，邀请 fragment 携带接收者 token/key/room/server；分享渠道可读取完整邀请。AES-GCM 业务命令使用 room 为 AAD，中继不获得 AES key，但仍可见网络元数据。
 
-```bash
-cd Server
-cp .env.example .env
-# 编辑公开的域名和 ACME 联系邮箱
- docker compose config
- docker compose up -d --build
-```
+start/gain 每次核对即时 Pro、前台、许可 nonce 及输出所有权。本机新会话接管撤销远控许可，旧命令不能调节/停止较新的本机输出。普通 stop 保留许可，emergencyStop 撤权，接收者需重新确认；安全停止和 ping 不因 Pro 丢失而被禁用。
 
-`/health` 为健康入口。Caddy TLS termination → 私有网络上的 relay:8080。无需提供音频、Apple receipt、GitHub token 或私钥给中继。上述 Docker/TLS/证书流程尚未在此环境执行，需看实际容器日志和证书结果。
+客户端 disconnect 清 active key/socket/许可，但重连邀请仍可留在进程内；断线不等于忘记邀请。所有 peers 离开不立即删房间；有效期内重连仍需新 nonce 和接收者许可。
 
-## 协议
+## 容量和期限（代码约束）
 
-1. `POST /v1/rooms` 生成随机房间及 sender/receiver 256-bit capability。Registry保存token hash，但第一帧鉴权会在服务端内存接触明文token；房间在内存中，建房后一小时到期并由15秒sweep回收。
-2. 客户端生成 256-bit AES key，发送方仅分享 receiver 邀请。邀请使用 `pulseloom://invite#...`，密钥置于 fragment，不作为中继查询参数。
-3. WebSocket 第一帧发送 role/token，5秒内鉴权。URL 不携带 capability。
-4. 业务载荷由 CryptoKit AES-GCM 加密；room ID 作 AAD。中继只能转发 opaque payload，不能读强度/模式内容。
-5. 接收者需要显式许可；心跳握手产生 fresh connection nonce，业务命令绑定该连接，sequence 防重复。旧连接业务命令不被复用。
-6. 接收者上限钳制增益；降低上限立即停旧输出；失去前台、撤回许可、断线、peer 离开均停；重新连接再次授权。
+| 项目 | 当前规则 |
+|---|---|
+| 房间 | 最多 1000；建房后 3600 秒到期，不按最后活跃续期；周期 sweep 15 秒，调度/关闭可能延迟 |
+| IP 建房 | 每 IP 60 秒窗口最多 6 次；总 IP keys 上限 5000；建房前及周期 sweep 删除过期时间和空队列 |
+| AUD-21 | 5000 个陈旧 IP 不再使新用户永远被容量检查阻断；活跃限流记录不得错误回收 |
+| 消息 | WebSocket 64 KiB、密文载荷 32 KiB 上限；每连接 30 帧/秒；首次鉴权 5 秒，无消息接收 15 秒超时 |
+| 存储 | 单进程内存，无消息数据库；重启丢房间。多 worker/副本不能直接共用此状态实现 |
 
-## 限制与运营
+精确参数以 [app.py](../Server/app.py) 为准。正常调度下过期 IP key 在下一次 sweep 或请求处理时回收，不是对 Docker/主机/云平台日志期限的承诺。没有持久聊天或音频上传。基础设施错误/TLS/系统日志仍可能存在；没有已验收的生产留存策略。
 
-- 单进程、单 worker；不要用多个 worker/副本共用当前内存实现，否则房间状态不一致。
-- 最大1000房间；单 IP 建房限流6次/分钟；WebSocket 64KB、加密载荷32KB上限；每连接30帧/秒；心跳/失联超时。
-- 实际参数以 `Server/app.py` 常量为准，本文不替代代码。
-- IP、房间连接、时间等传输元数据仍存在。端到端加密不隐藏网络元数据，不意味着“完全不收集数据”。
-- Bearer invitation 有持有即授权的性质；泄漏后断开并重新建房。无身份注册/陌生人搜索/公开匹配。
-- 无密码数据库、持久化聊天、音频上传。重启清空房间；预期用户重新建房。
-- `.env` 被 Git 忽略；对用户分享的是邀请，不是中继管理权限。
-- 原生 CryptoKit↔服务两实体机互通、真实 NAT/移动网络/高延迟测试尚未执行。Python AES-GCM 测试只证明测试构造帧的加密/解密与中继转发，不能冒充原生端到端联调。
-- 直接 Python 依赖版本已固定；间接依赖、Docker image digest、Caddy版本与漏洞扫描需生产部署时锁定和复核。DoS和公网安全审查尚未完成。
+## 证据和剩余工作
 
-## 当前策略与留存补充（088387a之后）
+[Server/tests/test_p2.py](../Server/tests/test_p2.py) 保留陈旧容量和周期清理失败反例及正常活动窗口对照；总 Relay 套件 19 项的实际执行结果见 [QA_REPORT.md](QA_REPORT.md)。这些测试不等同原生端跨真实 WSS/移动网络互通。
 
-start/gain逐条核对即时Pro、前台、许可nonce与输出ID；本机新会话接管即撤权。普通stop保留许可，emergencyStop撤销许可；停止和ping不因Pro丢失被禁止。客户端disconnect为重连保留邀请key/token在进程内，不能把断线称为忘记邀请。
-
-建房队列的60秒窗口不是IP key保留期限；AUD-21仍存在，冷IP可能直到服务重启才释放。所有peer离开不立即删房间。Caddy/Docker/主机日志无已确定的生产保留策略；不要照本文直接生产上线。完整代码依据、失败残留及待决定事项见 [DATA_FLOW.md](DATA_FLOW.md)。这些运维风险本轮没有修改、部署或验收。
+正式部署前需完成单进程容量压测、代理 IP 信任配置、日志轮转/期限/访问权限、镜像摘要与依赖漏洞复核、邀请泄露响应、重连延迟及两实体机联调。当前仅提交代码与文档，不自动运行 Docker、不开放网络端口。
