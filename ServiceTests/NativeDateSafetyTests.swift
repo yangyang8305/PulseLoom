@@ -206,3 +206,35 @@ import CloudKit
         XCTAssertEqual(s.state, .off); XCTAssertNil(s.lastSync)
     }
 }
+
+
+import AppIntents
+
+@MainActor final class PlatformContractTests: XCTestCase {
+    func testAUD18PublishingWidgetPreservesExplicitAppearance() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = AppModel(library: LibraryStore(root: root))
+        let group = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: group))
+        let prior = defaults.object(forKey: "appearance")
+        defer { if let prior { defaults.set(prior, forKey: "appearance") } else { defaults.removeObject(forKey: "appearance") } }
+        try app.library.preferences { $0.appearance = .dark; $0.theme = "blush" }
+        app.publishWidget()
+        XCTAssertEqual(defaults.string(forKey: "appearance"), "dark")
+        try app.library.preferences { $0.appearance = .light }
+        app.publishWidget()
+        XCTAssertEqual(defaults.string(forKey: "appearance"), "light")
+        app.stopAll()
+    }
+    func testAUD19ShortcutRejectsUnresolvablePresetInsteadOfReportingSuccess() async throws {
+        let group = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: group))
+        defaults.removeObject(forKey: "shortcutPattern")
+        defer { defaults.removeObject(forKey: "shortcutPattern") }
+        var intent = OpenPulseLoomIntent()
+        intent.pattern = PresetEntity(id: "unknown-injected-id", name: "not a preset")
+        do { _ = try await intent.perform(); XCTFail("Unknown entity must not produce success or a stored command") } catch {}
+        XCTAssertNil(defaults.string(forKey: "shortcutPattern"))
+    }
+}

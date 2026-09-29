@@ -43,6 +43,9 @@ jobs:
       - name: Native UI tests
         if: ${{ !cancelled() }}
         run: bash Scripts/test-ui.sh
+      - name: Validate App Intents metadata and concurrency diagnostics
+        if: ${{ !cancelled() }}
+        run: python Scripts/check-apple-diagnostics.py
       - name: Package and launch exact simulator ZIP
         run: bash Scripts/package-simulator-preview.sh
       - uses: actions/upload-artifact@v4
