@@ -58,12 +58,21 @@ import PulseLoomCore
                 self.decoding = work
                 let result = try await withTaskCancellationHandler(
                     operation: { try await work.value }, onCancel: { work.cancel() })
-                guard !Task.isCancelled, self.generation == token else {
-                    try? FileManager.default.removeItem(at: result.0)
-                    return
+                // The decoded file belongs to this request until a prepared player
+                // adopts it. Every early return and thrown construction/preparation
+                // error must attempt cleanup, without deleting the user's input.
+                var adopted = false
+                defer {
+                    if !adopted { try? FileManager.default.removeItem(at: result.0) }
                 }
+                guard !Task.isCancelled, self.generation == token else { return }
                 let next = try self.makePlayer(result.0)
-                _ = self.preparePlayer(next)
+                guard self.preparePlayer(next) else {
+                    throw LoomError.unavailable("Audio could not be prepared.")
+                }
+                // Injected/framework callbacks may reenter clear or load. Never
+                // publish an obsolete prepared player over the newer request.
+                guard !Task.isCancelled, self.generation == token else { return }
                 if let old = self.tempURL { try? FileManager.default.removeItem(at: old) }
                 self.tempURL = result.0
                 self.player = next
@@ -74,6 +83,7 @@ import PulseLoomCore
                 self.position = 0
                 self.activePlayed = 0
                 self.status = .ready
+                adopted = true
             } catch {
                 guard self.generation == token else { return }
                 self.status = .failed
@@ -140,7 +150,9 @@ import PulseLoomCore
             pause()
             return
         }
-        guard let player, let analysis else {
+        // Retain a previous valid player for explicit cancellation/recovery, but
+        // never acquire output for it while a replacement is loading or failed.
+        guard status == .ready, let player, let analysis else {
             throw LoomError.unavailable(NSLocalizedString("music.select", comment: ""))
         }
         guard pro || activePlayed < 60 else { throw LoomError.entitlement }
