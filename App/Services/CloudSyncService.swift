@@ -4,18 +4,37 @@ import CryptoKit
 import Foundation
 import PulseLoomCore
 
+/// Live CloudKit calls are isolated from deterministic failure/suspension tests.
+@MainActor struct CloudBackend {
+    var load: (CKRecord.ID) async throws -> CKRecord?
+    var save: (CKRecord) async throws -> CKRecord
+    var delete: (CKRecord.ID) async throws -> Void
+    static func live(_ database: CKDatabase) -> Self {
+        Self(load: { id in
+            do { return try await database.record(for: id) }
+            catch let e as CKError where e.code == .unknownItem { return nil }
+        }, save: { record in
+            let results = try await database.modifyRecords(saving: [record], deleting: [], savePolicy: .ifServerRecordUnchanged, atomically: false)
+            guard let result = results.saveResults[record.recordID] else { throw LoomError.storage("CloudKit returned no save result.") }
+            return try result.get()
+        }, delete: { id in _ = try await database.deleteRecord(withID: id) })
+    }
+}
+
 @MainActor final class CloudSyncService: ObservableObject {
     enum State { case off, ready, syncing, conflict, failed }
     @Published private(set) var state: State = .off
     @Published var error: String?
     @Published private(set) var remoteSnapshot: LibrarySnapshot?
     @Published private(set) var lastSync: Date?
-    private var database: CKDatabase?
+    private var database: CloudBackend?
     private var record: CKRecord?
     private var baseline: Data?
     private var generation = UUID()
     private let stagingRoot: URL
-    init(stagingRoot: URL? = nil) {
+    init(stagingRoot: URL? = nil, backend: CloudBackend? = nil) {
+        database = backend
+        if backend != nil { state = .ready }
         self.stagingRoot = stagingRoot ?? FileManager.default.temporaryDirectory.appendingPathComponent("PulseLoom-CloudStaging")
     }
     private func requireCurrent(_ expected: UUID) throws {
@@ -32,7 +51,7 @@ import PulseLoomCore
             throw LoomError.unavailable(NSLocalizedString("sync.account", comment: ""))
         }
         try requireCurrent(expected)
-        database = c.privateCloudDatabase
+        database = .live(c.privateCloudDatabase)
         state = .ready
     }
     func disable() {
@@ -53,7 +72,7 @@ import PulseLoomCore
         error = nil
         do {
             let remoteRecord: CKRecord?
-            do { remoteRecord = try await database.record(for: recordID) } catch let e as CKError
+            do { remoteRecord = try await database.load(recordID) } catch let e as CKError
                 where e.code == .unknownItem
             { remoteRecord = nil }
             try requireCurrent(expected)
@@ -158,13 +177,9 @@ import PulseLoomCore
         let r = record ?? CKRecord(recordType: "PulseLoomLibrary", recordID: recordID)
         r["payload"] = CKAsset(fileURL: u)
         do {
-            let results = try await database.modifyRecords(
-                saving: [r], deleting: [], savePolicy: .ifServerRecordUnchanged, atomically: false)
+            let result = try await database.save(r)
             try requireCurrent(expected)
-            guard let result = results.saveResults[recordID] else {
-                throw LoomError.storage("CloudKit returned no save result.")
-            }
-            record = try result.get()
+            record = result
             baseline = data
             state = .ready
             lastSync = Date()
@@ -183,7 +198,7 @@ import PulseLoomCore
     func deleteCloud() async throws {
         let expected = generation
         guard let database else { return }
-        _ = try await database.deleteRecord(withID: recordID)
+        try await database.delete(recordID)
         try requireCurrent(expected)
         disable()
     }
