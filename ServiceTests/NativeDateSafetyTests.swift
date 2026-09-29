@@ -284,3 +284,68 @@ import AppIntents
         _ = try await intent.perform()
     }
 }
+
+
+import AVFoundation
+
+/// EXTRA-01/02/03: actual PCM file decoding, controlled player failure; no physical audio claim.
+@MainActor final class MusicImportFailureTests: XCTestCase {
+    private enum Probe: Error { case playerCreation, acquiredWhileLoading }
+    private func input() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent("private-original.wav")
+        try DemoAudio.wav().write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
+        return url
+    }
+    private func waitForLoad(_ service: MusicService) async throws {
+        let deadline = ProcessInfo.processInfo.systemUptime + 15
+        while service.status == .loading && ProcessInfo.processInfo.systemUptime < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertNotEqual(service.status, .loading, "Loading timed out; no success is inferred from timeout")
+    }
+    func testPlayerConstructionFailureRemovesDecodedPrivateCopy() async throws {
+        let original = try input()
+        var copied: URL?
+        let service = MusicService(makePlayer: { url in copied = url; throw Probe.playerCreation })
+        defer { service.clear(); if let copied { try? FileManager.default.removeItem(at: copied) } }
+        service.load(url: original)
+        try await waitForLoad(service)
+        let temporary = try XCTUnwrap(copied, "Actual decoding must reach the player boundary")
+        XCTAssertNotEqual(temporary, original)
+        XCTAssertEqual(service.status, .failed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporary.path), "Decoded private audio must not survive player construction failure")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: original.path))
+    }
+    func testPreparationFailureIsNotReportedAsReadyAndRemovesCopy() async throws {
+        let original = try input()
+        var copied: URL?
+        let service = MusicService(makePlayer: { url in copied = url; return try AVAudioPlayer(contentsOf: url) }, preparePlayer: { _ in false })
+        defer { service.clear(); if let copied { try? FileManager.default.removeItem(at: copied) } }
+        service.load(url: original)
+        try await waitForLoad(service)
+        let temporary = try XCTUnwrap(copied)
+        XCTAssertEqual(service.status, .failed, "prepareToPlay=false must not count as playable")
+        XCTAssertNotNil(service.error)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporary.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: original.path))
+    }
+    func testLoadingAnotherSongDoesNotAcquireOutputForRetainedOldPlayer() async throws {
+        let original = try input()
+        let service = MusicService(preparePlayer: { _ in true })
+        defer { service.clear() }
+        service.load(url: original)
+        try await waitForLoad(service)
+        XCTAssertEqual(service.status, .ready)
+        var acquired = 0
+        service.acquire = { acquired += 1; throw Probe.acquiredWhileLoading }
+        service.load(url: original)
+        XCTAssertEqual(service.status, .loading)
+        XCTAssertThrowsError(try service.play())
+        XCTAssertEqual(acquired, 0, "Loading a new file must not acquire output for the previous song")
+        service.cancelLoad()
+        XCTAssertEqual(service.status, .ready, "Explicit cancel may return to the previous ready song")
+    }
+}

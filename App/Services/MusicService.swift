@@ -27,7 +27,12 @@ import PulseLoomCore
     private var tempURL: URL?
     private var activePlayed = 0.0, lastTick = 0.0, sessionPlayed = 0.0
     var duration: Double { analysis?.duration ?? 0 }
-    init() {
+    private let makePlayer: (URL) throws -> AVAudioPlayer
+    private let preparePlayer: (AVAudioPlayer) -> Bool
+    init(makePlayer: @escaping (URL) throws -> AVAudioPlayer = { try AVAudioPlayer(contentsOf: $0) },
+         preparePlayer: @escaping (AVAudioPlayer) -> Bool = { $0.prepareToPlay() }) {
+        self.makePlayer = makePlayer
+        self.preparePlayer = preparePlayer
         timer = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -57,8 +62,8 @@ import PulseLoomCore
                     try? FileManager.default.removeItem(at: result.0)
                     return
                 }
-                let next = try AVAudioPlayer(contentsOf: result.0)
-                next.prepareToPlay()
+                let next = try self.makePlayer(result.0)
+                _ = self.preparePlayer(next)
                 if let old = self.tempURL { try? FileManager.default.removeItem(at: old) }
                 self.tempURL = result.0
                 self.player = next

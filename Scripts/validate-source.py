@@ -13,6 +13,47 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Literal Swift calls supported by this checker. Computed keys still need manual
+# review; named tables must not be silently treated as Localizable.strings.
+def localized_references(text):
+    expression = re.compile(
+        r'\b(T|NSLocalizedString)\(\s*"([A-Za-z0-9_.-]+)"'
+        r'(?:\s*,\s*tableName\s*:\s*(?:"([^"\n]*)"|(nil)))?')
+    for match in expression.finditer(text):
+        function, key, table, _ = match.groups()
+        if key.endswith('.'):
+            continue  # Existing dynamic prefix checks remain outside static scope.
+        suffix = text[match.end():]
+        if function == 'NSLocalizedString' and re.match(r'\s*,\s*tableName\s*:', suffix):
+            raise ValueError('Nonliteral localization table for ' + key)
+        yield (table or 'Localizable') if function == 'NSLocalizedString' else 'Localizable', key
+
+
+def read_strings(path):
+    text = path.read_text()
+    matches = re.findall(r'("(?:[^"\\]|\\.)*")\s*=\s*("(?:[^"\\]|\\.)*");', text)
+    parsed = {json.loads(k): json.loads(v) for k, v in matches}
+    if len(parsed) != len(matches):
+        raise ValueError('Duplicate localization key in ' + str(path))
+    return parsed
+
+
+def localization_failures(text, resources):
+    failures = []
+    for table, key in sorted(set(localized_references(text))):
+        if not re.fullmatch(r'[A-Za-z0-9_.-]+', table):
+            failures.append('Invalid literal table ' + table)
+            continue
+        for language in ['en', 'zh-Hans', 'ja']:
+            path = resources / (language + '.lproj') / (table + '.strings')
+            try:
+                values = read_strings(path)
+                if key not in values or not values[key]:
+                    failures.append(f'{language}/{table}.strings missing key {key}')
+            except (OSError, ValueError) as error:
+                failures.append(f'{language}/{table}.strings: {error}')
+    return failures
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--no-swift-parse', action='store_true')
@@ -55,11 +96,16 @@ def main():
     for key,values in entries.items():
         fmt = [sorted(re.findall(r'%(?:[0-9]+\$)?(?:\.[0-9]+)?(?:ld|lu|lld|llu|d|u|f|@|s)',s)) for s in values]
         check('format placeholders '+key,fmt[0]==fmt[1]==fmt[2])
-    nativeText='\n'.join(p.read_text() for p in native)
-    keys=set(re.findall(r'(?:T|NSLocalizedString)\("([A-Za-z0-9_.-]+)"',nativeText))
-    for key in sorted(keys):
-        if key.endswith('.'): continue
-        check('literal localized key '+key,key in entries)
+    for p in native:
+        target = p.relative_to(ROOT).parts[0]
+        if target in ['UITests', 'ServiceTests']:
+            target = 'App'  # Hosted tests use the application bundle.
+        try:
+            missing = localization_failures(p.read_text(), ROOT/target/'Resources')
+            check('literal localization tables '+str(p.relative_to(ROOT)), not missing)
+            failures.extend(str(p.relative_to(ROOT))+': '+message for message in missing)
+        except ValueError as error:
+            check('literal localization tables '+str(p.relative_to(ROOT))+': '+str(error), False)
     # This compiler error can survive frontend parsing: one property wrapper on multiple bindings.
     for p in native:
         for line in p.read_text().splitlines():
