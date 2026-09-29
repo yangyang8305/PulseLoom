@@ -81,6 +81,11 @@ struct SharedFile: Identifiable {
             self.music.pause()
             self.sound.stop()
         }
+        playback.didChange = { [weak self] in self?.publishWatchState() }
+        playback.accompaniment = { [weak self] enabled in
+            guard let self else { return }
+            if enabled { try self.sound.play() } else { self.sound.stop() }
+        }
         playback.didFinish = { [weak self] name, kind, seconds, reason in
             self?.library.record(title: name, kind: kind, seconds: seconds, reason: reason)
         }
@@ -244,7 +249,22 @@ struct SharedFile: Identifiable {
         playback.keepAwake = prefs.keepAwake
         diagnostics.enabled = prefs.diagnosticsEnabled
         publishWidget()
-        watch.publish(title: current.displayName(), gain: prefs.gain, playing: playback.isPlaying)
+        publishWatchState()
+    }
+    private func publishWatchState() {
+        let active = [.playing, .paused, .interrupted].contains(playback.state)
+        watch.publish(title: active ? playback.title : current.displayName(),
+                      gain: active ? playback.currentGain : prefs.gain, playing: playback.isPlaying)
+    }
+    func playRoutine(_ routine: Routine) throws {
+        let patterns = routine.items.compactMap { library.pattern($0.patternID) }
+        try Validation.routine(routine, patterns: patterns)
+        guard patterns.allSatisfy({ Entitlements.canPlay($0, pro: pro) }) else { throw LoomError.entitlement }
+        stopAll()
+        do {
+            try playback.playRoutine(routine, resolver: { self.library.pattern($0) }, pro: pro)
+            if routine.sound { try sound.play() }
+        } catch { stopAll(); throw error }
     }
     func select(_ p: HapticPattern) {
         perform {

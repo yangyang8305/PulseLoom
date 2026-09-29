@@ -183,11 +183,17 @@ public enum CloudMerge {
             guard (merged.tombstones[p.id] ?? .distantPast) < p.updatedAt else { continue }
             if let existing = items[p.id], !samePatternContent(existing, p) {
                 var copy = p
-                copy.id = UUID().uuidString
+                copy.id = try conflictID("pattern", p)
                 copy.name = String((p.name + " (copy)").prefix(30))
                 remap[p.id] = copy.id
-                items[copy.id] = copy
+                // A replay must neither resurrect a tombstoned copy nor overwrite its later edit.
+                if (merged.tombstones[copy.id] ?? .distantPast) < copy.updatedAt {
+                    if let previous = items[copy.id] {
+                        if samePatternContent(previous, copy), previous.updatedAt < copy.updatedAt { items[copy.id] = copy }
+                    } else { items[copy.id] = copy }
+                }
             } else {
+                if let existing = items[p.id], existing.updatedAt > p.updatedAt { continue }
                 items[p.id] = p
             }
         }
@@ -210,10 +216,14 @@ public enum CloudMerge {
                 return x
             }
             if let old = routines[r.id], !sameRoutineContent(old, r) {
-                r.id = UUID().uuidString
+                r.id = try conflictID("routine", r)
                 r.name = String((r.name + " (copy)").prefix(30))
-            }
-            routines[r.id] = r
+                if let previous = routines[r.id] {
+                    if sameRoutineContent(previous, r), previous.updatedAt < r.updatedAt { routines[r.id] = r }
+                    continue
+                }
+            } else if let old = routines[r.id], old.updatedAt > r.updatedAt { continue }
+            if (merged.tombstones[r.id] ?? .distantPast) < r.updatedAt { routines[r.id] = r }
         }
         merged.routines = routines.values.compactMap { r in
             var r = r
@@ -224,6 +234,16 @@ public enum CloudMerge {
         merged.updatedAt = Date()
         try Validation.snapshot(merged)
         return merged
+    }
+    private static func conflictID(_ kind: String, _ pattern: HapticPattern) throws -> String {
+        var canonical = pattern
+        canonical.updatedAt = Date(timeIntervalSince1970: 0)
+        return "conflict-" + kind + "-" + StableContentDigest.hex(try FileCodec.encode(canonical))
+    }
+    private static func conflictID(_ kind: String, _ routine: Routine) throws -> String {
+        var canonical = routine
+        canonical.updatedAt = Date(timeIntervalSince1970: 0)
+        return "conflict-" + kind + "-" + StableContentDigest.hex(try FileCodec.encode(canonical))
     }
     private static func samePatternContent(_ a: HapticPattern, _ b: HapticPattern) -> Bool {
         var a = a
@@ -240,4 +260,45 @@ public enum CloudMerge {
         return a == b
     }
 
+}
+
+/// SHA-256 for reproducible content identifiers on Linux and Apple platforms.
+/// Not a content-authentication mechanism; export provenance still uses ContentPolicy.
+enum StableContentDigest {
+    static func hex(_ input: Data) -> String {
+        let k: [UInt32] = [
+            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]
+        var bytes = Array(input), h: [UInt32] = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]
+        let bits = UInt64(bytes.count) * 8
+        bytes.append(0x80)
+        while bytes.count % 64 != 56 { bytes.append(0) }
+        for shift in stride(from: 56, through: 0, by: -8) { bytes.append(UInt8(truncatingIfNeeded: bits >> shift)) }
+        func rotate(_ x: UInt32, _ n: UInt32) -> UInt32 { (x >> n) | (x << (32 - n)) }
+        for offset in stride(from: 0, to: bytes.count, by: 64) {
+            var w = [UInt32](repeating: 0, count: 64)
+            for i in 0..<16 {
+                let j = offset + 4 * i
+                w[i] = UInt32(bytes[j]) << 24 | UInt32(bytes[j+1]) << 16 | UInt32(bytes[j+2]) << 8 | UInt32(bytes[j+3])
+            }
+            for i in 16..<64 {
+                let a = w[i-15], b = w[i-2]
+                w[i] = w[i-16] &+ (rotate(a,7) ^ rotate(a,18) ^ (a >> 3)) &+ w[i-7] &+ (rotate(b,17) ^ rotate(b,19) ^ (b >> 10))
+            }
+            var a=h[0], b=h[1], c=h[2], d=h[3], e=h[4], f=h[5], g=h[6], z=h[7]
+            for i in 0..<64 {
+                let t1 = z &+ (rotate(e,6) ^ rotate(e,11) ^ rotate(e,25)) &+ ((e & f) ^ (~e & g)) &+ k[i] &+ w[i]
+                let t2 = (rotate(a,2) ^ rotate(a,13) ^ rotate(a,22)) &+ ((a & b) ^ (a & c) ^ (b & c))
+                z=g; g=f; f=e; e=d &+ t1; d=c; c=b; b=a; a=t1 &+ t2
+            }
+            for (i,v) in [a,b,c,d,e,f,g,z].enumerated() { h[i] = h[i] &+ v }
+        }
+        return h.map { String(format: "%08x", $0) }.joined()
+    }
 }

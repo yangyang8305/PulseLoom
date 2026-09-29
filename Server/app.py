@@ -46,8 +46,7 @@ class Registry:
     def create(self, ip: str) -> dict[str, str]:
         current = self.now()
         # A bounded IP map prevents unbounded memory through distributed requests.
-        if len(self.creation) > 5000:
-            self.creation = defaultdict(deque, {k: q for k, q in self.creation.items() if q and current - q[-1] < 60})
+        self.prune_creation(current)
         if ip not in self.creation and len(self.creation) >= 5000:
             raise HTTPException(503, "Relay is busy")
         q = self.creation[ip]
@@ -67,7 +66,15 @@ class Registry:
     def digest(token: str) -> bytes:
         return hashlib.sha256(token.encode("utf-8")).digest()
 
+    def prune_creation(self, current: float) -> None:
+        for ip, timestamps in list(self.creation.items()):
+            while timestamps and current - timestamps[0] >= 60:
+                timestamps.popleft()
+            if not timestamps:
+                del self.creation[ip]
+
     async def sweep(self) -> None:
+        self.prune_creation(self.now())
         stale = [key for key, value in self.rooms.items() if self.now() - value.created > ROOM_TTL]
         for key in stale:
             room = self.rooms.pop(key, None)
@@ -98,6 +105,7 @@ def create_app(registry: Registry | None = None) -> FastAPI:
                     with suppress(Exception):
                         await socket.close(code=1012, reason="Relay stopping")
             registry.rooms.clear()
+            registry.creation.clear()
 
     app = FastAPI(title="PulseLoom Relay", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.registry = registry

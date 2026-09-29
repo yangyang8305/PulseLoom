@@ -16,13 +16,21 @@ import UIKit
     @Published var y = 0.5
     @Published var saved = false
     @Published var error: String?
-    private var history = EditHistory<HapticPattern>()
+    private struct Snapshot: Equatable {
+        var draft: HapticPattern
+        var tool: Tool
+        var selected: Int
+    }
+    private var snapshot: Snapshot { Snapshot(draft: draft, tool: tool, selected: selected) }
+    private var history = EditHistory<Snapshot>()
     private var recorder = TouchRecorder()
     private var xy: [(Double, Double, Double)] = []
     private var xyStart = 0.0
+    private var xyStrokes: [Int] = []
+    private var recordingBase: HapticPattern?
     private var timer: Timer?
     private weak var app: AppModel?
-    private var checkpoint: HapticPattern?
+    private var checkpoint: Snapshot?
     @Published private(set) var workspaceID = UUID()
     private(set) var recordingID = UUID()
     private var libraryGeneration: UUID?
@@ -60,6 +68,8 @@ import UIKit
             history = EditHistory()
             recorder = TouchRecorder()
             xy = []
+            xyStrokes = []
+            recordingBase = nil
             touches = 0
             seconds = 0
             selected = 0
@@ -88,6 +98,7 @@ import UIKit
         history = EditHistory()
         checkpoint = nil
         workspaceID = UUID()
+        xy = []; xyStrokes = []; recordingBase = nil
         draft = copy || p.builtin ? p.copyForEditing() : p
         tool = draft.mode == .curve ? .curve : .basic
         selected = 0
@@ -98,9 +109,10 @@ import UIKit
         guard ensureWorkspace() else { return }
         endTouch()
         end()
+        guard tool != t else { return }
+        remember()
         tool = t
         if t == .curve, draft.mode != .curve {
-            remember()
             let duration = max(100, min(30000, draft.durationMS))
             let old = draft
             draft.mode = .curve
@@ -112,9 +124,8 @@ import UIKit
             draft.segments = []
             persist()
         } else if t == .basic, draft.mode == .curve {
-            remember()
             let old = draft
-            let n = 16
+            let n = max(1, min(16, Int(old.cycle / 50)))
             draft.mode = .basic
             draft.segments = (0..<n).map { i in
                 Segment(
@@ -137,6 +148,8 @@ import UIKit
         tool = .tap
         selected = 0
         xy = []
+        xyStrokes = []
+        recordingBase = nil
         touches = 0
         seconds = 0
         saved = false
@@ -144,7 +157,8 @@ import UIKit
     }
     func remember() {
         guard ensureWorkspace() else { return }
-        history.record(draft)
+        endEditingGesture()
+        history.record(snapshot)
         saved = false
     }
     func change(_ action: (inout HapticPattern) -> Void) {
@@ -158,11 +172,11 @@ import UIKit
     }
     func beginEditingGesture() {
         guard ensureWorkspace() else { return }
-        if checkpoint == nil { checkpoint = draft }
+        if checkpoint == nil { checkpoint = snapshot }
     }
     func endEditingGesture() {
         guard ensureWorkspace() else { return }
-        if let checkpoint, checkpoint != draft {
+        if let checkpoint, checkpoint != snapshot {
             history.record(checkpoint)
             saved = false
         }
@@ -175,17 +189,25 @@ import UIKit
     }
     func undo() {
         guard ensureWorkspace() else { return }
-        if let d = history.undo(draft) {
-            draft = d
-            selected = min(selected, max(0, draft.segments.count - 1))
+        end()
+        endEditingGesture()
+        if let d = history.undo(snapshot) {
+            draft = d.draft
+            tool = d.tool
+            selected = min(d.selected, max(0, draft.segments.count - 1))
+            saved = false
             persist()
         }
     }
     func redo() {
         guard ensureWorkspace() else { return }
-        if let d = history.redo(draft) {
-            draft = d
-            selected = min(selected, max(0, draft.segments.count - 1))
+        end()
+        endEditingGesture()
+        if let d = history.redo(snapshot) {
+            draft = d.draft
+            tool = d.tool
+            selected = min(d.selected, max(0, draft.segments.count - 1))
+            saved = false
             persist()
         }
     }
@@ -300,6 +322,8 @@ import UIKit
         seconds = 0
         touches = 0
         xy = []
+        xyStrokes = []
+        recordingBase = draft
         xyStart = ProcessInfo.processInfo.systemUptime
         recorder.start(now: xyStart)
         recording = true
@@ -322,8 +346,9 @@ import UIKit
         down = true
         let now = ProcessInfo.processInfo.systemUptime
         if tool == .xy {
-            x = point.x
-            y = 1 - point.y
+            xyStrokes.append(xy.count)
+            x = min(1, max(0, point.x))
+            y = min(1, max(0, 1 - point.y))
             xy.append((seconds, x, y))
         } else {
             _ = recorder.down(now: now, gain: 0.5, sharpness: 0.25)
@@ -333,8 +358,8 @@ import UIKit
     func touchMoved(_ point: CGPoint) {
         guard ensureWorkspace() else { return }
         guard recording, down, tool == .xy else { return }
-        x = point.x
-        y = 1 - point.y
+        x = min(1, max(0, point.x))
+        y = min(1, max(0, 1 - point.y))
         sendLevel()
     }
     func endTouch(recording expected: UUID? = nil) {
@@ -344,7 +369,7 @@ import UIKit
         recorder.up(now: ProcessInfo.processInfo.systemUptime)
         if tool == .xy { xy.append((seconds, x, 0)) }
         app?.playback.stopStream()
-        touches = recorder.segments.count
+        touches = tool == .xy ? xyStrokes.count : recorder.segments.count
     }
     private func sendLevel() {
         guard ensureWorkspace() else { return }
@@ -369,8 +394,8 @@ import UIKit
             xy.append((seconds, x, y))
         }
         if tool != .xy, down, !recorder.isDown { endTouch() }
-        touches = tool == .xy ? xy.count : recorder.segments.count
-        if seconds >= 30 || touches >= 128 {
+        touches = tool == .xy ? xyStrokes.count : recorder.segments.count
+        if seconds >= 30 || recorder.segments.count >= 128 || xy.count >= 128 {
             endTouch()
             end()
         }
@@ -411,7 +436,23 @@ import UIKit
     }
     func removeLastTouch() {
         guard ensureWorkspace() else { return }
-        if recording {
+        if tool == .xy, let start = xyStrokes.last {
+            endTouch()
+            xy.removeSubrange(start..<xy.count)
+            xyStrokes.removeLast()
+            touches = xyStrokes.count
+            if !recording {
+                remember()
+                if xy.isEmpty, let original = recordingBase {
+                    draft = original
+                    persist()
+                } else {
+                    recording = true
+                    end()
+                }
+            }
+        } else if recording {
+            endTouch()
             recorder.undo()
             touches = recorder.segments.count
         } else if !draft.segments.isEmpty {

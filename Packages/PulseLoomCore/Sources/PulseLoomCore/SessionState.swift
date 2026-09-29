@@ -65,20 +65,23 @@ public struct TouchRecorder: Sendable {
     public private(set) var isDown = false
     public private(set) var startTime = 0.0
     private var downTime = 0.0
-    private var lastUp: Double?
+    private var onsets: [Double] = []
     public init() {}
     public mutating func start(now: Double) {
         segments = []
         active = true
         isDown = false
         startTime = now
-        lastUp = nil
+        onsets = []
     }
     @discardableResult public mutating func down(now: Double, gain: Double = 0.5, sharpness: Double = 0.25)
         -> Bool
     {
         guard active, !isDown, segments.count < 128, now - startTime < 30 else { return false }
-        if let up = lastUp, !segments.isEmpty { segments[segments.count - 1].gap = max(0, (now - up) * 1000) }
+        if let previous = onsets.last, !segments.isEmpty {
+            segments[segments.count - 1].gap = max(0, (now - previous) * 1000 - segments[segments.count - 1].duration)
+        }
+        onsets.append(now)
         downTime = now
         isDown = true
         segments.append(
@@ -90,7 +93,6 @@ public struct TouchRecorder: Sendable {
         let ms = max(0, min(10000, (min(now, startTime + 30) - downTime) * 1000))
         segments[segments.count - 1].duration = ms < 50 ? 0 : ms
         segments[segments.count - 1].type = ms < 50 ? .transient : .continuous
-        lastUp = min(now, startTime + 30)
         isDown = false
     }
     public mutating func tick(now: Double) {
@@ -104,7 +106,8 @@ public struct TouchRecorder: Sendable {
     public mutating func undo() {
         guard !isDown, !segments.isEmpty else { return }
         segments.removeLast()
-        lastUp = nil
+        onsets.removeLast()
+        if !segments.isEmpty { segments[segments.count - 1].gap = 0 }
     }
     public func pattern(name: String) throws -> HapticPattern {
         var list = segments

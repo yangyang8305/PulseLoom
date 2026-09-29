@@ -178,9 +178,7 @@ struct RoutinesView: View {
                     }
                     Button {
                         app.perform {
-                            if r.sound { try app.sound.play() }
-                            try app.playback.playRoutine(
-                                r, resolver: { app.library.pattern($0) }, pro: app.pro)
+                            try app.playRoutine(r)
                         }
                     } label: {
                         Image(systemName: "power").frame(width: 44, height: 44)
@@ -263,9 +261,7 @@ struct RoutineEditorView: View {
                 }
                 LoomButton(title: "pattern.preview", secondary: true) {
                     app.perform {
-                        if routine.sound { try app.sound.play() }
-                        try app.playback.playRoutine(
-                            routine, resolver: { app.library.pattern($0) }, pro: app.pro)
+                        try app.playRoutine(routine)
                     }
                 }
                 if app.library.snapshot.routines.contains(where: { $0.id == routine.id }) {

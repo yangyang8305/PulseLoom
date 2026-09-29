@@ -10,7 +10,7 @@ import WatchConnectivity
     }
     private var lastTitle = "Pulse Loom", lastGain = 0.55, lastPlaying = false
     @Published var error: String?
-    var foreground = true
+    var foreground = true { didSet { publish(title: lastTitle, gain: lastGain, playing: lastPlaying) } }
     var onCommand: (([String: Any]) throws -> [String: Any])?
     override init() {
         super.init()
@@ -23,7 +23,8 @@ import WatchConnectivity
         lastTitle = title
         lastGain = gain
         lastPlaying = playing
-        guard WCSession.default.activationState == .activated else { return }
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated,
+              WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else { return }
         reachable = WCSession.default.isReachable
         installed = WCSession.default.isWatchAppInstalled
         do {
@@ -40,6 +41,7 @@ import WatchConnectivity
             self.reachable = session.isReachable
             self.installed = session.isWatchAppInstalled
             self.error = error?.localizedDescription
+            self.publish(title: self.lastTitle, gain: self.lastGain, playing: self.lastPlaying)
         }
     }
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
@@ -53,6 +55,7 @@ import WatchConnectivity
         Task { @MainActor in
             self.reachable = session.isReachable
             if !self.reachable { self.allowed = false }
+            self.publish(title: self.lastTitle, gain: self.lastGain, playing: self.lastPlaying)
         }
     }
     nonisolated func session(

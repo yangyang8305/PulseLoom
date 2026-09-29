@@ -115,3 +115,94 @@ import CloudKit
         service.disable()
     }
 }
+
+@MainActor final class P2LifecycleControlTests: XCTestCase {
+    private func root() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
+    }
+    private func app(now: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime }) throws -> AppModel {
+        let engine = P2Engine()
+        let driver = HapticDriver(makeEngine: { engine }, supportsHaptics: { true }, isForeground: { true }, thermalSafe: { true })
+        return AppModel(library: LibraryStore(root: try root()), playback: PlaybackCoordinator(driver: driver, now: now))
+    }
+    func testUndoFlushesLiveGestureAndKeepsToolCoherent() throws {
+        let m = try app(), e = EditorModel(); e.attach(m); e.choose(.basic)
+        let binding = e.segmentBinding(\.gain), original = e.draft
+        binding.wrappedValue = 0.8
+        e.undo()
+        XCTAssertEqual(e.draft, original)
+        XCTAssertEqual(e.tool, .basic)
+        e.redo()
+        XCTAssertEqual(e.draft.segments[0].gain, 0.8)
+    }
+    func testCurveConversionAcrossAllSupportedLengths() throws {
+        let m = try app(), e = EditorModel(); e.attach(m)
+        for duration in [100.0, 101, 799, 800, 12000, 30000] {
+            let p = HapticPattern(name: "curve", mode: .curve, segments: [], nodes: [CurveNode(time: 0, value: 0.5), CurveNode(time: duration, value: 0.5)], cycle: duration)
+            e.edit(p); e.choose(.basic)
+            XCTAssertNoThrow(try Validation.pattern(e.draft))
+            XCTAssertEqual(e.draft.durationMS, duration, accuracy: 0.001)
+            XCTAssertLessThanOrEqual(e.draft.segments.count, 16)
+            e.undo(); XCTAssertEqual(e.tool, .curve); XCTAssertEqual(e.draft, p)
+        }
+    }
+    func testUndoXYStrokeRetainsEarlierGesture() throws {
+        let m = try app(), e = EditorModel(); e.attach(m); e.choose(.xy); e.start()
+        e.touchBegan(CGPoint(x: 0.2, y: 0.2)); e.endTouch()
+        e.touchBegan(CGPoint(x: 0.9, y: 0.9)); e.endTouch()
+        e.removeLastTouch(); e.end()
+        XCTAssertEqual(e.draft.mode, .recorded)
+        XCTAssertFalse(e.draft.segments.contains { abs($0.sharp - 0.9) < 0.001 })
+        XCTAssertTrue(e.draft.segments.contains { abs($0.sharp - 0.2) < 0.001 && $0.gain > 0 })
+        e.removeLastTouch()
+        XCTAssertEqual(e.draft.mode, .basic)
+        XCTAssertEqual(e.draft.segments.count, 4)
+    }
+    func testRoutineSoundSurvivesStepAdvanceAndStopsOnCompletion() throws {
+        var now = 0.0
+        let m = try app(now: { now })
+        let r = Routine(name: "routine", items: [RoutineItem(patternID: "p02", seconds: 15), RoutineItem(patternID: "p03", seconds: 15)], sound: true)
+        try m.playRoutine(r)
+        XCTAssertTrue(m.sound.active)
+        now = 16; m.playback.tick()
+        XCTAssertEqual(m.playback.routineIndex, 1); XCTAssertTrue(m.sound.active)
+        m.playback.pause(); XCTAssertFalse(m.sound.active)
+        try m.playback.resume(); XCTAssertTrue(m.sound.active)
+        now = 32; m.playback.tick()
+        XCTAssertEqual(m.playback.state, .completed); XCTAssertFalse(m.sound.active)
+        XCTAssertEqual(Mirror(reflecting: m.watch).children.first { $0.label == "lastPlaying" }?.value as? Bool, false)
+    }
+    func testCloudDeletionWithoutBackendReportsNoRequest() async throws {
+        let s = CloudSyncService(stagingRoot: try root())
+        do { try await s.deleteCloud(); XCTFail("An absent backend cannot count as deleted") }
+        catch { XCTAssertEqual(s.state, .off) }
+    }
+    func testCancelledCloudRequestLeavesRetryableState() async throws {
+        var task: Task<Void, Never>?
+        let backend = CloudBackend(load: { _ in task?.cancel(); throw CancellationError() }, save: { $0 }, delete: { _ in })
+        let s = CloudSyncService(stagingRoot: try root(), backend: backend)
+        task = Task { @MainActor in
+            do { _ = try await s.synchronize(LibrarySnapshot()); XCTFail("Expected cancellation") } catch {}
+        }
+        await task?.value
+        XCTAssertEqual(s.state, .failed)
+        s.disable(); XCTAssertEqual(s.state, .off)
+    }
+    func testLateCloudResultAfterDisableDoesNotRestoreState() async throws {
+        var started = false
+        var continuation: CheckedContinuation<CKRecord?, Error>?
+        let backend = CloudBackend(load: { _ in started = true; return try await withCheckedThrowingContinuation { continuation = $0 } }, save: { $0 }, delete: { _ in })
+        let s = CloudSyncService(stagingRoot: try root(), backend: backend)
+        let task = Task { @MainActor in
+            do { _ = try await s.synchronize(LibrarySnapshot()); XCTFail("Old result must be cancelled") } catch {}
+        }
+        for _ in 0..<100 where !started { await Task.yield() }
+        XCTAssertTrue(started)
+        s.disable(); continuation?.resume(returning: nil)
+        await task.value
+        XCTAssertEqual(s.state, .off); XCTAssertNil(s.lastSync)
+    }
+}

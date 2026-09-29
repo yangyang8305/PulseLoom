@@ -4,7 +4,10 @@ import PulseLoomCore
 import UIKit
 
 @MainActor final class PlaybackCoordinator: ObservableObject {
-    @Published private(set) var state: PlaybackState = .idle
+    @Published private(set) var state: PlaybackState = .idle { didSet { didChange?() } }
+    var didChange: (() -> Void)?
+    var accompaniment: ((Bool) throws -> Void)?
+    var currentGain: Double { gain }
     @Published private(set) var remaining = 180.0
     @Published private(set) var level = 0.0
     @Published private(set) var title = ""
@@ -31,7 +34,9 @@ import UIKit
     var isPlaying: Bool { state == .playing }
     var elapsed: Double { clock.played }
     var foreground = true
-    init(driver: HapticDriver? = nil) {
+    private let now: () -> Double
+    init(driver: HapticDriver? = nil, now: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime }) {
+        self.now = now
         self.driver = driver ?? HapticDriver()
         self.driver.interrupted = { [weak self] reason in self?.interrupt(reason) }
         self.driver.windowCompleted = { [weak self] in self?.nextWindow() }
@@ -61,7 +66,7 @@ import UIKit
         self.sharp = sharp
         pausedAt = nil
         phase = 0
-        lastTick = ProcessInfo.processInfo.systemUptime
+        lastTick = now()
         try clock.start(now: lastTick, duration: min(600, max(0.05, length)))
         do {
             try schedule()
@@ -90,15 +95,15 @@ import UIKit
         guard state == .playing else { return }
         do { try schedule() } catch { interrupt(error.localizedDescription) }
     }
-    private func tick() {
+    func tick() {
         if let pausedAt, [.paused, .interrupted].contains(state),
-            ProcessInfo.processInfo.systemUptime - pausedAt >= 300
+            now() - pausedAt >= 300
         {
             stop(reason: "pause_timeout")
             return
         }
         guard state == .playing else { return }
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = now()
         let delta = max(0, now - lastTick)
         lastTick = now
         phase += delta * speed
@@ -130,34 +135,39 @@ import UIKit
     }
     func pause() {
         guard state == .playing else { return }
-        clock.pause(now: ProcessInfo.processInfo.systemUptime)
+        clock.pause(now: now())
         driver.stop()
         remaining = clock.remaining
-        pausedAt = ProcessInfo.processInfo.systemUptime
+        pausedAt = now()
         state = driver.shutdownPending ? .failed : .paused
         level = 0
         restoreScreen()
+        if routine?.sound == true { try? accompaniment?(false) }
     }
     func resume() throws {
         guard [.paused, .interrupted].contains(state), foreground else { return }
         pausedAt = nil
         willAcquire?(kind)
         try driver.prepare()
-        clock.resume(now: ProcessInfo.processInfo.systemUptime)
-        lastTick = ProcessInfo.processInfo.systemUptime
+        clock.resume(now: now())
+        lastTick = now()
         do {
             try schedule()
             state = .playing
             holdScreen()
+            if routine?.sound == true { try accompaniment?(true) }
         } catch {
             clock.fail()
+            driver.stop()
+            restoreScreen()
             state = .failed
+            didStopExternal?("resume_failed")
             throw error
         }
     }
     func stop(reason: String = "stopped", notifyExternal: Bool = true) {
         if [.playing, .paused, .interrupted].contains(state) {
-            clock.pause(now: ProcessInfo.processInfo.systemUptime)
+            clock.pause(now: now())
             didFinish?(title, kind, clock.played, reason)
         }
         outputID = UUID()
@@ -176,11 +186,11 @@ import UIKit
     func interrupt(_ reason: String) {
         outputID = UUID()
         if [.playing, .paused].contains(state) {
-            clock.pause(now: ProcessInfo.processInfo.systemUptime, interrupted: true)
+            clock.pause(now: now(), interrupted: true)
             state = .interrupted
         }
         if state == .preparing { state = .idle }
-        pausedAt = ProcessInfo.processInfo.systemUptime
+        pausedAt = now()
         streamSource = nil
         driver.stop()
         if driver.shutdownPending { state = .failed }
@@ -206,6 +216,7 @@ import UIKit
             interrupt(error.localizedDescription)
             throw error
         }
+        didChange?()
     }
     func adjust(gain: Double, speed: Double, sharp: Double) throws {
         guard !guardEnabled else { return }
@@ -213,7 +224,10 @@ import UIKit
         self.gain = gain
         self.speed = speed
         self.sharp = sharp
-        if state == .playing { try schedule() }
+        if state == .playing {
+            do { try schedule() } catch { interrupt(error.localizedDescription); throw error }
+        }
+        didChange?()
     }
     func setRemaining(_ seconds: Double) throws {
         try clock.setRemaining(seconds)
@@ -250,11 +264,12 @@ import UIKit
         let ps = r.items.compactMap { resolver($0.patternID) }
         try Validation.routine(r, patterns: ps)
         guard ps.allSatisfy({ Entitlements.canPlay($0, pro: pro) }) else { throw LoomError.entitlement }
-        stop()
+        stop(reason: "replaced", notifyExternal: !r.sound)
         self.resolver = resolver
         self.routine = r
         routineIndex = 0
-        try startRoutineStep(r, 0)
+        do { try startRoutineStep(r, 0) }
+        catch { stop(reason: "routine_failed"); throw error }
     }
     private func startRoutineStep(_ r: Routine, _ i: Int) throws {
         guard let p0 = resolver?(r.items[i].patternID) else {
