@@ -1,0 +1,31 @@
+name: Small-screen user flow validation
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  small-screen:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python Scripts/check-generated-project.py
+      - name: Small iPhone with largest accessibility text
+        run: bash Scripts/test-small-screen.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: user-flows-small-large-text-${{ github.sha }}
+          path: |
+            Artifacts/SmallScreen/
+            Artifacts/SmallScreen.xcresult
+          retention-days: 14
+          if-no-files-found: error

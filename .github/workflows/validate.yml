@@ -29,6 +29,7 @@ jobs:
       - run: python Scripts/validate-source.py --no-swift-parse
   apple-sdk:
     runs-on: macos-15
+    timeout-minutes: 75
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
@@ -44,9 +45,21 @@ jobs:
         run: bash Scripts/build-ios.sh
       - name: Native service regression tests
         run: bash Scripts/test-services.sh
-      - name: Native UI tests
+      - name: Native UI tests and user journeys
         if: ${{ !cancelled() }}
         run: bash Scripts/test-ui.sh
+      - name: Export ordered user-flow screenshots and actual test results
+        if: ${{ !cancelled() }}
+        run: python Scripts/export-userflow-evidence.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: user-flows-standard-${{ github.sha }}
+          path: |
+            Artifacts/UserFlows/
+            Artifacts/ios-ui-tests.log
+          retention-days: 14
+          if-no-files-found: error
       - name: Validate App Intents metadata and concurrency diagnostics
         if: ${{ !cancelled() }}
         run: python Scripts/check-apple-diagnostics.py
