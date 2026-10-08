@@ -36,11 +36,24 @@ final class PulseLoomUITests: XCTestCase {
         let name = app.textFields["patternName"]
         if !name.isHittable { app.swipeUp() }
         name.tap()
-        name.typeText("My touch")
+        // Wait for each visible edit to settle before synthesizing the next key.
+        // A missing character still fails, before navigation can obscure its cause.
+        var entered = ""
+        for character in "My touch" {
+            name.typeText(String(character))
+            entered.append(character)
+            let updated = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value == %@", entered), object: name)
+            XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 5), .completed)
+        }
+        XCTAssertEqual(name.value as? String, "My touch")
         // Complete text entry through the same visible control as a user. The
         // keyboard must finish dismissing before coordinates for a tab are used.
         let done = app.buttons["editorKeyboardDone"]
         XCTAssertTrue(done.waitForExistence(timeout: 5))
+        let doneReady = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"), object: done)
+        XCTAssertEqual(XCTWaiter.wait(for: [doneReady], timeout: 5), .completed)
         done.tap()
         let keyboardHidden = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)

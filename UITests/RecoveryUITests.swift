@@ -144,7 +144,10 @@ final class RecoveryUITests: XCTestCase {
         launch(); enter(); create("Roundtrip Original")
         saved(); tap(named("Roundtrip Original")); tap(app.buttons["Export"])
         capture("03-native-share-sheet")
-        tap(app.buttons["Save to Files"])
+        // UIKit exposes share actions as collection-view cells, not buttons.
+        let saveToFiles = app.cells["Save to Files"]
+        XCTAssertTrue(saveToFiles.waitForExistence(timeout: 8))
+        tap(saveToFiles)
         capture("03-native-save-location")
         if app.buttons["On My iPhone"].exists { tap(app.buttons["On My iPhone"]) }
         tap(app.buttons["Save"])

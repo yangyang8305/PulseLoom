@@ -1,5 +1,6 @@
 import PulseLoomCore
 import SwiftUI
+import UIKit
 
 struct CreateView: View {
     @EnvironmentObject var app: AppModel
@@ -163,6 +164,8 @@ struct CreateView: View {
 
     private func finishNameEditing() {
         nameFocused = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         editor.persist()
     }
 }
