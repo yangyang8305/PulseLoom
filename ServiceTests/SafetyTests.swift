@@ -449,12 +449,15 @@ extension RemoteSafetyTests {
             makeEngine: { engine }, supportsHaptics: { true },
             isForeground: { true }, thermalSafe: { true })
         try driver.stream(intensity: 0.3, sharpness: 0.25)
+        var shutdownFailed = false
+        driver.interrupted = { _ in shutdownFailed = true }
         driver.retire()
         engine.completion?(InjectedFailure.stop)
         for _ in 0..<100 {
+            if shutdownFailed { break }
             await Task.yield()
-            if engine.stops == 1 && driver.shutdownPending { break }
         }
+        XCTAssertTrue(shutdownFailed, "The failed stop callback must run before retry")
         XCTAssertTrue(driver.shutdownPending)
         XCTAssertFalse(driver.stop(), "Stop remains unconfirmed until OS callback")
         XCTAssertEqual(engine.stops, 2, "Explicit stop retries a failed engine termination")
