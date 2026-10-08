@@ -49,7 +49,7 @@ GCController.controllers() / connect-disconnect notifications
                     -> PlaybackCoordinator schedule / pause / stop / interrupt
 ```
 
-自动模式：有可用手柄 → 选第一个可用手柄；没有 → iPhone；两者都不支持 → 报错。手动模式：不静默换设备。一次会话只允许一个 `HapticDriver` 输出；切换和断连中断会话，重新播放时才解析新的路由。断连引擎通过 `retire()` 请求系统停止，未确认停止时禁止新会话获取输出。强度、时间和热状态约束由原有驱动/协调器执行。
+自动模式：有可用手柄 → 选第一个可用手柄；没有 → iPhone；两者都不支持 → 报错。手动模式：不静默换设备。一次会话只允许一个 `HapticDriver` 输出；切换和断连中断会话，重新播放时才解析新的路由。断连引擎通过 `retire()` 请求系统停止，未确认停止时禁止新会话获取输出；再次点击“停止”会重试未确认的引擎关闭。自动模式若手柄引擎创建失败且没有待确认的停止操作，可回退 iPhone 并在首页显示原因；手动模式不回退。强度、时间和热状态约束由原有驱动/协调器执行。
 
 ### 关键系统 API 示例（已经集成到项目）
 
@@ -82,7 +82,7 @@ bash Scripts/test-ui.sh
 python3 Scripts/check-apple-diagnostics.py
 ```
 
-检查 `Scripts/build-localizations.py` 重新生成的文件应与 Git 一致。CI 的 `Source and Apple SDK validation` 同时包含 Ubuntu Core/Relay 和 macOS Apple SDK；`Small-screen user flow validation` 覆盖小屏布局。新路由测试位于 `ControllerHapticRouteTests`。这些测试只验证选择规则，**没有模拟“实际马达已震动”**。
+检查 `Scripts/build-localizations.py` 重新生成的文件应与 Git 一致。CI 的 `Source and Apple SDK validation` 同时包含 Ubuntu Core/Relay 和 macOS Apple SDK；`Small-screen user flow validation` 覆盖小屏布局。路由策略测试位于 `ControllerHapticRouteTests`；异步停止与隔离回归位于 `ControllerHapticRetirementTests`；模拟器设置页入口回归位于 `PulseLoomUITests.testControllerOutputSettingsAreReachableWithoutHardware`。**这些测试没有模拟“实际马达已震动”**。
 
 如果 CI 失败，请先看具体 **job/step** 和原始日志，修复后重新运行。不要引用旧 SHA 的绿色构建作为当前分支的证据。构建无签名模拟器不是实体 iPhone 签名部署。
 

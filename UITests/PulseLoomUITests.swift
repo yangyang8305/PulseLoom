@@ -97,4 +97,17 @@ final class PulseLoomUITests: XCTestCase {
         tapTab("My")
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 3))
     }
+
+    func testControllerOutputSettingsAreReachableWithoutHardware() {
+        tapTab("My")
+        let settings = app.buttons["Settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        settings.tap()
+        let output = app.buttons["Haptic output"]
+        XCTAssertTrue(output.waitForExistence(timeout: 5))
+        output.tap()
+        XCTAssertTrue(app.buttons["outputScan"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["outputTest"].exists)
+        // Do not assert that a simulator physically vibrates a controller.
+    }
 }
