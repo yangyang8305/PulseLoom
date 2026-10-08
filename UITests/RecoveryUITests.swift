@@ -56,7 +56,23 @@ final class RecoveryUITests: XCTestCase {
         // swiping: an early swipe can dismiss the sheet instead of revealing a row.
         _ = e.waitForExistence(timeout: 5)
         for _ in 0..<9 {
-            if e.exists && e.isHittable { return }
+            if e.exists {
+                let frame = e.frame
+                var visible = app.windows.firstMatch.frame
+                for bar in app.tabBars.allElementsBoundByIndex {
+                    guard bar.buttons.allElementsBoundByIndex.contains(where: { $0.isHittable }),
+                        !bar.frame.contains(frame) else { continue }
+                    visible.size.height = max(0, min(visible.maxY, bar.frame.minY) - visible.minY)
+                }
+                let center = CGPoint(x: frame.midX, y: frame.midY)
+                let fits = visible.insetBy(dx: -1, dy: -1).contains(frame)
+                let oversized = frame.height > visible.height && visible.contains(center)
+                if e.isHittable && (fits || oversized) { return }
+                if frame.minY < visible.minY {
+                    app.swipeDown(velocity: .slow)
+                    continue
+                }
+            }
             app.swipeUp(velocity: .slow)
         }
         XCTFail("Unreachable control: \(e)")
