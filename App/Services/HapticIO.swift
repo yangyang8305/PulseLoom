@@ -138,7 +138,7 @@ enum HapticRoutePolicy {
         }
         let removed = Set(entries.keys).subtracting(next.keys)
         entries = next
-        devices = found
+        if devices != found { devices = found }
         if !removed.isEmpty { onRemoved?(removed) }
     }
     func select(_ value: HapticOutputChoice) {
@@ -175,6 +175,18 @@ enum HapticRoutePolicy {
     private var drivers: [UUID: HapticDriver] = [:]
     private var retiring: [UUID: HapticDriver] = [:]
     private(set) var activeName = "iPhone"
+    private(set) var lastFallbackReason: String?
+    var selectedName: String {
+        switch controllers.choice {
+        case .automatic:
+            return controllers.devices.first(where: { $0.supportsHaptics })?.name ?? "iPhone"
+        case .phone:
+            return "iPhone"
+        case .controller(let id):
+            return controllers.devices.first(where: { $0.id == id })?.name
+                ?? NSLocalizedString("output.disconnected", comment: "")
+        }
+    }
     var interrupted: ((String) -> Void)?
     var windowCompleted: (() -> Void)?
     var routeInvalidated: ((String) -> Void)?
@@ -219,6 +231,7 @@ enum HapticRoutePolicy {
         }
     }
     func prepare() throws {
+        lastFallbackReason = nil
         controllers.refresh()
         let (id, controller) = try controllers.resolve(phoneSupported: phone.supported)
         guard !shutdownPending else {
@@ -255,7 +268,19 @@ enum HapticRoutePolicy {
                 activeName = "iPhone"
             }
         }
-        try active.prepare()
+        do {
+            try active.prepare()
+        } catch {
+            // Only an automatic choice may fall back. A failed engine shutdown
+            // must remain quarantined, not silently start another output.
+            guard id != nil, controllers.choice == .automatic, phone.supported,
+                !active.shutdownPending, active.stop() else { throw error }
+            activeID = nil
+            active = phone
+            activeName = "iPhone"
+            lastFallbackReason = error.localizedDescription
+            try phone.prepare()
+        }
     }
     func play(
         _ p: HapticPattern, phase: Double, length: Double, sessionElapsed: Double,
@@ -269,6 +294,9 @@ enum HapticRoutePolicy {
     }
     @discardableResult func stop() -> Bool {
         let ok = active.stop()
+        // A disconnected controller can have an asynchronously failing stop.
+        // Explicit Stop retries quarantined retiring engines as well.
+        for driver in Array(retiring.values) { driver.stop() }
         return ok && !shutdownPending
     }
 }

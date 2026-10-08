@@ -476,6 +476,10 @@ struct HapticOutputsView: View {
                     ForEach(manager.devices) { device in
                         Text(device.name).tag(HapticOutputChoice.controller(device.id))
                     }
+                    if case .controller(let id) = manager.choice,
+                       !manager.devices.contains(where: { $0.id == id }) {
+                        Text(T("output.disconnected")).tag(manager.choice)
+                    }
                 }.pickerStyle(.inline)
             } footer: {
                 Text(T("output.autoHelp"))

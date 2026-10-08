@@ -407,3 +407,5 @@ output.scan|Refresh / discover controllers|刷新 / 搜索手柄|更新 / コン
 output.test|Test output (0.25 s)|测试输出（0.25 秒）|出力をテスト（0.25秒）
 output.testHelp|Plays a brief low-intensity pattern. Confirm actual motor vibration on a physical controller. Stop if uncomfortable.|播放短暂、低强度的震动。请用实体手柄确认马达是否真的震动，不适时立即停止。|短い低強度のパターンを再生します。実機で振動を確認し、不快な場合はすぐに停止してください。
 output.targetFormat|Haptic output: %@|触觉输出：%@|触覚出力先：%@
+output.disconnected|Disconnected controller (reselect an output)|手柄已断开（请重新选择输出）|コントローラが切断されました（出力先を再選択）
+output.fallbackFormat|Controller output unavailable; using iPhone: %@|手柄输出不可用，已改用 iPhone：%@|コントローラの出力が使えないためiPhoneを使用：%@

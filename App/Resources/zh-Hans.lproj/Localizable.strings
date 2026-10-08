@@ -220,6 +220,8 @@
 "output.autoHelp" = "优先使用系统报告支持触觉的已连接手柄，否则使用 iPhone。切换输出会停止播放。";
 "output.capable" = "系统报告支持触觉（实际马达震动尚未验证）。";
 "output.connected" = "已连接手柄";
+"output.disconnected" = "手柄已断开（请重新选择输出）";
+"output.fallbackFormat" = "手柄输出不可用，已改用 iPhone：%@";
 "output.none" = "未发现手柄。请先在 iPhone 设置 > 蓝牙中配对，再刷新。";
 "output.notCapable" = "系统未报告手柄触觉能力；自动模式将使用 iPhone。";
 "output.phone" = "本机 iPhone";

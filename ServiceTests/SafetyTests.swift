@@ -418,3 +418,51 @@ extension RemoteSafetyTests {
             .phone, devices: [capable], phoneSupported: false))
     }
 }
+
+
+@MainActor final class ControllerHapticRetirementTests: XCTestCase {
+    func testRetiringControllerStopsEngineAndWaitsForConfirmation() async throws {
+        let engine = EngineProbe()
+        let driver = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        try driver.stream(intensity: 0.3, sharpness: 0.25)
+        var confirmations = 0
+        driver.terminationConfirmed = { confirmations += 1 }
+        driver.retire()
+        XCTAssertEqual(engine.stops, 1)
+        XCTAssertTrue(engine.isMutedForHaptics)
+        XCTAssertTrue(driver.shutdownPending)
+        XCTAssertThrowsError(try driver.prepare())
+        engine.completion?(nil)
+        for _ in 0..<100 {
+            if !driver.shutdownPending { break }
+            await Task.yield()
+        }
+        XCTAssertFalse(driver.shutdownPending)
+        XCTAssertEqual(confirmations, 1)
+    }
+
+    func testRetirementFailureRequiresExplicitStopRetry() async throws {
+        let engine = EngineProbe()
+        let driver = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        try driver.stream(intensity: 0.3, sharpness: 0.25)
+        driver.retire()
+        engine.completion?(InjectedFailure.stop)
+        for _ in 0..<100 {
+            await Task.yield()
+            if engine.stops == 1 && driver.shutdownPending { break }
+        }
+        XCTAssertTrue(driver.shutdownPending)
+        XCTAssertFalse(driver.stop(), "Stop remains unconfirmed until OS callback")
+        XCTAssertEqual(engine.stops, 2, "Explicit stop retries a failed engine termination")
+        engine.completion?(nil)
+        for _ in 0..<100 {
+            if !driver.shutdownPending { break }
+            await Task.yield()
+        }
+        XCTAssertFalse(driver.shutdownPending)
+    }
+}
