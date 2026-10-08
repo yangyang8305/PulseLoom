@@ -35,6 +35,15 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CloudContainerID</key>
 	<string>$(CLOUD_CONTAINER_ID)</string>
+	<key>GCSupportsControllerUserInteraction</key>
+	<true/>
+	<key>GCSupportedGameControllers</key>
+	<array>
+		<dict>
+			<key>ProfileName</key>
+			<string>ExtendedGamepad</string>
+		</dict>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

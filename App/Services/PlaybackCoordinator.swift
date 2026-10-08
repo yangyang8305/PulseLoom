@@ -27,6 +27,7 @@ import UIKit
     private var previousIdle = false
     private var savedIdle = false
     let driver: HapticDriver
+    let outputs: HapticOutputRouter
     var willAcquire: ((String) -> Void)?
     var didFinish: ((String, String, Double, String) -> Void)?
     var didStopExternal: ((String) -> Void)?
@@ -38,8 +39,13 @@ import UIKit
     init(driver: HapticDriver? = nil, now: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime }) {
         self.now = now
         self.driver = driver ?? HapticDriver()
-        self.driver.interrupted = { [weak self] reason in self?.interrupt(reason) }
-        self.driver.windowCompleted = { [weak self] in self?.nextWindow() }
+        self.outputs = HapticOutputRouter(phone: self.driver)
+        self.outputs.interrupted = { [weak self] reason in self?.interrupt(reason) }
+        self.outputs.windowCompleted = { [weak self] in self?.nextWindow() }
+        self.outputs.routeInvalidated = { [weak self] reason in
+            guard let self, [.playing, .paused, .preparing, .interrupted].contains(self.state) else { return }
+            self.interrupt(reason)
+        }
         timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -56,7 +62,7 @@ import UIKit
         try Validation.pattern(p, requireName: false)
         willAcquire?(kind)
         stop(reason: "replaced", notifyExternal: false)
-        try driver.prepare()
+        try outputs.prepare()
         let length = p.loop ? duration : min(duration, p.durationMS / 1000 / speed)
         activePattern = p
         title = p.displayName()
@@ -84,7 +90,7 @@ import UIKit
         guard let p = activePattern else { return }
         let length = min(10, clock.remaining)
         guard length > 0 else { return }
-        try driver.play(
+        try outputs.play(
             p, phase: phase, length: length, sessionElapsed: clock.played, sessionLimit: clock.limit,
             gain: gain, speed: speed, sharp: sharp)
         windowEnd = clock.played + length
@@ -124,22 +130,22 @@ import UIKit
             let finalTitle = title
             let finalKind = kind
             let played = clock.played
-            driver.stop()
+            outputs.stop()
             restoreScreen()
-            state = driver.shutdownPending ? .failed : .completed
+            state = outputs.shutdownPending ? .failed : .completed
             level = 0
             routine = nil
-            didFinish?(finalTitle, finalKind, played, driver.shutdownPending ? "shutdown_failed" : "completed")
+            didFinish?(finalTitle, finalKind, played, outputs.shutdownPending ? "shutdown_failed" : "completed")
             didStopExternal?("completed")
         }
     }
     func pause() {
         guard state == .playing else { return }
         clock.pause(now: now())
-        driver.stop()
+        outputs.stop()
         remaining = clock.remaining
         pausedAt = now()
-        state = driver.shutdownPending ? .failed : .paused
+        state = outputs.shutdownPending ? .failed : .paused
         level = 0
         restoreScreen()
         if routine?.sound == true { try? accompaniment?(false) }
@@ -148,7 +154,7 @@ import UIKit
         guard [.paused, .interrupted].contains(state), foreground else { return }
         pausedAt = nil
         willAcquire?(kind)
-        try driver.prepare()
+        try outputs.prepare()
         clock.resume(now: now())
         lastTick = now()
         do {
@@ -158,7 +164,7 @@ import UIKit
             if routine?.sound == true { try accompaniment?(true) }
         } catch {
             clock.fail()
-            driver.stop()
+            outputs.stop()
             restoreScreen()
             state = .failed
             didStopExternal?("resume_failed")
@@ -175,8 +181,8 @@ import UIKit
         pausedAt = nil
         streamSource = nil
         clock.stop()
-        driver.stop()
-        if driver.shutdownPending { state = .failed }
+        outputs.stop()
+        if outputs.shutdownPending { state = .failed }
         level = 0
         routine = nil
         guardEnabled = false
@@ -192,8 +198,8 @@ import UIKit
         if state == .preparing { state = .idle }
         pausedAt = now()
         streamSource = nil
-        driver.stop()
-        if driver.shutdownPending { state = .failed }
+        outputs.stop()
+        if outputs.shutdownPending { state = .failed }
         level = 0
         lastError = reason
         restoreScreen()
@@ -242,11 +248,11 @@ import UIKit
             willAcquire?(source)
             stop(reason: "replaced", notifyExternal: false)
             kind = source
-            try driver.prepare()
+            try outputs.prepare()
             streamSource = source
             state = .preparing
         }
-        try driver.stream(intensity: intensity, sharpness: sharpness)
+        try outputs.stream(intensity: intensity, sharpness: sharpness)
         level = intensity
         // Streaming sources have their own audio/touch monotonic clocks and hard duration bounds.
         state = .preparing
@@ -255,9 +261,9 @@ import UIKit
     func stopStream() {
         outputID = UUID()
         streamSource = nil
-        driver.stop()
+        outputs.stop()
         level = 0
-        if driver.shutdownPending { state = .failed } else if state == .preparing { state = .idle }
+        if outputs.shutdownPending { state = .failed } else if state == .preparing { state = .idle }
         restoreScreen()
     }
     func playRoutine(_ r: Routine, resolver: @escaping (String) -> HapticPattern?, pro: Bool) throws {
