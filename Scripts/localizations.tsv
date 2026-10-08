@@ -394,3 +394,22 @@ category.轻柔|Gentle|轻柔|やさしい
 category.节奏|Rhythmic|节奏|リズム
 category.渐变|Flowing|渐变|変化
 category.custom|Custom|自创|自作
+output.title|Haptic output|触觉输出设备|触覚出力先
+output.route|Output selection|输出选择|出力先の選択
+output.auto|Automatic|自动选择|自動選択
+output.phone|This iPhone|本机 iPhone|このiPhone
+output.autoHelp|Use the first connected controller that reports haptics support. Otherwise use iPhone. Switching output stops playback.|优先使用系统报告支持触觉的已连接手柄，否则使用 iPhone。切换输出会停止播放。|触覚対応を報告する接続済みコントローラを優先し、なければiPhoneを使います。切り替えると再生を停止します。
+output.connected|Connected controllers|已连接手柄|接続中のコントローラ
+output.none|No controllers detected. Pair in iOS Settings > Bluetooth and refresh.|未发现手柄。请先在 iPhone 设置 > 蓝牙中配对，再刷新。|コントローラが見つかりません。iPhoneの設定 > Bluetoothでペアリングして更新してください。
+output.capable|GameController reports haptics support (physical vibration not yet verified).|系统报告支持触觉（实际马达震动尚未验证）。|システムは触覚対応を報告しています（実際の振動は未確認）。
+output.notCapable|No public controller haptics reported; automatic mode falls back to iPhone.|系统未报告手柄触觉能力；自动模式将使用 iPhone。|コントローラの触覚機能は報告されていません。自動選択ではiPhoneを使用します。
+output.scan|Refresh / discover controllers|刷新 / 搜索手柄|更新 / コントローラを検索
+output.test|Test output (0.25 s)|测试输出（0.25 秒）|出力をテスト（0.25秒）
+output.testHelp|Plays a brief low-intensity pattern. Confirm actual motor vibration on a physical controller. Stop if uncomfortable.|播放短暂、低强度的震动。请用实体手柄确认马达是否真的震动，不适时立即停止。|短い低強度のパターンを再生します。実機で振動を確認し、不快な場合はすぐに停止してください。
+output.targetFormat|Haptic output: %@|触觉输出：%@|触覚出力先：%@
+output.disconnected|Disconnected controller (reselect an output)|手柄已断开（请重新选择输出）|コントローラが切断されました（出力先を再選択）
+output.fallbackFormat|Controller output unavailable; using iPhone: %@|手柄输出不可用，已改用 iPhone：%@|コントローラの出力が使えないためiPhoneを使用：%@
+watch.connect|Connect iPhone|连接 iPhone|iPhoneに接続
+watch.start|Start|开始|開始
+watch.pause|Pause|暂停|一時停止
+watch.intensity|Intensity|强度|強度

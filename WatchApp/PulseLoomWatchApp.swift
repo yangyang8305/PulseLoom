@@ -12,12 +12,25 @@ import WatchConnectivity
     @Published var error: String?
     override init() {
         super.init()
+        #if DEBUG
+        // Layout-only fixtures never activate connectivity or send commands.
+        if let fixture = ProcessInfo.processInfo.environment["PULSELOOM_WATCH_LAYOUT_PREVIEW"] {
+            reachable = fixture != "disconnected"
+            allowed = fixture == "ready" || fixture == "playing"
+            playing = fixture == "playing"
+            title = "A long rhythm name for a small watch screen"
+            return
+        }
+        #endif
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
         }
     }
     func send(_ action: String, gain: Double? = nil) {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["PULSELOOM_WATCH_LAYOUT_PREVIEW"] != nil { return }
+        #endif
         guard WCSession.default.isReachable else {
             error = NSLocalizedString("watch.openPhone", comment: "")
             return
@@ -78,40 +91,131 @@ import WatchConnectivity
         _ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]
     ) { Task { @MainActor in self.apply(applicationContext) } }
 }
+struct WatchControlView: View {
+    @ObservedObject var client: WatchClient
+    @State private var showIntensity = false
+    init(client: WatchClient) {
+        self.client = client
+        #if DEBUG
+        _showIntensity = State(initialValue: ProcessInfo.processInfo.environment["PULSELOOM_WATCH_LAYOUT_PAGE"] == "intensity")
+        #endif
+    }
+    private let accent = Color(red: 0.74, green: 0.52, blue: 0.64)
+    private var canControl: Bool { client.reachable && client.allowed && !client.busy }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if client.reachable && client.allowed {
+                        Button {
+                            client.send(client.playing ? "pause" : "start")
+                        } label: {
+                            Label(client.playing ? "watch.pause" : "watch.start",
+                                  systemImage: client.playing ? "pause.fill" : "play.fill")
+                                .frame(maxWidth: .infinity, minHeight: 32)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(accent)
+                        .disabled(!canControl)
+                        .accessibilityIdentifier("watchPlayback")
+                    } else {
+                        Label("watch.connect", systemImage: "iphone")
+                            .font(.headline)
+                        Text(client.reachable ? "watch.authorize" : "watch.openPhone")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // Stop remains independent of permission and in-flight start/gain requests.
+                    Button { client.send("stop") } label: {
+                        Label("common.stop", systemImage: "stop.fill")
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .disabled(!client.reachable)
+                    .accessibilityIdentifier("watchStop")
+
+                    if client.reachable && client.allowed {
+                        Text(client.title)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("watchPatternTitle")
+                        NavigationLink {
+                            intensityView
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("watch.intensity").font(.footnote)
+                                Text(client.gain, format: .percent.precision(.fractionLength(0)))
+                                    .monospacedDigit()
+                            }
+                        }
+                        .accessibilityIdentifier("watchIntensity")
+                    }
+                    if let error = client.error {
+                        Text(error).font(.footnote).foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("watchError")
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+            }
+            .navigationTitle("app.name")
+            .navigationDestination(isPresented: $showIntensity) { intensityView }
+        }
+        .tint(accent)
+    }
+
+    private var intensityView: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                Text(client.gain, format: .percent.precision(.fractionLength(0)))
+                    .font(.system(.title2, design: .rounded).bold())
+                    .monospacedDigit()
+                    .accessibilityIdentifier("watchGainValue")
+                Slider(value: $client.gain, in: 0...1, onEditingChanged: { editing in
+                    if !editing { client.send("gain", gain: client.gain) }
+                })
+                .disabled(!canControl)
+                .accessibilityLabel(Text("watch.intensity"))
+                .accessibilityIdentifier("watchGainSlider")
+                Button { client.send("stop") } label: {
+                    Label("common.stop", systemImage: "stop.fill")
+                        .frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .tint(.red)
+                .disabled(!client.reachable)
+                if let error = client.error {
+                    Text(error).font(.footnote).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .navigationTitle("watch.intensity")
+    }
+}
+
 @main struct PulseLoomWatchApp: App {
     @StateObject private var client = WatchClient()
     var body: some Scene {
         WindowGroup {
-            ScrollView {
-                VStack(spacing: 12) {
-                    Text("Pulse Loom").font(.system(.headline, design: .serif).italic())
-                    Text(client.title).font(.headline).lineLimit(2)
-                    if !client.reachable {
-                        Text("watch.openPhone").font(.footnote)
-                    } else if !client.allowed {
-                        Text("watch.authorize").font(.footnote)
-                    }
-                    HStack {
-                        Button {
-                            client.send(client.playing ? "pause" : "start")
-                        } label: {
-                            Image(systemName: client.playing ? "pause" : "power")
-                        }.disabled(!client.allowed || client.busy)
-                        Button {
-                            client.send("stop")
-                        } label: {
-                            Image(systemName: "stop")
-                        }
-                    }
-                    Text("\(Int(client.gain*100))%").monospacedDigit()
-                    Slider(
-                        value: $client.gain, in: 0...1,
-                        onEditingChanged: { editing in if !editing { client.send("gain", gain: client.gain) }
-                        }
-                    ).disabled(!client.allowed)
-                    if let error = client.error { Text(error).font(.footnote).foregroundStyle(.orange) }
-                }.padding(.horizontal, 8)
-            }.tint(Color(red: 0.74, green: 0.52, blue: 0.64))
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["PULSELOOM_WATCH_LAYOUT_PREVIEW"] != nil {
+                WatchControlView(client: client)
+                    .environment(\.dynamicTypeSize,
+                        ProcessInfo.processInfo.environment["PULSELOOM_WATCH_LAYOUT_LARGE_TEXT"] == "1"
+                        ? .xxxLarge : .large)
+            } else {
+                WatchControlView(client: client)
+            }
+            #else
+            WatchControlView(client: client)
+            #endif
         }
     }
 }

@@ -137,9 +137,11 @@ struct MusicView: View {
                 Text(T("music.bringSong")).font(.system(.title2, design: .serif)).frame(maxWidth: .infinity)
                 LoomButton(title: "music.select", symbol: "plus") { importing = true }
                     .accessibilityIdentifier("selectMusic")
+                Text(T("music.localHelp")).font(.footnote).foregroundStyle(c.muted)
+            }
+            if app.music.status != .loading {
                 LoomButton(title: "music.demo", symbol: "music.note", secondary: true) { app.music.demo() }
                     .accessibilityIdentifier("demoMusic")
-                Text(T("music.localHelp")).font(.footnote).foregroundStyle(c.muted)
             }
             if let error = app.music.error {
                 Notice(text: error)

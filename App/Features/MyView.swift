@@ -336,6 +336,11 @@ struct SettingsView: View {
                 }
             }
             Section(T("settings.experience")) {
+                NavigationLink {
+                    HapticOutputsView()
+                } label: {
+                    Label(T("output.title"), systemImage: "gamecontroller")
+                }
                 Toggle(T("settings.awake"), isOn: app.pref(\.keepAwake))
                 Toggle(T("settings.motion"), isOn: app.pref(\.reduceMotion))
                 Toggle(T("settings.privacyCover"), isOn: app.pref(\.privacyCover))
@@ -451,5 +456,70 @@ struct PrivacyView: View {
                 app.perform { try app.clearLocalContent() }
             }
         }
+    }
+}
+
+
+/// Selection is scoped to the current controller connection; never persist a transient UUID.
+struct HapticOutputsView: View {
+    @EnvironmentObject var app: AppModel
+    private var manager: ControllerHapticsManager { app.playback.outputs.controllers }
+    var body: some View {
+        Form {
+            Section {
+                Picker(T("output.route"), selection: Binding(
+                    get: { manager.choice },
+                    set: { manager.select($0) }
+                )) {
+                    Text(T("output.auto")).tag(HapticOutputChoice.automatic)
+                    Text(T("output.phone")).tag(HapticOutputChoice.phone)
+                    ForEach(manager.devices) { device in
+                        Text(device.name).tag(HapticOutputChoice.controller(device.id))
+                    }
+                    if case .controller(let id) = manager.choice,
+                       !manager.devices.contains(where: { $0.id == id }) {
+                        Text(T("output.disconnected")).tag(manager.choice)
+                    }
+                }.pickerStyle(.inline)
+            } footer: {
+                Text(T("output.autoHelp"))
+            }
+            Section(T("output.connected")) {
+                if manager.devices.isEmpty {
+                    Text(T("output.none")).foregroundStyle(.secondary)
+                }
+                ForEach(manager.devices) { device in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(device.name).font(.headline)
+                        Text(device.family).font(.caption).foregroundStyle(.secondary)
+                        Text(T(device.supportsHaptics ? "output.capable" : "output.notCapable"))
+                            .font(.footnote)
+                        if !device.localities.isEmpty {
+                            Text(device.localities.joined(separator: ", "))
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }.accessibilityIdentifier("outputDevice." + device.id.uuidString)
+                }
+                Button(T("output.scan")) { manager.discover() }
+                    .accessibilityIdentifier("outputScan")
+            }
+            Section {
+                Button(T("output.test")) {
+                    app.perform {
+                        // Brief low-gain, non-looping hardware test; no fabricated success indicator.
+                        let sample = HapticPattern(
+                            name: "Controller test",
+                            segments: [Segment(duration: 250, gap: 0, gain: 0.35, sharp: 0.25)],
+                            loop: false)
+                        try app.playback.begin(sample, duration: 0.25, gain: 0.35, kind: "output_test")
+                    }
+                }.accessibilityIdentifier("outputTest")
+                Button(T("common.stop"), role: .destructive) { app.stopAll() }
+            } footer: {
+                Text(T("output.testHelp"))
+            }
+        }.navigationTitle(T("output.title"))
+            .onAppear { manager.refresh() }
+            .onDisappear { manager.suspendDiscovery() }
     }
 }

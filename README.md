@@ -8,6 +8,7 @@
 
 **这些是限定的模拟器/代码验证，不是全功能真机验收或立即可上架的成品证明。**外部服务未配置时显示实际不可用，没有默认假 Pro、假购买或假云端成功。测试的受控硬件/账号/socket 不代替真实系统。
 
+- [PS5 / Xbox 控制器触觉输出：可行性研究](Docs/CONTROLLER_HAPTICS_RESEARCH.md)、[开发与真机验收手册](Docs/CONTROLLER_HAPTICS_IMPLEMENTATION.md)：GameController 系统能力探测、单输出路由和 iPhone 回退已提交；**实体 PS5/Xbox 马达效果仍待真机验证**。当前提交的 CI 结果以自身 SHA 为准。
 - [P2 修复与红绿证据](Docs/P2_REMEDIATION.md)：AUD-07、11、12、13、14、16、17、18、19、21、22 和额外音乐失败处理。
 - [QA 实际运行](Docs/QA_REPORT.md)、[功能覆盖](Docs/FEATURE_COVERAGE.md)、[发布门槛](Docs/RELEASE_CHECKLIST.md)。
 - [数据流与残留](Docs/DATA_FLOW.md)、[历史 P1](Docs/AUDIT_PHASE2.md)、[远控与内容政策](Docs/ACCESS_POLICY_REVIEW.md)。历史通过不替代当前提交检查。

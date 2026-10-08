@@ -65,6 +65,7 @@ struct SharedFile: Identifiable {
             library.objectWillChange, playback.objectWillChange, music.objectWillChange,
             sound.objectWillChange, purchase.objectWillChange, cloud.objectWillChange,
             remote.objectWillChange, watch.objectWillChange, systemMusic.objectWillChange,
+            playback.outputs.controllers.objectWillChange,
         ] {
             publisher.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observers)
         }
@@ -333,6 +334,8 @@ struct SharedFile: Identifiable {
     func phase(_ phase: ScenePhase) {
         let active = phase == .active
         playback.foreground = active
+        if active { playback.outputs.controllers.refresh() }
+        else { playback.outputs.controllers.suspendDiscovery() }
         remote.foreground = active
         watch.foreground = active
         if !active {

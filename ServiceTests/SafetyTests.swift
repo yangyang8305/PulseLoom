@@ -375,3 +375,137 @@ extension RemoteSafetyTests {
         XCTAssertEqual(wire.dataFrames.count, count, "Old queued emergency must not send into new room")
     }
 }
+
+
+// GameController policy is intentionally tested without pretending simulator motors exist.
+@MainActor final class ControllerHapticRouteTests: XCTestCase {
+    private let incapable = ControllerOutputDevice(
+        id: UUID(), name: "Input-only pad", family: "Game Controller",
+        supportsHaptics: false, localities: [])
+    private let capable = ControllerOutputDevice(
+        id: UUID(), name: "Haptic pad", family: "DualSense",
+        supportsHaptics: true, localities: ["default"])
+
+    func testAutomaticPrefersCapableControllerAndIgnoresInputOnlyPads() throws {
+        let id = try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable, capable], phoneSupported: true)
+        XCTAssertEqual(id, capable.id)
+    }
+
+    func testAutomaticFallsBackToPhoneOnlyWhenNoCapableControllerExists() throws {
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable], phoneSupported: true))
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .automatic, devices: [], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable], phoneSupported: false))
+    }
+
+    func testExplicitControllerSelectionNeverSilentlyFallsBack() throws {
+        XCTAssertEqual(try HapticRoutePolicy.choose(
+            .controller(capable.id), devices: [capable], phoneSupported: false), capable.id)
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .controller(incapable.id), devices: [incapable], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .controller(capable.id), devices: [], phoneSupported: true),
+            "A disconnected manually selected controller must not silently vibrate the phone")
+    }
+
+    func testExplicitPhoneIgnoresAvailableController() throws {
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .phone, devices: [capable], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .phone, devices: [capable], phoneSupported: false))
+    }
+}
+
+
+@MainActor final class ControllerHapticRetirementTests: XCTestCase {
+    func testRetiringControllerStopsEngineAndWaitsForConfirmation() async throws {
+        let engine = EngineProbe()
+        let driver = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        try driver.stream(intensity: 0.3, sharpness: 0.25)
+        var confirmations = 0
+        driver.terminationConfirmed = { confirmations += 1 }
+        driver.retire()
+        XCTAssertEqual(engine.stops, 1)
+        XCTAssertTrue(engine.isMutedForHaptics)
+        XCTAssertTrue(driver.shutdownPending)
+        XCTAssertThrowsError(try driver.prepare())
+        engine.completion?(nil)
+        for _ in 0..<100 {
+            if !driver.shutdownPending { break }
+            await Task.yield()
+        }
+        XCTAssertFalse(driver.shutdownPending)
+        XCTAssertEqual(confirmations, 1)
+    }
+
+    func testRetirementFailureRequiresExplicitStopRetry() async throws {
+        let engine = EngineProbe()
+        let driver = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        try driver.stream(intensity: 0.3, sharpness: 0.25)
+        var shutdownFailed = false
+        driver.interrupted = { _ in shutdownFailed = true }
+        driver.retire()
+        engine.completion?(InjectedFailure.stop)
+        for _ in 0..<100 {
+            if shutdownFailed { break }
+            await Task.yield()
+        }
+        XCTAssertTrue(shutdownFailed, "The failed stop callback must run before retry")
+        XCTAssertTrue(driver.shutdownPending)
+        XCTAssertFalse(driver.stop(), "Stop remains unconfirmed until OS callback")
+        XCTAssertEqual(engine.stops, 2, "Explicit stop retries a failed engine termination")
+        engine.completion?(nil)
+        for _ in 0..<100 {
+            if !driver.shutdownPending { break }
+            await Task.yield()
+        }
+        XCTAssertFalse(driver.shutdownPending)
+    }
+}
+
+
+@MainActor final class ControllerOutputRouterTests: XCTestCase {
+    func testNoControllerUsesExistingPhoneDriver() throws {
+        // Inject an empty system controller snapshot: this test makes no hardware claims.
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let engine = EngineProbe()
+        let phone = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        let router = HapticOutputRouter(phone: phone, controllers: manager)
+        try router.prepare()
+        try router.stream(intensity: 0.25, sharpness: 0.2)
+        XCTAssertEqual(router.activeName, "iPhone")
+        XCTAssertEqual(engine.player.starts, 1)
+        XCTAssertTrue(router.stop())
+        XCTAssertEqual(engine.player.stops, 1)
+    }
+
+    func testNoAvailableOutputFailsBeforeCreatingEngine() throws {
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let engine = EngineProbe()
+        let unsupportedPhone = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { false },
+            isForeground: { true }, thermalSafe: { true })
+        let router = HapticOutputRouter(phone: unsupportedPhone, controllers: manager)
+        XCTAssertThrowsError(try router.prepare())
+        XCTAssertEqual(engine.starts, 0)
+    }
+
+    func testChoiceChangeInvalidatesActiveRouteOnlyOnce() {
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let router = HapticOutputRouter(phone: HapticDriver(), controllers: manager)
+        var invalidations = 0
+        router.routeInvalidated = { _ in invalidations += 1 }
+        manager.select(.phone)
+        manager.select(.phone)
+        XCTAssertEqual(invalidations, 1)
+    }
+}

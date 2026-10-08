@@ -85,7 +85,17 @@ struct HomeView: View {
                         }.frame(minHeight: 44)
                     }
                     if app.playback.state == .interrupted { Notice(text: "home.interrupted") }
-                    if !app.playback.driver.supported {
+                    Text(String(
+                        format: T("output.targetFormat"),
+                        app.playback.isPlaying
+                            ? app.playback.outputs.activeName : app.playback.outputs.selectedName
+                    ))
+                    .font(.caption).foregroundStyle(c.muted)
+                    if let warning = app.playback.outputs.lastFallbackReason {
+                        Text(String(format: T("output.fallbackFormat"), warning))
+                            .font(.caption).foregroundStyle(c.muted)
+                    }
+                    if !app.playback.outputs.supported {
                         Button {
                             app.error = T("error.hapticsUnavailable")
                         } label: {

@@ -1,5 +1,6 @@
 import PulseLoomCore
 import SwiftUI
+import UIKit
 
 struct CreateView: View {
     @EnvironmentObject var app: AppModel
@@ -7,6 +8,8 @@ struct CreateView: View {
     @Environment(\.loom) var c
     @Environment(\.scenePhase) var scenePhase
     @State private var confirmNew = false
+    @State private var nameText = ""
+    @State private var nameWorkspace: UUID?
     @FocusState private var nameFocused: Bool
     var body: some View {
         let workspace = editor.workspaceID
@@ -84,13 +87,14 @@ struct CreateView: View {
             }
             TextField(
                 T("editor.name"),
-                text: editor.nameBinding
+                text: $nameText
             ).textFieldStyle(.roundedBorder).accessibilityIdentifier("patternName")
                 .focused($nameFocused)
                 .submitLabel(.done)
                 .onSubmit { finishNameEditing() }
             if let e = editor.validationError { Text(e).font(.caption).foregroundStyle(.red) }
             LoomButton(title: editor.saved ? "editor.saved" : "editor.save", symbol: "checkmark") {
+                finishNameEditing()
                 editor.save()
             }.accessibilityIdentifier("savePattern")
             if editor.tool != .tap {
@@ -117,6 +121,7 @@ struct CreateView: View {
                     Button(T("common.redo")) { editor.redo() }.disabled(!editor.canRedo)
                 }.frame(minHeight: 44)
                 LoomButton(title: "common.export", symbol: "square.and.arrow.up", secondary: true) {
+                    finishNameEditing()
                     app.perform {
                         try Validation.pattern(editor.draft)
                         app.export(editor.draft, name: "PulseLoom-pattern")
@@ -133,17 +138,43 @@ struct CreateView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
-        .onAppear { editor.attach(app) }.onDisappear {
+        .onAppear {
+            editor.attach(app)
+            syncName()
+        }.onDisappear {
+            commitName()
             nameFocused = false
             editor.endTouch()
             editor.end()
             editor.persist()
         }.onChange(of: scenePhase) { _, p in
             if p != .active {
+                commitName()
                 nameFocused = false
                 editor.endTouch()
                 editor.end()
             }
+        }
+        .onChange(of: editor.workspaceID) { _, _ in
+            nameFocused = false
+            syncName()
+        }
+        .onChange(of: editor.draft.name) { _, _ in
+            if !nameFocused { syncName() }
+        }
+        .onChange(of: nameFocused) { _, focused in
+            if !focused { commitName() }
+        }
+        .onChange(of: nameText) { _, value in
+            if value.count > 30 { nameText = String(value.prefix(30)) }
+        }
+        .task(id: nameText) {
+            // Keep rapid text entry local: publishing the draft and whole app
+            // on every key can replace the text control while events arrive.
+            let lease = nameWorkspace
+            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
+            guard nameFocused, lease == editor.workspaceID else { return }
+            commitName()
         }
         .alert(T("editor.replaceDraft"), isPresented: $confirmNew) {
             Button(T("common.cancel"), role: .cancel) {}
@@ -162,8 +193,19 @@ struct CreateView: View {
     }
 
     private func finishNameEditing() {
+        commitName()
         nameFocused = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         editor.persist()
+    }
+    private func syncName() {
+        nameWorkspace = editor.workspaceID
+        nameText = editor.draft.name
+    }
+    private func commitName() {
+        guard nameWorkspace == editor.workspaceID, nameText != editor.draft.name else { return }
+        editor.nameBinding.wrappedValue = nameText
     }
 }
 struct SegmentEditorView: View {
