@@ -111,7 +111,9 @@ enum HapticRoutePolicy {
     var onChoiceChanged: (() -> Void)?
     private var entries: [UUID: GCController] = [:]
     private var observers: [NSObjectProtocol] = []
-    init() {
+    private let enumerate: @MainActor () -> [GCController]
+    init(enumerate: (@MainActor () -> [GCController])? = nil) {
+        self.enumerate = enumerate ?? { GCController.controllers() }
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
             observers.append(NotificationCenter.default.addObserver(
                 forName: name, object: nil, queue: .main
@@ -123,7 +125,7 @@ enum HapticRoutePolicy {
     func refresh() {
         var next: [UUID: GCController] = [:]
         var found: [ControllerOutputDevice] = []
-        for controller in GCController.controllers() {
+        for controller in enumerate() {
             let id = entries.first(where: { $0.value === controller })?.key ?? UUID()
             next[id] = controller
             let localities = controller.haptics?.supportedLocalities ?? []

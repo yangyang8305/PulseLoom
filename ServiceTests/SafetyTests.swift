@@ -469,3 +469,43 @@ extension RemoteSafetyTests {
         XCTAssertFalse(driver.shutdownPending)
     }
 }
+
+
+@MainActor final class ControllerOutputRouterTests: XCTestCase {
+    func testNoControllerUsesExistingPhoneDriver() throws {
+        // Inject an empty system controller snapshot: this test makes no hardware claims.
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let engine = EngineProbe()
+        let phone = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { true },
+            isForeground: { true }, thermalSafe: { true })
+        let router = HapticOutputRouter(phone: phone, controllers: manager)
+        try router.prepare()
+        try router.stream(intensity: 0.25, sharpness: 0.2)
+        XCTAssertEqual(router.activeName, "iPhone")
+        XCTAssertEqual(engine.player.starts, 1)
+        XCTAssertTrue(router.stop())
+        XCTAssertEqual(engine.player.stops, 1)
+    }
+
+    func testNoAvailableOutputFailsBeforeCreatingEngine() throws {
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let engine = EngineProbe()
+        let unsupportedPhone = HapticDriver(
+            makeEngine: { engine }, supportsHaptics: { false },
+            isForeground: { true }, thermalSafe: { true })
+        let router = HapticOutputRouter(phone: unsupportedPhone, controllers: manager)
+        XCTAssertThrowsError(try router.prepare())
+        XCTAssertEqual(engine.starts, 0)
+    }
+
+    func testChoiceChangeInvalidatesActiveRouteOnlyOnce() {
+        let manager = ControllerHapticsManager(enumerate: { [] })
+        let router = HapticOutputRouter(phone: HapticDriver(), controllers: manager)
+        var invalidations = 0
+        router.routeInvalidated = { _ in invalidations += 1 }
+        manager.select(.phone)
+        manager.select(.phone)
+        XCTAssertEqual(invalidations, 1)
+    }
+}

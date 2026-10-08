@@ -82,7 +82,7 @@ bash Scripts/test-ui.sh
 python3 Scripts/check-apple-diagnostics.py
 ```
 
-检查 `Scripts/build-localizations.py` 重新生成的文件应与 Git 一致。CI 的 `Source and Apple SDK validation` 同时包含 Ubuntu Core/Relay 和 macOS Apple SDK；`Small-screen user flow validation` 覆盖小屏布局。路由策略测试位于 `ControllerHapticRouteTests`；异步停止与隔离回归位于 `ControllerHapticRetirementTests`；模拟器设置页入口回归位于 `PulseLoomUITests.testControllerOutputSettingsAreReachableWithoutHardware`。**这些测试没有模拟“实际马达已震动”**。
+检查 `Scripts/build-localizations.py` 重新生成的文件应与 Git 一致。CI 的 `Source and Apple SDK validation` 同时包含 Ubuntu Core/Relay 和 macOS Apple SDK；`Small-screen user flow validation` 覆盖小屏布局。路由策略测试位于 `ControllerHapticRouteTests`；空设备 iPhone 回退及无可用输出测试位于 `ControllerOutputRouterTests`（注入空系统快照和假引擎）；异步停止与隔离回归位于 `ControllerHapticRetirementTests`；模拟器设置页入口回归位于 `PulseLoomUITests.testControllerOutputSettingsAreReachableWithoutHardware`。**这些测试没有模拟“实际马达已震动”**。
 
 如果 CI 失败，请先看具体 **job/step** 和原始日志，修复后重新运行。不要引用旧 SHA 的绿色构建作为当前分支的证据。构建无签名模拟器不是实体 iPhone 签名部署。
 
