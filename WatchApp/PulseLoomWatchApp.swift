@@ -172,9 +172,9 @@ struct WatchControlView: View {
 
     private var intensityView: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Text(client.gain, format: .percent.precision(.fractionLength(0)))
-                    .font(.system(.largeTitle, design: .rounded).bold())
+                    .font(.system(.title2, design: .rounded).bold())
                     .monospacedDigit()
                     .accessibilityIdentifier("watchGainValue")
                 Slider(value: $client.gain, in: 0...1, onEditingChanged: { editing in
