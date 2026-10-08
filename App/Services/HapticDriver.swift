@@ -6,6 +6,7 @@ import UIKit
 /// Single owner for all hardware output. Pattern events are scheduled by Core Haptics, not a UI timer.
 @MainActor final class HapticDriver {
     var interrupted: ((String) -> Void)?
+    var terminationConfirmed: (() -> Void)?
     var windowCompleted: (() -> Void)?
     private var engine: (any HapticEngineIO)?
     private var player: (any HapticPlayerIO)?
@@ -290,12 +291,22 @@ import UIKit
         engine = nil
         streaming = false
         termination = .none
+        terminationConfirmed?()
     }
     private func reportFailure(_ message: String) {
         guard !notifyingFailure else { return }
         notifyingFailure = true
         interrupted?(message)
         notifyingFailure = false
+    }
+    /// Force an unused/disconnected controller engine to stop, retaining it until confirmation.
+    func retire() {
+        if shutdownPending { requestEngineTermination(); return }
+        do { try stopPlayer() } catch { reportFailure(error.localizedDescription); return }
+        guard engine != nil else { terminationConfirmed?(); return }
+        engine?.isMutedForHaptics = true
+        termination = .failed
+        requestEngineTermination()
     }
     @discardableResult func stop() -> Bool {
         if shutdownPending {
