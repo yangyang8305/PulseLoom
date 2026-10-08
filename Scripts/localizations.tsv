@@ -409,3 +409,7 @@ output.testHelp|Plays a brief low-intensity pattern. Confirm actual motor vibrat
 output.targetFormat|Haptic output: %@|触觉输出：%@|触覚出力先：%@
 output.disconnected|Disconnected controller (reselect an output)|手柄已断开（请重新选择输出）|コントローラが切断されました（出力先を再選択）
 output.fallbackFormat|Controller output unavailable; using iPhone: %@|手柄输出不可用，已改用 iPhone：%@|コントローラの出力が使えないためiPhoneを使用：%@
+watch.connect|Connect iPhone|连接 iPhone|iPhoneに接続
+watch.start|Start|开始|開始
+watch.pause|Pause|暂停|一時停止
+watch.intensity|Intensity|强度|強度

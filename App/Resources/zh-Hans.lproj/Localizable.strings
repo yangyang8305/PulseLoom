@@ -388,11 +388,15 @@
 "unit.seconds" = "秒";
 "watch.allow" = "允许手表在手机前台时控制";
 "watch.authorize" = "在 iPhone 上允许手表控制。";
+"watch.connect" = "连接 iPhone";
 "watch.help" = "通过手机 Watch 应用安装配套手表 App。已配对手表只能在本 App 处于前台且获得许可时发起控制。";
 "watch.install" = "手表 App 已安装";
+"watch.intensity" = "强度";
 "watch.openPhone" = "在 iPhone 上打开触律。";
+"watch.pause" = "暂停";
 "watch.permission" = "请在手机前台运行触律并开启手表控制。";
 "watch.reachable" = "手表可连接";
+"watch.start" = "开始";
 "watch.title" = "Apple Watch";
 "welcome.detail" = "选择预设、跟随音乐，或创造自己的节奏。";
 "welcome.enter" = "进入触律";

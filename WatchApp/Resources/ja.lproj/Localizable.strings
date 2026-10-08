@@ -388,11 +388,15 @@
 "unit.seconds" = "秒";
 "watch.allow" = "iPhoneが前面の間にWatchの操作を許可";
 "watch.authorize" = "iPhoneでWatchの操作を許可してください。";
+"watch.connect" = "iPhoneに接続";
 "watch.help" = "iPhoneのWatchアプリからインストールしてください。ペアリング済みでも、本アプリが前面で操作許可がオンの間だけ操作できます。";
 "watch.install" = "Watchアプリのインストール";
+"watch.intensity" = "強度";
 "watch.openPhone" = "iPhoneでPulseLoomを開いてください。";
+"watch.pause" = "一時停止";
 "watch.permission" = "iPhoneでPulseLoomを前面に開き、Watchの操作を許可してください。";
 "watch.reachable" = "Watchに接続可能";
+"watch.start" = "開始";
 "watch.title" = "Apple Watch";
 "welcome.detail" = "パターンを選ぶ、音楽に合わせる、自分のリズムを作る。";
 "welcome.enter" = "PulseLoomを開く";

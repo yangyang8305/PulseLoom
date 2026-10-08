@@ -174,8 +174,14 @@ final class RecoveryUITests: XCTestCase {
         tap(saveToFiles)
         let save = app.buttons["Save"]
         XCTAssertTrue(save.waitForExistence(timeout: 10))
-        let filename = app.textFields["DOCPicker.filenameTextField"]
-        XCTAssertTrue(filename.waitForExistence(timeout: 8))
+        // iOS 18 exposes the filename without an identifier; iOS 26 adds one.
+        // Bind by index after finding its initial value so edits do not invalidate the query.
+        let filenameQuery = app.textFields.matching(NSPredicate(
+            format: "identifier == %@ OR value == %@", "DOCPicker.filenameTextField", "PulseLoom-pattern"))
+        XCTAssertTrue(filenameQuery.firstMatch.waitForExistence(timeout: 8))
+        guard let filename = app.textFields.allElementsBoundByIndex.first(where: {
+            $0.identifier == "DOCPicker.filenameTextField" || $0.value as? String == "PulseLoom-pattern"
+        }) else { return XCTFail("Native save filename field is unavailable") }
         tap(filename)
         let oldFilename = filename.value as? String ?? ""
         filename.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldFilename.count))
@@ -316,14 +322,22 @@ final class RecoveryUITests: XCTestCase {
                 // Diagnostic collection, NOT an accessibility pass. Retain every issue.
                 // One issue must not hide the other pages/languages from the evidence.
                 var findings: [String] = []
+                var auditError: String?
                 if #available(iOS 17.0, *) {
-                    try app.performAccessibilityAudit(for: .all) { issue in
-                        findings.append(String(describing: issue))
-                        return true
+                    do {
+                        try app.performAccessibilityAudit(for: .all) { issue in
+                            findings.append(String(describing: issue))
+                            return true
+                        }
+                    } catch {
+                        // A diagnostic timeout is retained as incomplete, never reported as a pass.
+                        // Product layout assertions above still fail the journey independently.
+                        auditError = String(describing: error)
                     }
                 }
                 let result: [String: Any] = ["language": lang, "appearance": mode, "tab": title,
-                    "status": findings.isEmpty ? "no_issues_reported" : "issues_detected",
+                    "status": auditError != nil ? "audit_incomplete" : (findings.isEmpty ? "no_issues_reported" : "issues_detected"),
+                    "audit_error": auditError ?? "",
                     "diagnostic_only": true, "issue_count": findings.count, "issues": findings]
                 let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
