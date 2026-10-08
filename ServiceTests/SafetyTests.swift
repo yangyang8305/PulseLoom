@@ -375,3 +375,46 @@ extension RemoteSafetyTests {
         XCTAssertEqual(wire.dataFrames.count, count, "Old queued emergency must not send into new room")
     }
 }
+
+
+// GameController policy is intentionally tested without pretending simulator motors exist.
+@MainActor final class ControllerHapticRouteTests: XCTestCase {
+    private let incapable = ControllerOutputDevice(
+        id: UUID(), name: "Input-only pad", family: "Game Controller",
+        supportsHaptics: false, localities: [])
+    private let capable = ControllerOutputDevice(
+        id: UUID(), name: "Haptic pad", family: "DualSense",
+        supportsHaptics: true, localities: ["default"])
+
+    func testAutomaticPrefersCapableControllerAndIgnoresInputOnlyPads() throws {
+        let id = try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable, capable], phoneSupported: true)
+        XCTAssertEqual(id, capable.id)
+    }
+
+    func testAutomaticFallsBackToPhoneOnlyWhenNoCapableControllerExists() throws {
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable], phoneSupported: true))
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .automatic, devices: [], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .automatic, devices: [incapable], phoneSupported: false))
+    }
+
+    func testExplicitControllerSelectionNeverSilentlyFallsBack() throws {
+        XCTAssertEqual(try HapticRoutePolicy.choose(
+            .controller(capable.id), devices: [capable], phoneSupported: false), capable.id)
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .controller(incapable.id), devices: [incapable], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .controller(capable.id), devices: [], phoneSupported: true),
+            "A disconnected manually selected controller must not silently vibrate the phone")
+    }
+
+    func testExplicitPhoneIgnoresAvailableController() throws {
+        XCTAssertNil(try HapticRoutePolicy.choose(
+            .phone, devices: [capable], phoneSupported: true))
+        XCTAssertThrowsError(try HapticRoutePolicy.choose(
+            .phone, devices: [capable], phoneSupported: false))
+    }
+}

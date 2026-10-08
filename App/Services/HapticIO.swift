@@ -182,13 +182,13 @@ enum HapticRoutePolicy {
     var shutdownPending: Bool {
         active.shutdownPending || retiring.values.contains(where: { $0.shutdownPending })
     }
-    init(phone: HapticDriver, controllers: ControllerHapticsManager = ControllerHapticsManager()) {
+    init(phone: HapticDriver, controllers: ControllerHapticsManager? = nil) {
         self.phone = phone
         self.active = phone
-        self.controllers = controllers
+        self.controllers = controllers ?? ControllerHapticsManager()
         configure(phone, id: nil)
-        controllers.onRemoved = { [weak self] ids in self?.disconnect(ids) }
-        controllers.onChoiceChanged = { [weak self] in
+        self.controllers.onRemoved = { [weak self] ids in self?.disconnect(ids) }
+        self.controllers.onChoiceChanged = { [weak self] in
             self?.routeInvalidated?("Output changed. Playback stopped; start again.")
         }
     }
