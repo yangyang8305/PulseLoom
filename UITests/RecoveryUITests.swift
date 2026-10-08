@@ -61,7 +61,10 @@ final class RecoveryUITests: XCTestCase {
         }
         XCTFail("Unreachable control: \(e)")
     }
-    func tap(_ e: XCUIElement) { reach(e); e.tap() }
+    func tap(_ e: XCUIElement) {
+        reach(e)
+        e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
     func named(_ label: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", label)).firstMatch
     }
@@ -144,28 +147,67 @@ final class RecoveryUITests: XCTestCase {
         capture("02-saved-work-reopened-after-restart")
     }
     func test03OriginalExportToFilesAndImportAgain() {
-        launch(); enter(); create("Roundtrip Original")
-        saved(); tap(named("Roundtrip Original")); tap(app.buttons["Export"])
+        let title = "Roundtrip Original " + String(storageID.prefix(6))
+        let fileName = "PulseLoom-pattern-" + String(storageID.prefix(8))
+        launch(); enter(); create(title)
+        saved(); tap(named(title)); tap(app.buttons["Export"])
         capture("03-native-share-sheet")
         // UIKit exposes share actions as collection-view cells, not buttons.
         let saveToFiles = app.cells["Save to Files"]
         XCTAssertTrue(saveToFiles.waitForExistence(timeout: 8))
         tap(saveToFiles)
+        let save = app.buttons["Save"]
+        XCTAssertTrue(save.waitForExistence(timeout: 10))
+        let filename = app.textFields["DOCPicker.filenameTextField"]
+        XCTAssertTrue(filename.waitForExistence(timeout: 8))
+        tap(filename)
+        let oldFilename = filename.value as? String ?? ""
+        filename.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldFilename.count))
+        filename.typeText(fileName)
+        wait("value == '\(fileName)'", on: filename)
         capture("03-native-save-location")
         if app.buttons["On My iPhone"].exists { tap(app.buttons["On My iPhone"]) }
-        tap(app.buttons["Save"])
+        tap(save)
         if app.alerts.buttons["Replace"].waitForExistence(timeout: 1) { app.alerts.buttons["Replace"].tap() }
+        wait("exists == false", on: save)
         app.terminate(); launch(); saved(); tap(app.buttons["Import patterns"])
+        let browse = app.tabBars["DOC.browsingModeTabBar"].buttons["Browse"]
+        XCTAssertTrue(browse.waitForExistence(timeout: 10))
+        tap(browse)
+        let navigation = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
+        XCTAssertTrue(navigation.waitForExistence(timeout: 8))
+        let locations = navigation.buttons["Browse"]
+        if locations.waitForExistence(timeout: 3) { tap(locations) }
+        let local = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == 'On My iPhone'")
+        )
+        let localReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            local.allElementsBoundByIndex.contains { $0.isHittable }
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [localReady], timeout: 8), .completed)
+        guard let localLocation = local.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+            XCTFail("On My iPhone is not reachable in the system Files picker")
+            return
+        }
+        tap(localLocation)
         capture("03-native-import-picker")
-        if app.buttons["Browse"].exists { app.buttons["Browse"].tap() }
-        if app.buttons["On My iPhone"].exists { app.buttons["On My iPhone"].tap() }
-        let document = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'PulseLoom-pattern'")).firstMatch
+        // Select the current, visible file cell; remote picker hierarchies can
+        // retain obscured collections from a previous browsing location.
+        let documents = app.cells.matching(NSPredicate(format: "label BEGINSWITH %@", fileName))
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            documents.allElementsBoundByIndex.contains { $0.isHittable }
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 10), .completed)
+        guard let document = documents.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+            XCTFail("The exported document is not reachable in On My iPhone")
+            return
+        }
         tap(document)
         wait("exists == true", on: app.navigationBars["My patterns"])
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Roundtrip Original'")).count, 2)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).count, 2)
         capture("03-two-works-after-native-import")
         app.terminate(); launch(); saved()
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Roundtrip Original'")).count, 2)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).count, 2)
         capture("03-import-persists-after-restart")
     }
     func test04PaidPresetExportIsBlockedWithoutShareSheet() {
@@ -242,6 +284,7 @@ final class RecoveryUITests: XCTestCase {
             tap(app.buttons[done])
             for (index, title) in tabs.enumerated() {
                 let tab = app.tabBars.buttons[title]; tap(tab)
+                wait("selected == true", on: tab)
                 XCTAssertTrue(tab.isSelected)
                 XCTAssertEqual(app.tabBars.buttons.count, 4)
                 let screen = app.windows.firstMatch.frame
