@@ -52,6 +52,9 @@ final class RecoveryUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons[tab].waitForExistence(timeout: 8))
     }
     func reach(_ e: XCUIElement) {
+        // Give a newly presented sheet or system picker time to populate before
+        // swiping: an early swipe can dismiss the sheet instead of revealing a row.
+        _ = e.waitForExistence(timeout: 5)
         for _ in 0..<9 {
             if e.exists && e.isHittable { return }
             app.swipeUp(velocity: .slow)
