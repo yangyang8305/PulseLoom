@@ -21,6 +21,30 @@ import PulseLoomCore
     func start() throws
     func stop(completion: @escaping (Error?) -> Void)
     func makeAdvancedPlayer(with pattern: CHHapticPattern) throws -> any HapticPlayerIO
+    /// Non-nil for game controllers: they only accept plain patterns (baked-in intensity, no curves)
+    /// and each actuator type needs its own frequency mapping.
+    var controllerTone: ControllerTone? { get }
+}
+extension HapticEngineIO {
+    var controllerTone: ControllerTone? { nil }
+    var simplePatterns: Bool { controllerTone != nil }
+}
+/// Measured on the owner's hardware (2026-10-09): DualSense voice coils feel strongest at low
+/// sharpness; Xbox eccentric motors (triggers + handles) feel strongest at high sharpness.
+enum ControllerTone { case voiceCoil, motor }
+
+/// What was last handed to Core Haptics. Short of feeling the motor, a readout of this is the
+/// only honest evidence of whether full power was actually requested.
+struct HapticDispatch: Equatable {
+    var target = "iPhone"
+    /// "pattern" for scheduled windows, "stream" for manual/music/recording control.
+    var kind: String
+    var events: Int
+    /// Highest event intensity multiplied by the highest intensity-control value in the window.
+    var peakIntensity: Double
+    /// Highest event sharpness after the texture offset.
+    var sharpness: Double
+    var date = Date()
 }
 
 @MainActor final class AppleHapticEngine: HapticEngineIO {
@@ -34,15 +58,80 @@ import PulseLoomCore
         set { engine.isMutedForHaptics = newValue }
     }
     convenience init() throws { self.init(engine: try CHHapticEngine()) }
-    init(engine: CHHapticEngine) {
+    /// Controller engines (DualSense, Xbox) are driven by the GameController haptics service; the
+    /// phone-only options (haptics-only audio path, idle auto-shutdown) break their XPC session.
+    private let tone: ControllerTone?
+    private var controller: Bool { tone != nil }
+    /// Game controllers (DualSense, Xbox) reject advanced players and parameter curves: the first
+    /// advanced player request tears down the gamecontrollerd haptics XPC session (NSCocoaError 4097,
+    /// then CoreHaptics -4810 for everything after). Apple Developer Forums thread 773615.
+    var controllerTone: ControllerTone? { tone }
+    init(engine: CHHapticEngine, tone: ControllerTone? = nil) {
         self.engine = engine
-        engine.playsHapticsOnly = true
-        engine.isAutoShutdownEnabled = true
+        self.tone = tone
+        if tone == nil {
+            engine.playsHapticsOnly = true
+            engine.isAutoShutdownEnabled = true
+        }
     }
-    func start() throws { try engine.start() }
+    func start() throws {
+        DiagLog.write("engine start")
+        do { try engine.start(); DiagLog.write("engine started") } catch {
+            let e = error as NSError
+            DiagLog.write("engine start FAILED domain=\(e.domain) code=\(e.code) \(e.localizedDescription) info=\(e.userInfo)")
+            throw LoomError.unavailable("\(e.localizedDescription) (\(e.domain) \(e.code))")
+        }
+    }
     func stop(completion: @escaping (Error?) -> Void) { engine.stop(completionHandler: completion) }
     func makeAdvancedPlayer(with pattern: CHHapticPattern) throws -> any HapticPlayerIO {
-        AppleHapticPlayer(try engine.makeAdvancedPlayer(with: pattern))
+        if controller {
+            // Never ask a controller engine for an advanced player: the request itself kills the session.
+            do {
+                let basic = try engine.makePlayer(with: pattern)
+                DiagLog.write("controller basic player created duration=\(pattern.duration)")
+                return BasicHapticPlayer(basic, duration: pattern.duration)
+            } catch {
+                let e = error as NSError
+                DiagLog.write("controller basic player FAILED domain=\(e.domain) code=\(e.code) \(e.localizedDescription)")
+                throw error
+            }
+        }
+        return AppleHapticPlayer(try engine.makeAdvancedPlayer(with: pattern))
+    }
+}
+
+@MainActor private final class BasicHapticPlayer: HapticPlayerIO {
+    private let player: any CHHapticPatternPlayer
+    private let duration: TimeInterval
+    private var finish: DispatchWorkItem?
+    var completionHandler: ((Error?) -> Void)?
+    var loopEnabled = false
+    var loopEnd: TimeInterval = 0
+    init(_ player: any CHHapticPatternPlayer, duration: TimeInterval) { self.player = player; self.duration = duration }
+    func start(atTime: TimeInterval) throws {
+        try player.start(atTime: atTime)
+        scheduleFinish()
+    }
+    /// Basic players cannot loop by themselves; restart at the end of each pass while looping.
+    private func scheduleFinish() {
+        finish?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if self.loopEnabled, (try? self.player.start(atTime: CHHapticTimeImmediate)) != nil {
+                self.scheduleFinish()
+            } else {
+                self.completionHandler?(nil)
+            }
+        }
+        finish = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0.05, duration), execute: work)
+    }
+    func stop(atTime: TimeInterval) throws {
+        finish?.cancel(); finish = nil
+        try player.stop(atTime: atTime)
+    }
+    func sendParameters(_ parameters: [CHHapticDynamicParameter], atTime: TimeInterval) throws {
+        try player.sendParameters(parameters, atTime: atTime)
     }
 }
 
@@ -138,6 +227,7 @@ enum HapticRoutePolicy {
                 supportsHaptics: localities.contains(.default),
                 localities: localities.map { String(describing: $0) }.sorted()))
         }
+        DiagLog.write("controllers: " + found.map { "\($0.name) family=\($0.family) haptics=\($0.supportsHaptics) localities=\($0.localities)" }.joined(separator: " | "))
         let removed = Set(entries.keys).subtracting(next.keys)
         entries = next
         if devices != found { devices = found }
@@ -166,6 +256,10 @@ enum HapticRoutePolicy {
     func name(for id: UUID) -> String {
         devices.first(where: { $0.id == id })?.name ?? "Controller"
     }
+    /// The first connected controller with haptics, for the calibration probe.
+    var firstHapticController: GCController? {
+        devices.first(where: { $0.supportsHaptics }).flatMap { entries[$0.id] }
+    }
 }
 
 /// Exactly one active output per session; a disconnect stops rather than silently rerouting.
@@ -186,11 +280,12 @@ enum HapticRoutePolicy {
             return "iPhone"
         case .controller(let id):
             return controllers.devices.first(where: { $0.id == id })?.name
-                ?? NSLocalizedString("output.disconnected", comment: "")
+                ?? T("output.disconnected")
         }
     }
     var interrupted: ((String) -> Void)?
     var windowCompleted: (() -> Void)?
+    var dispatched: ((HapticDispatch) -> Void)?
     var routeInvalidated: ((String) -> Void)?
     var supported: Bool { phone.supported || controllers.devices.contains(where: { $0.supportsHaptics }) }
     var shutdownPending: Bool {
@@ -214,6 +309,12 @@ enum HapticRoutePolicy {
         driver.windowCompleted = { [weak self] in
             guard let self, self.activeID == id else { return }
             self.windowCompleted?()
+        }
+        driver.dispatched = { [weak self] dispatch in
+            guard let self, self.activeID == id else { return }
+            var labeled = dispatch
+            labeled.target = self.activeName
+            self.dispatched?(labeled)
         }
     }
     private func disconnect(_ removed: Set<UUID>) {
@@ -250,12 +351,18 @@ enum HapticRoutePolicy {
                 } else {
                     let driver = HapticDriver(
                         makeEngine: { [weak controller] in
+                            let family = self.controllers.devices.first(where: { $0.id == id })?.family ?? ""
+                            let tone: ControllerTone = family == "DualSense" ? .voiceCoil : .motor
+                            // Drive every actuator the controller offers (Xbox: handles + both triggers).
+                            let locality: GCHapticsLocality = controller?.haptics?.supportedLocalities.contains(.all) == true ? .all : .default
+                            DiagLog.write("create controller engine: family=\(family) tone=\(tone) locality=\(locality.rawValue) localities=\(controller?.haptics?.supportedLocalities.map { "\($0.rawValue)" } ?? [])")
                             guard let haptics = controller?.haptics,
-                                haptics.supportedLocalities.contains(.default),
-                                let engine = haptics.createEngine(withLocality: .default) else {
+                                haptics.supportedLocalities.contains(locality),
+                                let engine = haptics.createEngine(withLocality: locality) else {
+                                DiagLog.write("create controller engine FAILED (nil)")
                                 throw LoomError.unavailable("Could not create controller haptic engine.")
                             }
-                            return AppleHapticEngine(engine: engine)
+                            return AppleHapticEngine(engine: engine, tone: tone)
                         },
                         supportsHaptics: { [weak controller] in
                             controller?.haptics?.supportedLocalities.contains(.default) ?? false
@@ -270,9 +377,11 @@ enum HapticRoutePolicy {
                 activeName = "iPhone"
             }
         }
+        DiagLog.write("prepare: choice=\(controllers.choice) resolved=\(id.map { controllers.name(for: $0) } ?? "iPhone") phoneSupported=\(phone.supported)")
         do {
             try active.prepare()
         } catch {
+            DiagLog.write("prepare FAILED: \(error.localizedDescription)")
             // Only an automatic choice may fall back. A failed engine shutdown
             // must remain quarantined, not silently start another output.
             guard id != nil, controllers.choice == .automatic, phone.supported,

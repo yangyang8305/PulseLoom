@@ -4,186 +4,206 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+/// One screen: artwork, the chosen song, feel, strength, position and the play/stop dock.
+/// Everything that is rarely touched lives in the "More adjustments" sheet.
 struct MusicView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.loom) var c
     @State private var importing = false
-    @State private var showSources = false
-    @State private var saveMix = false
-    @State private var mixName = ""
+    @State private var advanced = false
+    @State private var library = false
     var body: some View {
-        PlainScene {
-            HStack {
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(T("music.title")).font(.title.bold())
-                    Text(T("music.subtitle")).font(.footnote).foregroundStyle(c.muted)
-                }
-                Spacer()
-                Button {
-                    app.sheet = .mixes
-                } label: {
-                    Image(systemName: "heart").frame(width: 44, height: 44)
-                }
-            }
-            if app.music.status == .loading {
-                TactileArt(style: "orb").frame(height: 170)
-                ProgressView(T("music.analyzing")).frame(maxWidth: .infinity)
-                LoomButton(title: "common.cancel", secondary: true) { app.music.cancelLoad() }
-            } else if app.music.analysis != nil {
-                TactileArt(style: "orb", level: app.music.requestedLevel).frame(height: 130)
-                HStack {
-                    Image(systemName: "music.note")
-                    Text(app.music.name).lineLimit(2)
-                    Spacer()
-                    Button(T("music.change")) { importing = true }.frame(minHeight: 44)
-                }
-                LoomSlider(
-                    title: "home.intensity",
-                    value: Binding(get: { app.music.config.gain }, set: { app.music.config.gain = $0 }))
-                Picker(
-                    T("music.feel"), selection: Binding(get: { app.music.feel }, set: { app.music.apply($0) })
-                ) {
-                    ForEach(MusicFeel.allCases, id: \.self) { f in Text(T("music.feel." + f.rawValue)).tag(f)
+        GeometryReader { geo in
+            let compact = geo.size.height < 640
+            VStack(alignment: .leading, spacing: compact ? 8 : 12) {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(T("music.title")).font(.system(.title3, design: .serif).italic())
+                        Text(T("music.subtitle")).font(.caption2).foregroundStyle(c.muted).lineLimit(1)
                     }
-                }.pickerStyle(.segmented)
-                HStack {
-                    LoomButton(title: app.music.isPlaying ? "music.pause" : "music.start", symbol: "power") {
-                        app.perform { try app.music.play() }
+                    Spacer(minLength: 4)
+                    LoomIconButton(symbol: "lock", label: T("lock.enter")) { app.lockPrompt = true }
+                    if app.music.analysis != nil {
+                        LoomIconButton(symbol: "slider.horizontal.3", label: T("music.more")) { advanced = true }
                     }
-                    LoomButton(title: "common.stop", symbol: "stop", secondary: true) { app.stopAll() }.frame(
-                        width: 85)
                 }
-                Text(timeText(app.music.position) + " / " + timeText(app.music.duration)).font(.caption)
-                    .monospacedDigit().foregroundStyle(c.muted).frame(maxWidth: .infinity)
-                Slider(
-                    value: Binding(get: { app.music.position }, set: { app.music.seek($0) }),
-                    in: 0...max(0.1, app.music.duration)
-                ).accessibilityLabel(T("music.progress"))
-                DisclosureGroup(T("music.more")) {
-                    VStack(spacing: 16) {
-                        LoomSlider(
-                            title: "music.volume",
-                            value: Binding(
-                                get: { app.music.config.volume }, set: { app.music.config.volume = $0 }))
-                        LoomSlider(
-                            title: "music.sensitivity",
-                            value: Binding(
-                                get: { app.music.config.sensitivity },
-                                set: { app.music.config.sensitivity = $0 }))
-                        LoomSlider(
-                            title: "home.texture",
-                            value: Binding(
-                                get: { app.music.config.sharpness }, set: { app.music.config.sharpness = $0 })
-                        )
-                        Picker(
-                            T("music.mapping"),
-                            selection: Binding(
-                                get: { app.music.config.mapping }, set: { app.music.config.mapping = $0 })
-                        ) {
-                            ForEach(MusicMapping.allCases, id: \.self) { m in
-                                Text(T("music.mapping." + m.rawValue)).tag(m)
-                            }
-                        }.pickerStyle(.menu)
-                        if app.music.config.mapping == .blend {
-                            Picker(
-                                T("music.overlay"),
-                                selection: Binding(
-                                    get: { app.music.config.overlay }, set: { app.music.config.overlay = $0 })
-                            ) { ForEach(Catalog.presets) { p in Text(p.displayName()).tag(p.id) } }
-                            LoomSlider(
-                                title: "music.mix",
-                                value: Binding(
-                                    get: { app.music.config.overlayMix },
-                                    set: { app.music.config.overlayMix = $0 }))
-                        }
-                        LoomSlider(
-                            title: "music.offset",
-                            value: Binding(
-                                get: { app.music.config.offset }, set: { app.music.config.offset = $0 }),
-                            range: -0.5...0.5, unit: T("unit.seconds"))
-                        HStack {
-                            Text(T("music.from"))
-                            TextField(
-                                "",
-                                value: Binding(
-                                    get: { app.music.config.from }, set: { app.music.config.from = $0 }),
-                                format: .number
-                            ).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                        }
-                        HStack {
-                            Text(T("music.to"))
-                            TextField(
-                                "",
-                                value: Binding(
-                                    get: { app.music.config.to }, set: { app.music.config.to = $0 }),
-                                format: .number
-                            ).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
-                        }
-                        LoomButton(title: "music.applyRange", secondary: true) {
-                            app.perform {
-                                try Validation.music(app.music.config, duration: app.music.duration)
-                                app.music.seek(app.music.config.from)
-                            }
-                        }
-                        LoomButton(title: "music.saveMix", symbol: "heart", secondary: true) {
-                            mixName = app.music.name
-                            saveMix = true
-                        }
-                        Text(T("music.analysisHelp")).font(.caption).foregroundStyle(c.muted)
-                    }.padding(.top, 13)
+                HeroArt(level: app.music.requestedLevel, playing: app.music.isPlaying)
+                    .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 260)
+                Spacer(minLength: 0)
+                if app.music.status == .loading {
+                    ProgressView(T("music.analyzing")).frame(maxWidth: .infinity)
+                    LoomButton(title: "common.cancel", secondary: true, compact: true) { app.music.cancelLoad() }
+                } else if app.music.analysis != nil {
+                    loaded
+                } else {
+                    Text(T("music.bringSong")).font(.system(.title3, design: .serif)).frame(maxWidth: .infinity)
+                    TrackShelf()
+                    LoomButton(title: "music.select", symbol: "plus", secondary: true) { importing = true }
+                        .accessibilityIdentifier("selectMusic")
+                    Text(T("music.localHelp")).font(.caption2).foregroundStyle(c.muted).lineLimit(2)
                 }
-            } else {
-                TactileArt(style: "orb").frame(height: 200)
-                Text(T("music.bringSong")).font(.system(.title2, design: .serif)).frame(maxWidth: .infinity)
-                LoomButton(title: "music.select", symbol: "plus") { importing = true }
-                    .accessibilityIdentifier("selectMusic")
-                Text(T("music.localHelp")).font(.footnote).foregroundStyle(c.muted)
+                if app.music.status != .loading { sources }
+                if let error = app.music.error {
+                    HStack {
+                        Text(error).font(.caption).foregroundStyle(c.muted).lineLimit(2)
+                        Spacer()
+                        Button(T("common.dismiss")) { app.music.error = nil }.font(.caption)
+                    }
+                }
             }
-            if app.music.status != .loading {
-                LoomButton(title: "music.demo", symbol: "music.note", secondary: true) { app.music.demo() }
-                    .accessibilityIdentifier("demoMusic")
-            }
-            if let error = app.music.error {
-                Notice(text: error)
-                Button(T("common.dismiss")) { app.music.error = nil }.frame(minHeight: 44)
-            }
-            NavigationLink {
-                SystemMusicView()
-            } label: {
-                Label(T("music.appleMusic"), systemImage: "music.note.list").frame(minHeight: 44)
-            }
-            NavigationLink {
-                SoundscapeView()
-            } label: {
-                Label(T("sound.title"), systemImage: "wind").frame(minHeight: 44)
-            }
-        }.toolbar(.hidden, for: .navigationBar).fileImporter(
-            isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: false
-        ) { result in
+            .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 8)
+        }
+        .loomBackground().toolbar(.hidden, for: .navigationBar)
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: false) { result in
             app.perform {
                 guard let u = try result.get().first else { return }
                 app.music.load(url: u)
             }
         }
-        .alert(T("music.saveMix"), isPresented: $saveMix) {
-            TextField(T("common.name"), text: $mixName)
-            Button(T("common.save")) {
-                app.perform {
-                    guard !mixName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                        mixName.count <= 50
-                    else { throw LoomError.invalid(T("error.name")) }
-                    guard app.library.snapshot.mixes.count < 200 else {
-                        throw LoomError.invalid(T("error.capacity"))
-                    }
-                    let mix = MusicMix(
-                        name: mixName, trackName: app.music.name, configuration: app.music.config)
-                    try app.library.commit { $0.mixes.append(mix) }
+        .sheet(isPresented: $advanced) { MusicAdvancedView().environmentObject(app).environment(\.loom, c) }
+        .sheet(isPresented: $library) { MusicLibraryView().environmentObject(app).environment(\.loom, c) }
+    }
+    private var loaded: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "music.note").foregroundStyle(c.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(app.music.name).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Text(timeText(app.music.position) + " / " + timeText(app.music.duration))
+                        .font(.caption.monospacedDigit()).foregroundStyle(c.muted)
                 }
+                Spacer()
+                Button(T("music.change")) { importing = true }.font(.subheadline).frame(minHeight: 44)
             }
-            Button(T("common.cancel"), role: .cancel) {}
+            Picker(T("music.feel"), selection: Binding(get: { app.music.feel }, set: { app.music.apply($0) })) {
+                ForEach(MusicFeel.allCases, id: \.self) { f in Text(T("music.feel." + f.rawValue)).tag(f) }
+            }.pickerStyle(.segmented)
+            LoomSlider(
+                title: "home.intensity",
+                value: Binding(get: { app.music.config.gain }, set: { app.music.config.gain = $0 }))
+            Slider(
+                value: Binding(get: { app.music.position }, set: { app.music.seek($0) }),
+                in: 0...max(0.1, app.music.duration)
+            ).tint(c.accent).accessibilityLabel(T("music.progress"))
+            HStack(spacing: 10) {
+                LoomButton(
+                    title: app.music.isPlaying ? "music.pause" : "music.start",
+                    symbol: app.music.isPlaying ? "pause.fill" : "play.fill"
+                ) { app.perform { try app.music.play() } }
+                LoomButton(title: "common.stop", symbol: "stop.fill", secondary: true, fill: false) { app.stopAll() }
+            }
+        }
+    }
+    private var sources: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                LoomChip(title: T("music.library"), symbol: "music.note.list") { library = true }
+                    .accessibilityIdentifier("musicLibrary")
+                NavigationLink { SystemMusicView() } label: { ChipLabel(title: T("music.appleMusic"), symbol: "music.note.list") }
+                    .buttonStyle(.plain)
+            }.padding(.vertical, 4).padding(.horizontal, 2)
         }
     }
 }
+/// One row of the bundled pieces; the loaded one is highlighted.
+struct TrackShelf: View {
+    @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(T("music.library")).font(.caption.weight(.semibold)).foregroundStyle(c.muted)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(BundledMusic.tracks) { t in
+                        LoomChip(
+                            title: t.displayName(), detail: T("music.style." + t.style),
+                            selected: app.music.bundledID == t.id
+                        ) { app.music.loadBundled(t) }
+                        .accessibilityIdentifier("track." + t.id)
+                    }
+                }.padding(.horizontal, 2).padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+/// The full list of bundled pieces with style, tempo and length.
+struct MusicLibraryView: View {
+    @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
+    @Environment(\.dismiss) var dismiss
+    var body: some View {
+        NavigationStack {
+            PlainScene(spacing: 10) {
+                Text(T("music.libraryHelp")).font(.caption).foregroundStyle(c.muted)
+                ForEach(BundledMusic.tracks) { t in
+                    Button {
+                        app.music.loadBundled(t)
+                        dismiss()
+                    } label: {
+                        LoomRow(
+                            title: t.displayName(),
+                            symbol: app.music.bundledID == t.id ? "waveform" : "music.note",
+                            subtitle: T("music.style." + t.style) + " · " + String(format: T("music.bpmFormat"), t.bpm)
+                                + " · " + timeText(t.seconds))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("library." + t.id)
+                }
+            }
+            .navigationTitle(T("music.libraryTitle")).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(T("common.done")) { dismiss() } } }
+        }
+    }
+}
+
+/// Chip styling for navigation links (which cannot reuse the button chip).
+struct ChipLabel: View {
+    @Environment(\.loom) var c
+    let title: String
+    var symbol: String?
+    var body: some View {
+        HStack(spacing: 6) {
+            if let symbol { Image(systemName: symbol).font(.caption.weight(.semibold)) }
+            Text(title).font(.subheadline).lineLimit(1)
+        }
+        .padding(.vertical, 9).padding(.horizontal, 13).foregroundStyle(c.ink)
+        .background(c.surface.opacity(0.9), in: Capsule())
+        .overlay(Capsule().strokeBorder(c.line, lineWidth: 0.8))
+        .frame(minHeight: 44)
+    }
+}
+
+struct MusicAdvancedView: View {
+    @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
+    @Environment(\.dismiss) var dismiss
+    var body: some View {
+        NavigationStack {
+            PlainScene(spacing: 14) {
+                LoomSlider(
+                    title: "music.volume",
+                    value: Binding(get: { app.music.config.volume }, set: { app.music.config.volume = $0 }))
+                LoomSlider(
+                    title: "music.sensitivity",
+                    value: Binding(get: { app.music.config.sensitivity }, set: { app.music.config.sensitivity = $0 }))
+                Picker(
+                    T("music.mapping"),
+                    selection: Binding(
+                        get: { app.music.config.mapping == .blend ? .energy : app.music.config.mapping },
+                        set: { app.music.config.mapping = $0 })
+                ) {
+                    ForEach([MusicMapping.energy, .beats], id: \.self) { m in Text(T("music.mapping." + m.rawValue)).tag(m) }
+                }.pickerStyle(.segmented)
+                Text(T("music.analysisHelp")).font(.caption).foregroundStyle(c.muted)
+            }
+            .navigationTitle(T("music.more")).navigationBarTitleDisplayMode(.inline).toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button(T("common.done")) { dismiss() } }
+            }
+        }
+    }
+}
+
 struct MusicMixesView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.dismiss) var dismiss
@@ -224,6 +244,7 @@ struct MusicMixesView: View {
         }
     }
 }
+
 struct SystemMusicView: View {
     @EnvironmentObject var app: AppModel
     @State private var query = ""
@@ -236,7 +257,7 @@ struct SystemMusicView: View {
                 TextField(T("music.search"), text: $query).textFieldStyle(.roundedBorder).onSubmit {
                     Task { await app.systemMusic.search(query) }
                 }
-                LoomButton(title: "common.search", secondary: true) {
+                LoomButton(title: "common.search", secondary: true, compact: true) {
                     Task { await app.systemMusic.search(query) }
                 }
                 if app.systemMusic.searching { ProgressView() }

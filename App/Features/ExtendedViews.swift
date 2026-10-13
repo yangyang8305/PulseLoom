@@ -16,14 +16,14 @@ struct ManualView: View {
                 TouchSurface(began: { _ in start() }, moved: { _ in }, ended: { if !continuous { end() } })
             }.frame(height: 240)
             Toggle(T("manual.continuous"), isOn: $continuous).onChange(of: continuous) { _, _ in end() }
-            LoomSlider(title: "home.intensity", value: app.pref(\.gain)) {
-                if pressed {
-                    app.perform {
-                        try app.playback.stream(
-                            app.prefs.gain, sharpness: app.prefs.sharpness, source: "manual")
-                    }
-                }
-            }
+            LoomSlider(
+                title: "home.intensity", value: app.pref(\.gain),
+                live: { level in if pressed { follow(gain: level) } }
+            ) { if pressed { follow() } }
+            LoomSlider(
+                title: "home.texture", value: app.pref(\.sharpness),
+                live: { texture in if pressed { follow(sharpness: texture) } }
+            ) { if pressed { follow() } }
             LoomButton(title: "common.stop", symbol: "stop", secondary: true) { end() }
             Button(T("manual.shortTest")) {
                 start()
@@ -32,6 +32,13 @@ struct ManualView: View {
         }.navigationTitle(T("manual.title")).onDisappear { end() }.onChange(of: scenePhase) { _, phase in
             if phase != .active { end() }
         }.onChange(of: app.privacyHidden) { _, hidden in if hidden { end() } }
+    }
+    /// Re-sends the stream with the slider value being dragged, falling back to saved preferences.
+    func follow(gain: Double? = nil, sharpness: Double? = nil) {
+        app.perform {
+            try app.playback.stream(
+                gain ?? app.prefs.gain, sharpness: sharpness ?? app.prefs.sharpness, source: "manual")
+        }
     }
     func start() {
         if continuous && pressed {
@@ -55,43 +62,6 @@ struct ManualView: View {
         timeout?.cancel()
         pressed = false
         if app.playback.kind == "manual" { app.playback.stopStream() }
-    }
-}
-struct SoundscapeView: View {
-    @EnvironmentObject var app: AppModel
-    var body: some View {
-        PlainScene {
-            TactileArt(style: "orb").frame(height: 170)
-            Notice(text: "sound.help")
-            ForEach(0..<3) { i in
-                LoomSlider(
-                    title: ["sound.rain", "sound.air", "sound.hum"][i],
-                    value: Binding(
-                        get: { app.sound.levels[i] },
-                        set: {
-                            app.sound.levels[i] = $0
-                            app.sound.update()
-                        }))
-            }
-            HStack {
-                ForEach(0..<3) { i in
-                    Button(T(["sound.rain", "sound.air", "sound.hum"][i])) { app.sound.preset(i) }.frame(
-                        maxWidth: .infinity, minHeight: 44)
-                }
-            }
-            LoomButton(title: app.sound.active ? "sound.pause" : "sound.start", symbol: "speaker.wave.2") {
-                app.perform { if app.sound.active { app.sound.stop() } else { try app.sound.play() } }
-            }
-            LoomButton(title: "sound.withHaptics", secondary: true) {
-                app.perform {
-                    guard Entitlements.canPlay(app.current, pro: app.pro) else { throw LoomError.entitlement }
-                    try app.sound.play()
-                    try app.playback.begin(
-                        app.current, duration: app.prefs.timer, gain: app.prefs.gain, kind: "routine")
-                }
-            }
-            LoomButton(title: "common.stop", secondary: true) { app.stopAll() }
-        }.navigationTitle(T("sound.title"))
     }
 }
 struct BreathView: View {
@@ -242,7 +212,6 @@ struct RoutineEditorView: View {
                     Stepper(
                         String(format: T("routine.fade"), routine.crossfade), value: $routine.crossfade,
                         in: 0...3, step: 0.5)
-                    Toggle(T("routine.sound"), isOn: $routine.sound)
                 }
                 LoomButton(title: "common.save", symbol: "checkmark") {
                     app.perform {

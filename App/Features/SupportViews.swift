@@ -72,30 +72,81 @@ struct PremiumView: View {
         }
     }
 }
+/// Every event at 1.0 so the user feels this device's real ceiling, independent of presets and sliders.
+enum HapticReference {
+    static func pattern() -> HapticPattern {
+        var p = HapticPattern(
+            name: T("help.reference"),
+            segments: [
+                Segment(duration: 30, gap: 220, gain: 1, sharp: 1, type: .transient),
+                Segment(duration: 30, gap: 220, gain: 1, sharp: 1, type: .transient),
+                Segment(duration: 30, gap: 470, gain: 1, sharp: 1, type: .transient),
+                Segment(duration: 1000, gap: 500, gain: 1, sharp: 0),
+                Segment(duration: 1000, gap: 0, gain: 1, sharp: 1),
+            ])
+        p.loop = false
+        return p
+    }
+}
 struct TroubleshootingView: View {
     @EnvironmentObject var app: AppModel
     @State private var felt = false
+    @StateObject private var probe = ControllerProbe()
     var body: some View {
         PlainScene {
+            if let controller = app.playback.outputs.controllers.firstHapticController {
+                LoomCard(padding: 14) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("手柄极限测试 · " + (controller.vendorName ?? "Controller")).font(.headline)
+                        Text("每种 1.5 秒，全部满强度。记下哪一个最强。").font(.caption).foregroundStyle(.secondary)
+                        if let step = probe.current {
+                            Text("正在播放 \(step.id) / \(probe.total)：\(step.title)").font(.body.weight(.semibold))
+                        }
+                        HStack(spacing: 8) {
+                            LoomButton(title: probe.running ? "common.stop" : "help.probe", symbol: "gamecontroller", compact: true) {
+                                if probe.running { probe.cancel() } else { app.stopAll(); probe.run(on: controller) }
+                            }
+                            LoomButton(title: "help.probeTriggers", symbol: "arrow.down.to.line", secondary: true, compact: true) {
+                                app.stopAll(); probe.cancel(); probe.run(on: controller, steps: ControllerProbe.triggerSteps)
+                            }
+                        }
+                        Text("综合 8 项：").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        ForEach(ControllerProbe.steps) { s in Text("\(s.id). \(s.title)").font(.caption).foregroundStyle(.secondary) }
+                        Text("扳机 9 项：").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        ForEach(ControllerProbe.triggerSteps) { s in Text("\(s.id). \(s.title)").font(.caption).foregroundStyle(.secondary) }
+                        ForEach(probe.log, id: \.self) { Text($0).font(.caption2).foregroundStyle(.secondary) }
+                    }
+                }
+            }
             Label(
                 T(app.playback.driver.supported ? "help.supported" : "error.hapticsUnavailable"),
                 systemImage: app.playback.driver.supported ? "checkmark.circle" : "exclamationmark.circle")
+            Notice(text: "help.referenceHelp")
+            LoomButton(title: "help.reference", symbol: "bolt") {
+                app.perform {
+                    try app.playback.begin(
+                        HapticReference.pattern(), duration: 4, gain: 1, speed: 1, sharp: 0.5, kind: "test")
+                }
+            }.disabled(!app.playback.outputs.supported).accessibilityIdentifier("referenceTest")
             Notice(text: "help.testHelp")
             LoomButton(title: "help.test", symbol: "hand.tap") {
                 app.perform {
-                    let parts = [0.2, 0.4, 0.6].map {
-                        Segment(duration: 500, gap: 500, gain: $0, sharp: 0.25)
+                    let parts = [0.4, 0.7, 1.0].map {
+                        Segment(duration: 500, gap: 500, gain: $0, sharp: 0.5)
                     }
                     var p = HapticPattern(name: T("help.test"), segments: parts)
                     p.loop = false
-                    try app.playback.begin(p, duration: 3, gain: 1, kind: "test")
+                    try app.playback.begin(p, duration: 3, gain: 1, speed: 1, sharp: 0.5, kind: "test")
                 }
             }.disabled(!app.playback.driver.supported)
+            Text(T("help.testLevels")).font(.caption).foregroundStyle(.secondary)
             HStack {
                 LoomButton(title: "help.felt", secondary: true) { felt = true }
                 LoomButton(title: "common.stop", secondary: true) { app.stopAll() }
             }
             if felt { Notice(text: "help.confirmed") }
+            Text(dispatchText).font(.caption).foregroundStyle(.secondary)
+                .accessibilityIdentifier("lastDispatch")
             ForEach(
                 ["help.settings", "help.case", "help.foreground", "help.temperature", "help.noBoost"],
                 id: \.self
@@ -105,6 +156,13 @@ struct TroubleshootingView: View {
                 if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) }
             }.frame(minHeight: 44)
         }.navigationTitle(T("help.troubleshoot"))
+    }
+    private var dispatchText: String {
+        guard let d = app.playback.lastDispatch else { return T("help.dispatchNone") }
+        let detail = String(
+            format: T("help.dispatchFormat"), d.target, "\(d.events)",
+            String(format: "%.2f", d.peakIntensity), String(format: "%.2f", d.sharpness))
+        return String(format: T("help.lastDispatch"), detail)
     }
 }
 struct HelpView: View {

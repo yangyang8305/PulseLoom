@@ -2,6 +2,8 @@ import PulseLoomCore
 import SwiftUI
 import UIKit
 
+/// Create keeps one tool visible at a time with a one-line hint, then name and save.
+/// Rarely used options stay in a collapsed group at the end.
 struct CreateView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var editor: EditorModel
@@ -13,122 +15,71 @@ struct CreateView: View {
     @FocusState private var nameFocused: Bool
     var body: some View {
         let workspace = editor.workspaceID
-        PlainScene {
-            HStack {
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(T("create.title")).font(.title.bold())
-                    Text(T("create.subtitle")).font(.footnote).foregroundStyle(c.muted)
+        PlainScene(spacing: 12) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(T("create.title")).font(.system(.title3, design: .serif).italic())
+                    Text(T("create.subtitle")).font(.caption2).foregroundStyle(c.muted).lineLimit(1)
                 }
                 Spacer()
-                Button {
-                    confirmNew = true
-                } label: {
-                    Image(systemName: "plus").frame(width: 44, height: 44)
-                }
+                LoomIconButton(symbol: "plus", label: T("common.new")) { confirmNew = true }
             }
             Picker(T("create.tool"), selection: Binding(get: { editor.tool }, set: { editor.choose($0) })) {
                 ForEach(EditorModel.Tool.allCases, id: \.self) { t in
                     Text(T("create.tool." + t.rawValue)).tag(t)
                 }
             }.pickerStyle(.segmented)
+            Text(T("create.hint." + editor.tool.rawValue)).font(.caption).foregroundStyle(c.muted)
+                .fixedSize(horizontal: false, vertical: true)
             if editor.tool == .tap || editor.tool == .xy {
-                ZStack {
-                    if editor.tool == .xy {
-                        RoundedRectangle(cornerRadius: 25).fill(
-                            LinearGradient(colors: [c.hero2, c.surface], startPoint: .top, endPoint: .bottom))
-                        Circle().fill(c.accent).frame(width: 30, height: 30).offset(
-                            x: (editor.x - 0.5) * 270, y: (0.5 - editor.y) * 220)
-                    } else {
-                        TactileArt(style: "orb", level: editor.down ? 1 : 0)
-                    }
-                    if !editor.recording {
-                        Text(T("record.startHint")).font(.system(.title3, design: .serif))
-                    }
-                    TouchSurface(
-                        began: { if editor.workspaceID == workspace { editor.touchBegan($0) } },
-                        moved: { if editor.workspaceID == workspace { editor.touchMoved($0) } },
-                        ended: { if editor.workspaceID == workspace { editor.endTouch() } })
-                }.frame(height: 240)
-                Text(timeText(editor.seconds) + " / 00:30").font(.title2.monospacedDigit()).frame(
-                    maxWidth: .infinity)
-                Text(String(format: T("record.count"), editor.touches)).font(.caption).foregroundStyle(
-                    c.muted
-                ).frame(maxWidth: .infinity)
-                LoomButton(title: editor.recording ? "record.end" : "record.begin", symbol: "record.circle") {
-                    if editor.recording { editor.end() } else { editor.start() }
-                }.accessibilityIdentifier("recordStart")
-                HStack {
-                    LoomButton(title: "common.undo", symbol: "arrow.uturn.backward", secondary: true) {
-                        editor.removeLastTouch()
-                    }
-                    LoomButton(title: "pattern.preview", symbol: "hand.tap", secondary: true) {
-                        editor.preview()
-                    }
-                }
-                // Accessible tap recording also has an ordinary button, independent of spatial gestures.
-                if editor.recording {
-                    Button(T("record.accessibleTap")) {
-                        editor.touchBegan(CGPoint(x: editor.x, y: 1 - editor.y))
-                        let take = editor.recordingID
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            guard editor.workspaceID == workspace else { return }
-                            editor.endTouch(recording: take)
-                        }
-                    }.frame(minHeight: 44)
-                }
-                if editor.tool == .xy {
-                    LoomSlider(title: "home.intensity", value: $editor.y)
-                    LoomSlider(title: "home.texture", value: $editor.x)
-                }
+                recorder(workspace)
             } else if editor.tool == .basic {
                 SegmentEditorView()
             } else {
                 CurveEditorView()
             }
-            TextField(
-                T("editor.name"),
-                text: $nameText
-            ).textFieldStyle(.roundedBorder).accessibilityIdentifier("patternName")
-                .focused($nameFocused)
-                .submitLabel(.done)
-                .onSubmit { finishNameEditing() }
-            if let e = editor.validationError { Text(e).font(.caption).foregroundStyle(.red) }
-            LoomButton(title: editor.saved ? "editor.saved" : "editor.save", symbol: "checkmark") {
-                finishNameEditing()
-                editor.save()
-            }.accessibilityIdentifier("savePattern")
-            if editor.tool != .tap {
-                LoomButton(title: "pattern.preview", symbol: "hand.tap", secondary: true) { editor.preview() }
-            }
-            DisclosureGroup(T("editor.options")) {
-                Toggle(
-                    T("editor.loop"),
-                    isOn: Binding(get: { editor.draft.loop }, set: { v in editor.change { $0.loop = v } })
-                ).padding(.vertical, 10)
-                Stepper(
-                    String(format: T("editor.fadeIn"), Int(editor.draft.fadeIn)),
-                    value: Binding(
-                        get: { editor.draft.fadeIn }, set: { v in editor.change { $0.fadeIn = v } }),
-                    in: 0...5000, step: 100)
-                Stepper(
-                    String(format: T("editor.fadeOut"), Int(editor.draft.fadeOut)),
-                    value: Binding(
-                        get: { editor.draft.fadeOut }, set: { v in editor.change { $0.fadeOut = v } }),
-                    in: 0...5000, step: 100)
-                HStack {
-                    Button(T("common.undo")) { editor.undo() }.disabled(!editor.canUndo)
-                    Spacer()
-                    Button(T("common.redo")) { editor.redo() }.disabled(!editor.canRedo)
-                }.frame(minHeight: 44)
-                LoomButton(title: "common.export", symbol: "square.and.arrow.up", secondary: true) {
+            HStack(spacing: 10) {
+                TextField(T("editor.name"), text: $nameText)
+                    .textFieldStyle(.roundedBorder).accessibilityIdentifier("patternName")
+                    .focused($nameFocused).submitLabel(.done).onSubmit { finishNameEditing() }
+                LoomButton(title: editor.saved ? "editor.saved" : "editor.save", symbol: "checkmark", fill: false) {
                     finishNameEditing()
-                    app.perform {
-                        try Validation.pattern(editor.draft)
-                        app.export(editor.draft, name: "PulseLoom-pattern")
-                    }
+                    editor.save()
+                }.accessibilityIdentifier("savePattern")
+            }
+            if let e = editor.validationError { Text(e).font(.caption).foregroundStyle(.red) }
+            if editor.tool != .tap && editor.tool != .xy {
+                HStack(spacing: 10) {
+                    LoomButton(title: "pattern.preview", symbol: "hand.tap", secondary: true, compact: true) { editor.preview() }
+                    LoomButton(title: "common.stop", symbol: "stop.fill", secondary: true, compact: true, fill: false) { app.stopAll() }
                 }
             }
-            Notice(text: "editor.localHelp")
+            DisclosureGroup(T("editor.options")) {
+                VStack(spacing: 10) {
+                    Toggle(T("editor.loop"), isOn: Binding(get: { editor.draft.loop }, set: { v in editor.change { $0.loop = v } }))
+                    Stepper(
+                        String(format: T("editor.fadeIn"), Int(editor.draft.fadeIn)),
+                        value: Binding(get: { editor.draft.fadeIn }, set: { v in editor.change { $0.fadeIn = v } }),
+                        in: 0...5000, step: 100)
+                    Stepper(
+                        String(format: T("editor.fadeOut"), Int(editor.draft.fadeOut)),
+                        value: Binding(get: { editor.draft.fadeOut }, set: { v in editor.change { $0.fadeOut = v } }),
+                        in: 0...5000, step: 100)
+                    HStack {
+                        Button(T("common.undo")) { editor.undo() }.disabled(!editor.canUndo)
+                        Spacer()
+                        Button(T("common.redo")) { editor.redo() }.disabled(!editor.canRedo)
+                    }.frame(minHeight: 44)
+                    LoomButton(title: "common.export", symbol: "square.and.arrow.up", secondary: true, compact: true) {
+                        finishNameEditing()
+                        app.perform {
+                            try Validation.pattern(editor.draft)
+                            app.export(editor.draft, name: "PulseLoom-pattern")
+                        }
+                    }
+                    Text(T("editor.localHelp")).font(.caption2).foregroundStyle(c.muted)
+                }.padding(.top, 8)
+            }.font(.subheadline)
         }.toolbar(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -191,7 +142,51 @@ struct CreateView: View {
             Text(editor.error ?? "")
         }
     }
-
+    @ViewBuilder private func recorder(_ workspace: UUID) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(LinearGradient(colors: [c.tint, c.surface], startPoint: .top, endPoint: .bottom))
+                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(c.line, lineWidth: 0.8))
+            if editor.tool == .xy {
+                Circle().fill(c.accent).frame(width: 28, height: 28)
+                    .shadow(color: c.accent.opacity(0.4), radius: 8)
+                    .offset(x: (editor.x - 0.5) * 260, y: (0.5 - editor.y) * 150)
+            } else {
+                HeroArt(level: editor.down ? 1 : 0, playing: editor.down).padding(16)
+            }
+            if !editor.recording {
+                Text(T("record.startHint")).font(.system(.subheadline, design: .serif)).foregroundStyle(c.muted)
+                    .padding(8).background(c.surface.opacity(0.8), in: Capsule())
+            }
+            TouchSurface(
+                began: { if editor.workspaceID == workspace { editor.touchBegan($0) } },
+                moved: { if editor.workspaceID == workspace { editor.touchMoved($0) } },
+                ended: { if editor.workspaceID == workspace { editor.endTouch() } })
+        }.frame(height: 190)
+        HStack {
+            Text(timeText(editor.seconds) + " / 00:30").font(.subheadline.monospacedDigit())
+            Spacer()
+            Text(String(format: T("record.count"), editor.touches)).font(.caption).foregroundStyle(c.muted)
+        }
+        HStack(spacing: 10) {
+            LoomButton(title: editor.recording ? "record.end" : "record.begin", symbol: "record.circle") {
+                if editor.recording { editor.end() } else { editor.start() }
+            }.accessibilityIdentifier("recordStart")
+            LoomIconButton(symbol: "arrow.uturn.backward", label: T("common.undo")) { editor.removeLastTouch() }
+            LoomIconButton(symbol: "hand.tap", label: T("pattern.preview")) { editor.preview() }
+        }
+        // Accessible tap recording also has an ordinary button, independent of spatial gestures.
+        if editor.recording {
+            Button(T("record.accessibleTap")) {
+                editor.touchBegan(CGPoint(x: editor.x, y: 1 - editor.y))
+                let take = editor.recordingID
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    guard editor.workspaceID == workspace else { return }
+                    editor.endTouch(recording: take)
+                }
+            }.frame(minHeight: 44)
+        }
+    }
     private func finishNameEditing() {
         commitName()
         nameFocused = false
@@ -208,92 +203,91 @@ struct CreateView: View {
         editor.nameBinding.wrappedValue = nameText
     }
 }
+
+/// Bars show each segment's length and strength; the selected one is adjusted with two sliders and
+/// two steppers, in plain words.
 struct SegmentEditorView: View {
     @EnvironmentObject var editor: EditorModel
     @Environment(\.loom) var c
     var body: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            ScrollView(.horizontal) {
+        VStack(alignment: .leading, spacing: 10) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .bottom, spacing: 5) {
                     ForEach(Array(editor.draft.segments.enumerated()), id: \.element.id) { i, s in
                         Button {
                             editor.selected = i
                         } label: {
-                            VStack {
-                                RoundedRectangle(cornerRadius: 7).fill(
+                            VStack(spacing: 3) {
+                                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(
                                     editor.selected == i ? c.accent : c.hero2
                                 ).frame(
-                                    width: CGFloat(max(24, (s.duration + s.gap) / 15)) * CGFloat(editor.zoom),
-                                    height: 20 + s.gain * 40)
-                                Text("\(i+1)").font(.caption2)
+                                    width: CGFloat(max(22, (s.duration + s.gap) / 15)) * CGFloat(editor.zoom),
+                                    height: 18 + s.gain * 42)
+                                Text("\(i+1)").font(.caption2).foregroundStyle(editor.selected == i ? c.ink : c.muted)
                             }
-                        }
+                        }.buttonStyle(.plain)
                     }
-                }.padding(5)
+                }.padding(6)
             }
+            .background(c.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             HStack {
-                Text(
-                    String(
-                        format: T("editor.segmentCount"), editor.draft.segments.count,
-                        editor.draft.durationMS / 1000)
-                ).font(.caption)
+                Text(String(format: T("editor.segmentCount"), editor.draft.segments.count, editor.draft.durationMS / 1000))
+                    .font(.caption).foregroundStyle(c.muted)
                 Spacer()
-                Button("\(editor.zoom)×") { editor.zoom = editor.zoom == 4 ? 1 : editor.zoom * 2 }.frame(
-                    minHeight: 44)
+                Button("\(editor.zoom)×") { editor.zoom = editor.zoom == 4 ? 1 : editor.zoom * 2 }.font(.caption).frame(minHeight: 32)
+                Button {
+                    editor.addSegment()
+                } label: {
+                    Label(T("editor.add"), systemImage: "plus").font(.caption)
+                }.frame(minHeight: 32)
             }
             if editor.draft.segments.indices.contains(editor.selected) {
-                LoomCard {
-                    VStack(spacing: 14) {
+                LoomCard(padding: 14) {
+                    VStack(spacing: 10) {
                         HStack {
                             Text(String(format: T("editor.segment"), editor.selected + 1)).font(.headline)
                             Spacer()
-                            Button {
-                                editor.deleteSegment()
-                            } label: {
-                                Image(systemName: "trash").frame(width: 44, height: 44)
-                            }
+                            Button { editor.move(-1) } label: { Image(systemName: "arrow.left").frame(width: 36, height: 36) }
+                                .accessibilityLabel(T("editor.moveBefore"))
+                            Button { editor.move(1) } label: { Image(systemName: "arrow.right").frame(width: 36, height: 36) }
+                                .accessibilityLabel(T("editor.moveAfter"))
+                            Button { editor.duplicate() } label: { Image(systemName: "doc.on.doc").frame(width: 36, height: 36) }
+                                .accessibilityLabel(T("common.duplicate"))
+                            Button { editor.deleteSegment() } label: { Image(systemName: "trash").frame(width: 36, height: 36) }
+                                .accessibilityLabel(T("common.delete"))
                         }
-                        LoomSlider(title: "home.intensity", value: editor.segmentBinding(\.gain)) {
-                            editor.endEditingGesture()
+                        LoomSlider(title: "home.intensity", value: editor.segmentBinding(\.gain)) { editor.endEditingGesture() }
+                        LoomSlider(title: "home.texture", value: editor.segmentBinding(\.sharp)) { editor.endEditingGesture() }
+                        Toggle(T("editor.tapType"), isOn: tapBinding).font(.subheadline)
+                        if !isTap {
+                            Stepper(
+                                T("editor.duration") + ": \(Int(editor.segmentBinding(\.duration).wrappedValue)) " + T("unit.ms"),
+                                value: editor.segmentBinding(\.duration), in: 50...2000, step: 50,
+                                onEditingChanged: { if !$0 { editor.endEditingGesture() } }
+                            ).font(.subheadline)
                         }
-                        LoomSlider(title: "home.texture", value: editor.segmentBinding(\.sharp)) {
-                            editor.endEditingGesture()
-                        }
-                        NumberInput(
-                            title: "editor.duration", value: editor.segmentBinding(\.duration),
-                            unit: "unit.ms"
-                        ) { editor.endEditingGesture() }
-                        NumberInput(title: "editor.gap", value: editor.segmentBinding(\.gap), unit: "unit.ms")
-                        { editor.endEditingGesture() }
-                        HStack {
-                            Button {
-                                editor.move(-1)
-                            } label: {
-                                Image(systemName: "arrow.left").frame(width: 44, height: 44)
-                            }.accessibilityLabel(T("editor.moveBefore"))
-                            Button {
-                                editor.move(1)
-                            } label: {
-                                Image(systemName: "arrow.right").frame(width: 44, height: 44)
-                            }.accessibilityLabel(T("editor.moveAfter"))
-                            Spacer()
-                            Button {
-                                editor.duplicate()
-                            } label: {
-                                Image(systemName: "doc.on.doc").frame(width: 44, height: 44)
-                            }.accessibilityLabel(T("common.duplicate"))
-                            Button {
-                                editor.addSegment()
-                            } label: {
-                                Image(systemName: "plus").frame(width: 44, height: 44)
-                            }.accessibilityLabel(T("editor.add"))
-                        }
+                        Stepper(
+                            T("editor.gap") + ": \(Int(editor.segmentBinding(\.gap).wrappedValue)) " + T("unit.ms"),
+                            value: editor.segmentBinding(\.gap), in: 0...5000, step: 50,
+                            onEditingChanged: { if !$0 { editor.endEditingGesture() } }
+                        ).font(.subheadline)
                     }
                 }
-            } else {
-                LoomButton(title: "editor.add", symbol: "plus", secondary: true) { editor.addSegment() }
             }
         }
+    }
+    private var isTap: Bool {
+        editor.draft.segments.indices.contains(editor.selected) && editor.draft.segments[editor.selected].type == .transient
+    }
+    private var tapBinding: Binding<Bool> {
+        Binding(get: { isTap }, set: { on in
+            guard editor.draft.segments.indices.contains(editor.selected) else { return }
+            let index = editor.selected
+            editor.change { p in
+                p.segments[index].type = on ? .transient : .continuous
+                p.segments[index].duration = on ? 30 : max(50, p.segments[index].duration)
+            }
+        })
     }
 }
 struct NumberInput: View {
@@ -317,33 +311,29 @@ struct NumberInput: View {
 // Keep each view-builder expression small enough for Apple SDK type checking.
 struct CurveEditorView: View {
     @EnvironmentObject var editor: EditorModel
-
     var body: some View {
-        VStack(spacing: 15) {
-            CurveCanvasView().frame(height: 185)
+        VStack(spacing: 12) {
+            CurveCanvasView().frame(height: 180)
             cycleControl
             templateButtons
-            LoomButton(title: "editor.addNode", symbol: "plus", secondary: true) { editor.addNode() }
+            LoomButton(title: "editor.addNode", symbol: "plus", secondary: true, compact: true) { editor.addNode() }
             DisclosureGroup(T("editor.nodeValues")) {
                 ForEach(editor.draft.nodes) { node in
                     CurveNodeFields(nodeID: node.id)
                 }
-            }
+            }.font(.subheadline)
         }
     }
-
     private var cycleControl: some View {
         Stepper(
             String(format: T("editor.cycle"), editor.draft.cycle / 1000),
             value: Binding(get: { editor.draft.cycle / 1000 }, set: { editor.length($0) }),
-            in: 0.1...30, step: 0.5)
+            in: 0.1...30, step: 0.5).font(.subheadline)
     }
-
     private var templateButtons: some View {
-        HStack {
+        HStack(spacing: 8) {
             ForEach(["wave", "rise", "fall"], id: \.self) { name in
-                Button(T("curve.template." + name)) { editor.applyCurveTemplate(name) }
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                LoomChip(title: T("curve.template." + name)) { editor.applyCurveTemplate(name) }
             }
         }
     }
@@ -352,11 +342,12 @@ struct CurveEditorView: View {
 private struct CurveCanvasView: View {
     @EnvironmentObject var editor: EditorModel
     @Environment(\.loom) var c
-
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 20).fill(c.tint)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(LinearGradient(colors: [c.tint, c.surface], startPoint: .top, endPoint: .bottom))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(c.line, lineWidth: 0.8))
                     .onTapGesture(coordinateSpace: .local) { point in
                         editor.addNode(time: time(at: point.x, size: geometry.size))
                     }
@@ -368,18 +359,15 @@ private struct CurveCanvasView: View {
             }.coordinateSpace(name: "curve")
         }
     }
-
     private func position(_ node: CurveNode, size: CGSize) -> CGPoint {
         let cycle = max(1, editor.draft.cycle)
         let x = 12 + CGFloat(node.time / cycle) * max(1, size.width - 24)
         let y = 12 + CGFloat(1 - node.value) * max(1, size.height - 24)
         return CGPoint(x: x, y: y)
     }
-
     private func time(at x: CGFloat, size: CGSize) -> Double {
         Double((x - 12) / max(1, size.width - 24)) * editor.draft.cycle
     }
-
     private func curvePath(in size: CGSize) -> Path {
         Path { path in
             for (index, node) in editor.draft.nodes.enumerated() {
@@ -388,7 +376,6 @@ private struct CurveCanvasView: View {
             }
         }
     }
-
     private func nodeHandle(_ node: CurveNode, size: CGSize) -> some View {
         let number = (editor.draft.nodes.firstIndex { $0.id == node.id } ?? 0) + 1
         return Circle().fill(c.surface)
@@ -413,10 +400,8 @@ private struct CurveCanvasView: View {
 private struct CurveNodeFields: View {
     @EnvironmentObject var editor: EditorModel
     let nodeID: UUID
-
     private var index: Int? { editor.draft.nodes.firstIndex { $0.id == nodeID } }
     private var node: CurveNode? { editor.draft.nodes.first { $0.id == nodeID } }
-
     var body: some View {
         if let index {
             VStack {
@@ -435,7 +420,6 @@ private struct CurveNodeFields: View {
             }.padding(.vertical, 6)
         }
     }
-
     // Resolve by identity on every edit so deletion never leaves a stale captured index/value.
     private var timeBinding: Binding<Double> {
         Binding(
@@ -446,7 +430,6 @@ private struct CurveNodeFields: View {
                 editor.endEditingGesture()
             })
     }
-
     private var intensityBinding: Binding<Double> {
         Binding(
             get: { (node?.value ?? 0) * 100 },

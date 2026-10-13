@@ -87,7 +87,7 @@ public struct HapticPattern: Codable, Equatable, Identifiable, Sendable {
     public var durationMS: Double {
         mode == .curve ? cycle : segments.reduce(0) { $0 + $1.duration + $1.gap }
     }
-    public func displayName(language: String = Locale.current.language.languageCode?.identifier ?? "en")
+    public func displayName(language: String = LoomLanguage.current)
         -> String
     {
         guard builtin else { return name }
@@ -116,9 +116,11 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var name = ""
     public var theme = "blush"
     public var appearance: Appearance = .auto
-    public var gain = 0.55
+    /// 1.0 is the device's full output; presets are tuned so their loudest segment reaches it.
+    public var gain = 0.8
     public var speed = 1.0
-    public var sharpness = 0.25
+    /// 0.5 plays each segment's own texture; lower softens, higher sharpens.
+    public var sharpness = 0.5
     public var timer = 180.0
     public var lastPattern = "p02"
     public var keepAwake = true

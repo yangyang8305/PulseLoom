@@ -7,6 +7,9 @@ import PulseLoomCore
     enum Status { case empty, loading, ready, failed }
     @Published private(set) var status: Status = .empty
     @Published private(set) var name = ""
+    /// Which bundled piece is loaded, if any. Bundled pieces are app content: no preview limit.
+    @Published private(set) var bundledID: String?
+    private var pendingBundled: BundledTrack?
     @Published private(set) var analysis: AudioAnalysis?
     @Published private(set) var isPlaying = false
     @Published private(set) var position = 0.0
@@ -43,7 +46,17 @@ import PulseLoomCore
         task?.cancel()
         decoding?.cancel()
     }
+    /// Load one of the pieces shipped with the app.
+    func loadBundled(_ track: BundledTrack) {
+        guard let url = track.url else {
+            error = T("error.trackMissing")
+            return
+        }
+        pendingBundled = track
+        load(url: url)
+    }
     func load(url: URL) {
+        if pendingBundled?.url != url { pendingBundled = nil }
         stop(reason: "replaced")
         task?.cancel()
         decoding?.cancel()
@@ -77,7 +90,9 @@ import PulseLoomCore
                 self.tempURL = result.0
                 self.player = next
                 self.analysis = result.1
-                self.name = url.deletingPathExtension().lastPathComponent
+                self.name = self.pendingBundled?.displayName() ?? url.deletingPathExtension().lastPathComponent
+                self.bundledID = self.pendingBundled?.id
+                self.pendingBundled = nil
                 self.config.from = 0
                 self.config.to = result.1.duration
                 self.position = 0
@@ -129,7 +144,12 @@ import PulseLoomCore
             throw error
         }
     }
+    /// The first bundled piece, or the synthesized tone when the bundle has none (tests).
     func demo(mist: Bool = false) {
+        if let first = BundledMusic.tracks.first, !mist {
+            loadBundled(first)
+            return
+        }
         pause()
         task?.cancel()
         let u = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -153,9 +173,9 @@ import PulseLoomCore
         // Retain a previous valid player for explicit cancellation/recovery, but
         // never acquire output for it while a replacement is loading or failed.
         guard status == .ready, let player, let analysis else {
-            throw LoomError.unavailable(NSLocalizedString("music.select", comment: ""))
+            throw LoomError.unavailable(T("music.select"))
         }
-        guard pro || activePlayed < 60 else { throw LoomError.entitlement }
+        guard pro || bundledID != nil || activePlayed < 60 else { throw LoomError.entitlement }
         try Validation.music(config, duration: analysis.duration)
         try acquire?()
         let audio = AVAudioSession.sharedInstance()
@@ -176,12 +196,13 @@ import PulseLoomCore
         sessionPlayed += max(0, now - lastTick)
         lastTick = now
         position = player.currentTime
-        if !player.isPlaying || position >= endpoint || (!pro && activePlayed >= 60) {
-            let reason = (!pro && activePlayed >= 60) ? "preview_limit" : "completed"
+        let limited = !pro && bundledID == nil && activePlayed >= 60
+        if !player.isPlaying || position >= endpoint || limited {
+            let reason = limited ? "preview_limit" : "completed"
             pause()
             finished?(name, sessionPlayed, reason)
             sessionPlayed = 0
-            if reason == "preview_limit" { error = NSLocalizedString("music.previewEnded", comment: "") }
+            if reason == "preview_limit" { error = T("music.previewEnded") }
             return
         }
         let overlay = Catalog.presets.first { $0.id == config.overlay }
@@ -221,6 +242,7 @@ import PulseLoomCore
         pause()
         cancelLoad()
         player = nil
+        bundledID = nil
         analysis = nil
         name = ""
         status = .empty

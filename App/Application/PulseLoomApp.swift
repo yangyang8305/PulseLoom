@@ -4,7 +4,10 @@ import SwiftUI
 @main struct PulseLoomApp: App {
     @StateObject private var app = AppModel()
     @StateObject private var editor = EditorModel()
-    var body: some Scene { WindowGroup { RootView().environmentObject(app).environmentObject(editor) } }
+    init() { AppLanguage.restore() }
+    var body: some Scene {
+        WindowGroup { RootView().environmentObject(app).environmentObject(editor).id(app.language).environment(\.locale, AppLanguage.locale) }
+    }
 }
 struct RootView: View {
     @EnvironmentObject var app: AppModel
@@ -13,6 +16,19 @@ struct RootView: View {
     @Environment(\.scenePhase) var scenePhase
     var dark: Bool { app.prefs.appearance == .dark || app.prefs.appearance == .auto && scheme == .dark }
     var body: some View {
+        ZStack {
+            content
+            if app.locked { LockScreenView().transition(.opacity).zIndex(10) }
+        }
+        .animation(.easeInOut(duration: 0.25), value: app.locked)
+        .alert(T("lock.confirmTitle"), isPresented: $app.lockPrompt) {
+            Button(T("lock.confirm")) { app.lock() }.accessibilityIdentifier("lockConfirm")
+            Button(T("common.cancel"), role: .cancel) {}
+        } message: {
+            Text(T("lock.confirmMessage"))
+        }
+    }
+    private var content: some View {
         Group {
             if app.library.recoveryRequired {
                 LibraryRecoveryView()
@@ -31,14 +47,6 @@ struct RootView: View {
                     NavigationStack { MyView() }.tabItem { Label(T("tab.my"), systemImage: "person") }.tag(
                         MainTab.my)
                 }.tint(Color(hex: dark ? app.theme.dark[4] : app.theme.light[4]))
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if app.tab != .home && !(app.tab == .music && app.music.isPlaying)
-                            && (app.playback.isPlaying || app.music.isPlaying || app.sound.active
-                                || app.systemMusic.playing)
-                        {
-                            MiniControl()
-                        }
-                    }
             }
         }
         .environment(\.loom, LoomColors(theme: app.theme, dark: dark))
@@ -56,11 +64,13 @@ struct RootView: View {
         .sheet(item: $app.sheet) { route in
             sheet(route).environmentObject(app).environmentObject(editor).environment(
                 \.loom, LoomColors(theme: app.theme, dark: dark))
+                .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
         }
         .sheet(item: $app.share) { item in ShareSheet(url: item.url) }
         .sheet(isPresented: $app.showInvite) {
             NavigationStack { RemoteView() }.environmentObject(app).environment(
                 \.loom, LoomColors(theme: app.theme, dark: dark))
+                .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
         }
         .alert(
             T("common.error"),
@@ -96,50 +106,11 @@ struct RootView: View {
         case .timer: TimerView().presentationDetents([.medium, .large])
         case .adjust: AdjustmentView().presentationDetents([.medium, .large])
         case .themes: ThemeView()
+        case .artwork: ArtworkView()
         case .premium: PremiumView()
         case .musicSources: NavigationStack { SystemMusicView() }
         case .mixes: MusicMixesView()
-        case .focus: NavigationStack { FocusView() }
         }
-    }
-}
-struct MiniControl: View {
-    @EnvironmentObject var app: AppModel
-    @Environment(\.loom) var c
-    var body: some View {
-        HStack {
-            Button {
-                app.tab = app.music.isPlaying || app.systemMusic.playing ? .music : .home
-            } label: {
-                Text(
-                    app.music.isPlaying
-                        ? app.music.name
-                        : app.systemMusic.playing
-                            ? (app.systemMusic.selected?.title ?? T("music.appleMusic"))
-                            : app.sound.active && !app.playback.isPlaying
-                                ? T("sound.title") : app.playback.title
-                ).font(.caption).lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Button {
-                if app.music.isPlaying {
-                    app.music.pause()
-                } else if app.systemMusic.playing {
-                    app.systemMusic.pause()
-                } else if app.sound.active && !app.playback.isPlaying {
-                    app.sound.stop()
-                } else {
-                    app.playback.pause()
-                }
-            } label: {
-                Image(systemName: "pause").frame(width: 44, height: 44)
-            }
-            Button {
-                app.stopAll()
-            } label: {
-                Image(systemName: "stop").frame(width: 44, height: 44)
-            }
-        }.padding(.horizontal, 18).background(c.tint).foregroundStyle(c.ink)
     }
 }
 struct WelcomeView: View {
@@ -149,14 +120,14 @@ struct WelcomeView: View {
     @State private var page = 0
     @State private var showTest = false
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 20)
-            TactileArt(style: app.theme.art).frame(height: 230)
-            Text("Pulse\nLoom").font(.system(size: 61, weight: .regular, design: .serif).italic())
+        VStack(spacing: 16) {
+            Spacer(minLength: 12)
+            HeroArt().frame(maxHeight: 260)
+            Text("Pulse Loom").font(.system(size: 44, weight: .regular, design: .serif).italic())
                 .multilineTextAlignment(.center)
             Text(T("welcome.subtitle")).font(.headline)
             Text(T("welcome.detail")).font(.footnote).multilineTextAlignment(.center).foregroundStyle(c.muted)
-            Spacer(minLength: 25)
+            Spacer(minLength: 12)
             LoomButton(title: "welcome.enter", symbol: "arrow.right") {
                 app.perform { try app.library.preferences { $0.onboarded = true } }
             }.accessibilityIdentifier("welcomeEnter")
@@ -166,7 +137,7 @@ struct WelcomeView: View {
                 NavigationStack {
                     PlainScene {
                         Text(T(page == 0 ? "welcome.guide1Title" : "welcome.guide2Title")).font(.largeTitle)
-                        TactileArt(style: page == 0 ? "flower" : "orb").frame(height: 200)
+                        LoomArt(style: page == 0 ? "flower" : "orb").frame(height: 200)
                         Text(T(page == 0 ? "welcome.guide1" : "welcome.guide2"))
                         LoomButton(title: page == 0 ? "common.continue" : "welcome.test") {
                             if page == 0 { page = 1 } else { showTest = true }
@@ -184,24 +155,5 @@ struct WelcomeView: View {
                     }
                 }
             }
-    }
-}
-struct FocusView: View {
-    @EnvironmentObject var app: AppModel
-    var body: some View {
-        PlainScene {
-            Text(app.current.displayName()).font(.system(.largeTitle, design: .serif))
-            TactileArt(style: app.theme.art, level: app.playback.level).frame(height: 235)
-            Text(timeText(app.playback.remaining)).font(.title.monospacedDigit()).frame(maxWidth: .infinity)
-            // Bind the mutable property on the existing coordinator; do not replace the service.
-            Toggle(
-                T("home.guard"),
-                isOn: Binding(
-                    get: { app.playback.guardEnabled },
-                    set: { app.playback.guardEnabled = $0 }))
-            LoomSlider(title: "home.intensity", value: app.pref(\.gain)) { app.perform { try app.adjust() } }
-                .disabled(app.playback.guardEnabled)
-            HapticDock()
-        }.navigationTitle(T("home.focus"))
     }
 }

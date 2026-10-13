@@ -48,7 +48,7 @@ import PulseLoomCore
         else { throw LoomError.unavailable("CloudKit container is not configured.") }
         let c = CKContainer(identifier: id)
         guard try await c.accountStatus() == .available else {
-            throw LoomError.unavailable(NSLocalizedString("sync.account", comment: ""))
+            throw LoomError.unavailable(T("sync.account"))
         }
         try requireCurrent(expected)
         database = .live(c.privateCloudDatabase)
@@ -65,7 +65,7 @@ import PulseLoomCore
     func synchronize(_ local: LibrarySnapshot) async throws -> LibrarySnapshot? {
         let expected = generation
         guard let database else {
-            throw LoomError.unavailable(NSLocalizedString("sync.account", comment: ""))
+            throw LoomError.unavailable(T("sync.account"))
         }
         guard state != .syncing else { throw LoomError.unavailable("A sync is already in progress.") }
         state = .syncing

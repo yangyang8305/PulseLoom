@@ -12,7 +12,7 @@ public struct SessionClock: Sendable {
     public init() {}
     public var remaining: Double { max(0, limit - played) }
     public mutating func start(now: Double, duration: Double) throws {
-        guard now.isFinite, Validation.finite(duration, 0.05...600) else {
+        guard now.isFinite, Validation.finite(duration, 0.05...7200) else {
             throw LoomError.invalid("Invalid session timing.")
         }
         generation &+= 1
@@ -43,10 +43,10 @@ public struct SessionClock: Sendable {
         generation &+= 1
     }
     public mutating func setRemaining(_ seconds: Double) throws {
-        guard Validation.finite(seconds, 0...600) else {
+        guard Validation.finite(seconds, 0...7200) else {
             throw LoomError.invalid("Timer must be within 10 minutes.")
         }
-        limit = min(600, played + seconds)
+        limit = min(7200, played + seconds)
     }
     public mutating func stop() {
         state = .idle

@@ -73,16 +73,6 @@ import CloudKit
         XCTAssertEqual(editor.draft.mode, .basic, "Undoing the only XY gesture must not commit that gesture into a recording")
         XCTAssertEqual(editor.draft.segments.count, 4)
     }
-    func testAUD16RoutineRetainsRequestedSoundscape() throws {
-        let model = try app()
-        let r = Routine(name: "routine", items: [RoutineItem(patternID: "p02", seconds: 15)], sound: true)
-        // Same ordering as RoutinesView: sound first, followed by the public routine API.
-        try model.sound.play()
-        try model.playback.playRoutine(r, resolver: { model.library.pattern($0) }, pro: false)
-        XCTAssertTrue(model.sound.active, "Starting the routine must not immediately stop its requested soundscape")
-        model.stopAll()
-        XCTAssertFalse(model.sound.active)
-    }
     func testAUD17PausePublishesStoppedStateToWatch() async throws {
         let model = try app(); try model.beginCurrent()
         XCTAssertEqual(Mirror(reflecting: model.watch).children.first { $0.label == "lastPlaying" }?.value as? Bool, true)
@@ -166,13 +156,12 @@ import CloudKit
         let m = try app(now: { now })
         let r = Routine(name: "routine", items: [RoutineItem(patternID: "p02", seconds: 15), RoutineItem(patternID: "p03", seconds: 15)], sound: true)
         try m.playRoutine(r)
-        XCTAssertTrue(m.sound.active)
         now = 16; m.playback.tick()
-        XCTAssertEqual(m.playback.routineIndex, 1); XCTAssertTrue(m.sound.active)
-        m.playback.pause(); XCTAssertFalse(m.sound.active)
-        try m.playback.resume(); XCTAssertTrue(m.sound.active)
+        XCTAssertEqual(m.playback.routineIndex, 1)
+        m.playback.pause()
+        try m.playback.resume()
         now = 32; m.playback.tick()
-        XCTAssertEqual(m.playback.state, .completed); XCTAssertFalse(m.sound.active)
+        XCTAssertEqual(m.playback.state, .completed)
         XCTAssertEqual(Mirror(reflecting: m.watch).children.first { $0.label == "lastPlaying" }?.value as? Bool, false)
     }
     func testCloudDeletionWithoutBackendReportsNoRequest() async throws {

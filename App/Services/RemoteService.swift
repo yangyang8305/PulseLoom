@@ -68,7 +68,7 @@ import PulseLoomCore
     func create() async throws {
         guard hasPro, foreground else { throw LoomError.entitlement }
         guard let server else {
-            throw LoomError.unavailable(NSLocalizedString("remote.notConfigured", comment: ""))
+            throw LoomError.unavailable(T("remote.notConfigured"))
         }
         var req = URLRequest(url: server.appendingPathComponent("v1/rooms"))
         req.httpMethod = "POST"
@@ -315,7 +315,7 @@ import PulseLoomCore
                     self.consent.revoke()
                     self.onSafetyStop?()
                     self.peerPresent = false
-                    self.error = NSLocalizedString("remote.timeout", comment: "")
+                    self.error = T("remote.timeout")
                 }
                 do { try await self.send(action: "ping") } catch {
                     self.error = error.localizedDescription

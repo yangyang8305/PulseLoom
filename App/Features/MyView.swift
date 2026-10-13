@@ -2,127 +2,70 @@ import PulseLoomCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// One screen: who you are, your library, three rows (theme, Pro, settings) and a grid of extras.
 struct MyView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.loom) var c
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
     var body: some View {
-        PlainScene {
-            Text(T("my.title")).font(.title.bold())
-            HStack(spacing: 18) {
-                Image(systemName: "leaf").font(.system(size: 28, weight: .ultraLight)).frame(
-                    width: 65, height: 65
-                ).background(c.tint, in: Circle())
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(app.prefs.name.isEmpty ? T("my.space") : app.prefs.name).font(
-                        .system(.title2, design: .serif))
+        PlainScene(spacing: 14) {
+            HStack(spacing: 14) {
+                LoomArt(style: app.theme.art).frame(width: 64, height: 64)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(app.prefs.name.isEmpty ? T("my.space") : app.prefs.name).font(.system(.title2, design: .serif))
                     Text(T("my.subtitle")).font(.footnote).foregroundStyle(c.muted)
                 }
             }
-            HStack {
-                NavigationLink {
-                    SavedPatternsView()
-                } label: {
-                    counter(app.library.snapshot.custom.count, "my.patterns")
-                }
-                Spacer()
-                NavigationLink {
-                    FavoritesView()
-                } label: {
-                    counter(app.library.snapshot.favorites.count, "my.favorites")
-                }
-                Spacer()
-                NavigationLink {
-                    HistoryView()
-                } label: {
-                    counter(app.library.history.count, "my.history")
+            LoomCard(padding: 12) {
+                HStack {
+                    NavigationLink { SavedPatternsView() } label: { counter(app.library.snapshot.custom.count, "my.patterns") }
+                    Divider().frame(height: 36)
+                    NavigationLink { FavoritesView() } label: { counter(app.library.snapshot.favorites.count, "my.favorites") }
+                    Divider().frame(height: 36)
+                    NavigationLink { HistoryView() } label: { counter(app.library.history.count, "my.history") }
                 }
             }
-            Divider()
-            Button {
-                app.sheet = .themes
-            } label: {
-                MyRow(title: "theme.title", symbol: "leaf", subtitle: app.theme.chineseName)
-            }
-            Button {
-                app.sheet = .premium
-            } label: {
-                MyRow(
-                    title: "purchase.title", symbol: "sparkle",
-                    subtitle: app.pro ? T("purchase.active") : T("purchase.free"))
-            }
-            NavigationLink {
-                SettingsView()
-            } label: {
-                MyRow(title: "settings.title", symbol: "gearshape")
-            }
-            DisclosureGroup(T("my.more")) {
-                NavigationLink {
-                    RoutinesView()
-                } label: {
-                    MyRow(title: "routine.title", symbol: "list.bullet")
+            VStack(spacing: 0) {
+                Button { app.sheet = .artwork } label: { LoomRow(title: "artwork.title", symbol: "sparkles", subtitle: T("artwork." + app.artwork)) }
+                Button { app.sheet = .themes } label: { LoomRow(title: "theme.title", symbol: "paintpalette", subtitle: app.theme.displayName()) }
+                Divider()
+                Button { app.sheet = .premium } label: {
+                    LoomRow(title: "purchase.title", symbol: "sparkle", subtitle: app.pro ? T("purchase.active") : T("purchase.free"))
                 }
-                NavigationLink {
-                    BreathView()
-                } label: {
-                    MyRow(title: "breath.title", symbol: "wind")
-                }
-                NavigationLink {
-                    SoundscapeView()
-                } label: {
-                    MyRow(title: "sound.title", symbol: "waveform")
-                }
-                NavigationLink {
-                    ManualView()
-                } label: {
-                    MyRow(title: "manual.title", symbol: "hand.tap")
-                }
-                NavigationLink {
-                    CloudView()
-                } label: {
-                    MyRow(title: "sync.title", symbol: "icloud")
-                }
-                NavigationLink {
-                    RemoteView()
-                } label: {
-                    MyRow(title: "remote.title", symbol: "link")
-                }
-                NavigationLink {
-                    WatchSettingsView()
-                } label: {
-                    MyRow(title: "watch.title", symbol: "applewatch")
-                }
-                NavigationLink {
-                    WidgetSettingsView()
-                } label: {
-                    MyRow(title: "widget.title", symbol: "square.grid.2x2")
-                }
+                Divider()
+                NavigationLink { SettingsView() } label: { LoomRow(title: "settings.title", symbol: "gearshape") }
+            }.buttonStyle(.plain)
+            LoomSection(title: "my.more")
+            LazyVGrid(columns: columns, spacing: 10) {
+                tile("routine.title", "list.bullet") { RoutinesView() }
+                tile("breath.title", "wind") { BreathView() }
+                tile("manual.title", "hand.tap") { ManualView() }
+                tile("sync.title", "icloud") { CloudView() }
+                tile("remote.title", "link") { RemoteView() }
+                tile("watch.title", "applewatch") { WatchSettingsView() }
+                tile("widget.title", "square.grid.2x2") { WidgetSettingsView() }
             }
         }.toolbar(.hidden, for: .navigationBar)
     }
     private func counter(_ n: Int, _ title: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Text("\(n)").font(.system(.title2, design: .serif))
-            Text(T(title)).font(.caption)
-        }.frame(minHeight: 55).foregroundStyle(c.ink)
+            Text(T(title)).font(.caption).lineLimit(1).minimumScaleFactor(0.8)
+        }.frame(maxWidth: .infinity, minHeight: 50).foregroundStyle(c.ink)
+    }
+    private func tile<Destination: View>(_ title: String, _ symbol: String, @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink(destination: destination) {
+            VStack(spacing: 6) {
+                Image(systemName: symbol).font(.body.weight(.medium)).foregroundStyle(c.accent)
+                    .frame(width: 38, height: 38).background(c.tint, in: Circle())
+                Text(T(title)).font(.caption2).foregroundStyle(c.ink).lineLimit(2).multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.8)
+            }.frame(maxWidth: .infinity, minHeight: 72)
+        }.buttonStyle(.plain)
     }
 }
-struct MyRow: View {
-    @Environment(\.loom) var c
-    let title: String
-    let symbol: String
-    var subtitle = ""
-    var body: some View {
-        HStack(spacing: 13) {
-            Image(systemName: symbol).frame(width: 26).foregroundStyle(c.accent)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(T(title)).font(.subheadline)
-                if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(c.muted) }
-            }
-            Spacer()
-            Image(systemName: "chevron.right").font(.caption).foregroundStyle(c.muted)
-        }.frame(minHeight: 58).contentShape(Rectangle()).foregroundStyle(c.ink)
-    }
-}
+typealias MyRow = LoomRow
+
 struct SavedPatternsView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var editor: EditorModel
@@ -271,27 +214,33 @@ struct ThemeView: View {
     @State private var preview: ThemeDefinition?
     var body: some View {
         NavigationStack {
-            PlainScene {
+            PlainScene(spacing: 14) {
                 Picker(T("theme.appearance"), selection: app.pref(\.appearance)) {
                     ForEach(Appearance.allCases, id: \.self) { a in Text(T("theme." + a.rawValue)).tag(a) }
                 }.pickerStyle(.segmented)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                Text(T("theme.palette")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     ForEach(Catalog.themes) { t in
-                        let dark =
-                            app.prefs.appearance == .dark || app.prefs.appearance == .auto && system == .dark
+                        let dark = app.prefs.appearance == .dark || app.prefs.appearance == .auto && system == .dark
+                        let colors = LoomColors(theme: t, dark: dark)
                         Button {
                             preview = t
                         } label: {
                             VStack(alignment: .leading, spacing: 8) {
-                                TactileArt(style: t.art).frame(height: 128).environment(
-                                    \.loom, LoomColors(theme: t, dark: dark))
-                                Text(t.name).font(.system(.title3, design: .serif))
-                                Text(t.chineseName + " · " + (t.free ? T("common.free") : "Pro")).font(
-                                    .caption)
-                            }.padding(13).background(
-                                Color(hex: dark ? t.dark[1] : t.light[1]),
-                                in: RoundedRectangle(cornerRadius: 23)
-                            ).foregroundStyle(Color(hex: dark ? t.dark[5] : t.light[5]))
+                                ThemeSwatch(colors: colors).frame(height: 96)
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(t.displayName()).font(.system(.headline, design: .serif))
+                                        Text(t.free ? T("common.free") : "Pro").font(.caption)
+                                    }
+                                    Spacer()
+                                    if app.prefs.theme == t.id { Image(systemName: "checkmark.circle.fill").foregroundStyle(colors.accent) }
+                                }
+                            }.padding(12)
+                            .background(colors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(
+                                app.prefs.theme == t.id ? colors.accent : colors.line, lineWidth: app.prefs.theme == t.id ? 1.5 : 0.8))
+                            .foregroundStyle(colors.ink)
                         }.buttonStyle(.plain)
                     }
                 }
@@ -305,9 +254,10 @@ struct ThemeView: View {
                 dark: app.prefs.appearance == .dark || app.prefs.appearance == .auto && system == .dark)
             NavigationStack {
                 PlainScene {
-                    Text(t.name + " / " + t.chineseName).font(.title)
-                    TactileArt(style: t.art).frame(height: 225)
-                    Text(T("theme.previewHelp"))
+                    Text(t.displayName()).font(.system(.title, design: .serif))
+                    ThemeSwatch(colors: colors).frame(height: 120)
+                    HeroArt().frame(height: 220).environment(\.loom, colors)
+                    Text(T("theme.previewHelp")).font(.footnote)
                     LoomButton(title: "theme.apply", symbol: "checkmark") {
                         if t.free || app.pro {
                             app.perform { try app.library.preferences { $0.theme = t.id } }
@@ -323,72 +273,48 @@ struct ThemeView: View {
         }
     }
 }
+/// Quick settings first; data, help and purchases below. Each row is one plain decision.
 struct SettingsView: View {
     @EnvironmentObject var app: AppModel
     var body: some View {
         Form {
-            Section(T("settings.personal")) {
-                TextField(T("settings.name"), text: app.pref(\.name))
-                NavigationLink {
-                    ThemeView()
-                } label: {
-                    Text(T("theme.title"))
-                }
-            }
-            Section(T("settings.experience")) {
+            Section(T("settings.quick")) {
                 NavigationLink {
                     HapticOutputsView()
                 } label: {
                     Label(T("output.title"), systemImage: "gamecontroller")
                 }
                 Toggle(T("settings.awake"), isOn: app.pref(\.keepAwake))
-                Toggle(T("settings.motion"), isOn: app.pref(\.reduceMotion))
                 Toggle(T("settings.privacyCover"), isOn: app.pref(\.privacyCover))
+                Toggle(T("settings.motion"), isOn: app.pref(\.reduceMotion))
                 Toggle(T("history.enabled"), isOn: app.pref(\.historyEnabled))
             }
+            Section(T("settings.personal")) {
+                Picker(T("settings.language"), selection: $app.language) {
+                    ForEach(AppLanguage.choices, id: \.self) { Text(AppLanguage.nativeName($0)).tag($0) }
+                }.accessibilityIdentifier("settingsLanguage")
+                TextField(T("settings.name"), text: app.pref(\.name))
+                NavigationLink { ThemeView() } label: { Text(T("theme.title")) }
+            }
             Section(T("settings.data")) {
-                NavigationLink {
-                    PrivacyView()
-                } label: {
-                    Text(T("privacy.title"))
-                }
-                NavigationLink {
-                    CloudView()
-                } label: {
-                    Text(T("sync.title"))
-                }
+                NavigationLink { PrivacyView() } label: { Text(T("privacy.title")) }
+                NavigationLink { CloudView() } label: { Text(T("sync.title")) }
                 Toggle(T("diagnostics.enabled"), isOn: app.pref(\.diagnosticsEnabled))
                 Button(T("diagnostics.export")) { app.exportDiagnostics() }
             }
-            Section(T("purchase.title")) {
-                Button(T("purchase.restore")) { Task { await app.purchase.restore() } }
-                Button(T("purchase.refund")) { Task { await app.purchase.refund() } }
-                Button(T("purchase.view")) { app.sheet = .premium }
-            }
             Section(T("settings.help")) {
-                NavigationLink {
-                    TroubleshootingView()
-                } label: {
-                    Text(T("help.troubleshoot"))
-                }
-                NavigationLink {
-                    HelpView()
-                } label: {
-                    Text(T("help.title"))
-                }
-                NavigationLink {
-                    IconsView()
-                } label: {
-                    Text(T("icons.title"))
-                }
-                NavigationLink {
-                    FeedbackView()
-                } label: {
-                    Text(T("feedback.title"))
-                }
+                NavigationLink { TroubleshootingView() } label: { Text(T("help.troubleshoot")) }
+                NavigationLink { HelpView() } label: { Text(T("help.title")) }
+                NavigationLink { IconsView() } label: { Text(T("icons.title")) }
+                NavigationLink { FeedbackView() } label: { Text(T("feedback.title")) }
                 Button(T("onboard.again")) {
                     app.perform { try app.library.preferences { $0.onboarded = false } }
                 }
+            }
+            Section(T("purchase.title")) {
+                Button(T("purchase.view")) { app.sheet = .premium }
+                Button(T("purchase.restore")) { Task { await app.purchase.restore() } }
+                Button(T("purchase.refund")) { Task { await app.purchase.refund() } }
             }
             Section {
                 Text(
@@ -459,7 +385,6 @@ struct PrivacyView: View {
     }
 }
 
-
 /// Selection is scoped to the current controller connection; never persist a transient UUID.
 struct HapticOutputsView: View {
     @EnvironmentObject var app: AppModel
@@ -518,7 +443,7 @@ struct HapticOutputsView: View {
             } footer: {
                 Text(T("output.testHelp"))
             }
-        }.navigationTitle(T("output.title"))
+        }.scrollContentBackground(.hidden).loomBackground().navigationTitle(T("output.title"))
             .onAppear { manager.refresh() }
             .onDisappear { manager.suspendDiscovery() }
     }

@@ -54,7 +54,7 @@ import UIKit
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
     func authorize() async {
         authorized = await MusicAuthorization.request() == .authorized
-        if !authorized { error = NSLocalizedString("music.denied", comment: "") }
+        if !authorized { error = T("music.denied") }
     }
     func search(_ query: String) async {
         guard authorized, !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
@@ -91,7 +91,7 @@ import UIKit
         }
         guard let song = selected else { return }
         guard systemEnabled, trackAvailable, io.enabled() else {
-            throw LoomError.unavailable(NSLocalizedString("music.systemUnavailable", comment: ""))
+            throw LoomError.unavailable(T("music.systemUnavailable"))
         }
         pause()
         let request = UUID()
@@ -103,13 +103,13 @@ import UIKit
             let canPlay = try await io.subscription()
             guard isCurrent(request, choice: choice), !Task.isCancelled else { return }
             guard io.foreground() else {
-                throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
+                throw LoomError.unavailable(T("error.foreground"))
             }
             guard systemEnabled, trackAvailable, io.enabled() else {
-                throw LoomError.unavailable(NSLocalizedString("music.systemUnavailable", comment: ""))
+                throw LoomError.unavailable(T("music.systemUnavailable"))
             }
             guard canPlay else {
-                throw LoomError.unavailable(NSLocalizedString("music.subscription", comment: ""))
+                throw LoomError.unavailable(T("music.subscription"))
             }
             willPlay?()
             // Source acquisition is synchronous but may reenter pause/choose.

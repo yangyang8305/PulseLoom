@@ -19,7 +19,7 @@ def ref(path,kind=None):
  path=str(path)
  if path in allrefs:return allrefs[path]
  ext=Path(path).suffix
- ft=kind or {'.swift':'sourcecode.swift','.plist':'text.plist.xml','.xcconfig':'text.xcconfig','.entitlements':'text.plist.entitlements','.xcprivacy':'text.xml','.xcassets':'folder.assetcatalog','.storekit':'text.json','.md':'net.daringfireball.markdown'}.get(ext,'text')
+ ft=kind or {'.swift':'sourcecode.swift','.plist':'text.plist.xml','.xcconfig':'text.xcconfig','.entitlements':'text.plist.entitlements','.xcprivacy':'text.xml','.xcassets':'folder.assetcatalog','.storekit':'text.json','.json':'text.json','.m4a':'file','.html':'text.html','.png':'image.png','.md':'net.daringfireball.markdown'}.get(ext,'text')
  v=obj('ref:'+path,'PBXFileReference',path=path,sourceTree='SOURCE_ROOT',lastKnownFileType=ft);allrefs[path]=v;return v
 def build_ref(t,f,attributes=None):
  kw={'fileRef':f}

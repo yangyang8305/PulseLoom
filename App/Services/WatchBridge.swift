@@ -69,7 +69,7 @@ import WatchConnectivity
                     throw NSError(
                         domain: "Watch", code: 1,
                         userInfo: [
-                            NSLocalizedDescriptionKey: NSLocalizedString("watch.permission", comment: "")
+                            NSLocalizedDescriptionKey: T("watch.permission")
                         ])
                 }
                 replyHandler(try self.onCommand?(message) ?? ["ok": false])

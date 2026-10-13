@@ -1,7 +1,19 @@
 import Foundation
 
+/// The language catalog names are shown in ("zh", "ja", "en"). Apps may override it for an in-app language switch.
+public enum LoomLanguage {
+    public static var current: String = Locale.current.language.languageCode?.identifier ?? "en"
+}
+
 public enum Catalog {
-    public static let presets: [HapticPattern] = load("presets")
+    /// Every built-in pattern: the short loops followed by the composed pieces.
+    public static let presets: [HapticPattern] = load("presets") + load("pieces")
+    /// Composed pieces file under the same "rhythm" heading as the loops; they are rhythms that run once.
+    public static let pieceCategory = "节奏"
+    /// Short repeating rhythms (p01–p16).
+    public static var loops: [HapticPattern] { presets.filter { $0.loop } }
+    /// Longer, structured compositions (m01…). They play once and stop.
+    public static var pieces: [HapticPattern] { presets.filter { !$0.loop } }
     private static func load(_ file: String) -> [HapticPattern] {
         guard let url = Bundle.module.url(forResource: file, withExtension: "json"),
             let data = try? Data(contentsOf: url),
@@ -32,6 +44,9 @@ public enum ThemeCatalog {
 extension Catalog { public static var themes: [ThemeDefinition] { ThemeCatalog.all } }
 
 extension ThemeDefinition {
+    public func displayName(language: String = LoomLanguage.current) -> String {
+        language == "zh" && !chineseName.isEmpty ? chineseName : name
+    }
     public static let fallback = ThemeDefinition(
         id: "blush", name: "Blush", chineseName: "柔绯", art: "flower", free: true,
         light: [

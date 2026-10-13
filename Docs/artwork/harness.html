@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>harness</title>
+<style>html,body{margin:0;background:#888} #stage{width:440px;height:470px;display:block;border-radius:22px}</style>
+<canvas id="stage"></canvas>
+<script src="engine.js"></script>
+<script>
+// Renders one deterministic frame of an option. Query: ?js=options/x.js&t=6000&mode=heart&theme=light&gain=0.85
+// The option file must set window.OPTION = { name, english, note, draw(p) } where p is the frame bundle (see brief.md).
+(function () {
+  const q = new URLSearchParams(location.search);
+  const js = q.get('js') || 'options/sample.js', t = +(q.get('t') || 6000), mode = q.get('mode') || 'idle';
+  const theme = q.get('theme') || 'light', gain = +(q.get('gain') || 0.85);
+  const s = document.createElement('script'); s.src = js;
+  s.onload = () => {
+    const E = window.LoomEngine, canvas = document.getElementById('stage'), ctx = canvas.getContext('2d');
+    const dpr = 2, w = 440, h = 470; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pal = E.palettes[theme]; document.body.style.background = pal.bg;
+    const eng = E.createEngine(), state = {}, dt = 1000 / 60;
+    // playing starts at t=2000 so the first seconds are idle for every mode
+    for (let time = 0; time < t; time += dt) {
+      const lv = time >= 2000 ? E.levelAt(mode, time - 2000, gain) : 0;
+      E.step(eng, lv, dt, false);
+      if (window.OPTION.tick) window.OPTION.tick({ dt: dt / 1000, now: eng.time, env: eng.env, state });
+    }
+    ctx.fillStyle = pal.surface; ctx.fillRect(0, 0, w, h);
+    window.OPTION.draw({ ctx, w, h, cx: w / 2, cy: h * 0.46, R: Math.min(w, h) * 0.4, now: eng.time, dt: dt / 1000,
+      env: eng.env, spring: eng.spring, hits: eng.hits.map(x => ({ age: (eng.time - x.born) / 1000, gain: x.gain })), rot: eng.rot, breath: eng.breath,
+      palette: pal, dark: theme === 'dark', reduce: false, state, rgba: E.rgba, playing: t >= 2000 && mode !== 'idle' });
+    document.title = 'done';
+  };
+  document.head.appendChild(s);
+})();
+</script>

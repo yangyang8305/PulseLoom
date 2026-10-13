@@ -9,7 +9,9 @@ public enum Validation {
             throw LoomError.invalid("Name must contain 1–30 characters.")
         }
         guard !p.id.isEmpty, p.id.count <= 100 else { throw LoomError.invalid("Invalid pattern identifier.") }
-        guard finite(p.durationMS, 100...30_000), finite(p.fadeIn, 0...5000), finite(p.fadeOut, 0...5000),
+        // Built-in compositions may run for minutes; user patterns stay within 30 seconds.
+        let maxDuration = p.builtin ? 180_000.0 : 30_000.0
+        guard finite(p.durationMS, 100...maxDuration), finite(p.fadeIn, 0...5000), finite(p.fadeOut, 0...5000),
             finite(p.sharpness, 0...1)
         else { throw LoomError.invalid("Invalid duration, fade, or texture.") }
         if p.mode == .curve {
@@ -27,7 +29,7 @@ public enum Validation {
                 throw LoomError.invalid("A pattern needs at least one nonzero segment.")
             }
         } else {
-            let maxCount = (p.mode == .basic && !p.builtin) ? 16 : 128
+            let maxCount = p.builtin ? 1024 : (p.mode == .basic ? 16 : 128)
             guard (1...maxCount).contains(p.segments.count),
                 Set(p.segments.map(\.id)).count == p.segments.count
             else { throw LoomError.invalid("Invalid number of segments.") }
@@ -77,7 +79,7 @@ public enum Validation {
         for r in s.routines { try routine(r, patterns: all) }
         let p = s.preferences
         guard finite(p.gain, 0...1), finite(p.speed, 0.5...2), finite(p.sharpness, 0...1),
-            finite(p.timer, 30...600),
+            finite(p.timer, 30...7200),
             ThemeCatalog.all.contains(where: { $0.id == p.theme }), p.name.count <= 24,
             ids.contains(p.lastPattern),
             reserved.contains(p.widgetPattern)

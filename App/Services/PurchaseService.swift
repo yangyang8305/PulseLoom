@@ -42,7 +42,7 @@ import UIKit
         defer { loading = false }
         do {
             product = try await Product.products(for: [productID]).first
-            if product == nil { outcome = .failed(NSLocalizedString("purchase.unavailable", comment: "")) }
+            if product == nil { outcome = .failed(T("purchase.unavailable")) }
         } catch { outcome = .failed(error.localizedDescription) }
     }
     func refresh() async {
@@ -56,7 +56,7 @@ import UIKit
     func buy() async {
         guard outcome != .purchasing else { return }
         guard AppStore.canMakePayments, let product else {
-            outcome = .failed(NSLocalizedString("purchase.unavailable", comment: ""))
+            outcome = .failed(T("purchase.unavailable"))
             return
         }
         outcome = .purchasing

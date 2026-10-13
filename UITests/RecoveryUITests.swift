@@ -246,19 +246,22 @@ final class RecoveryUITests: XCTestCase {
     }
     func test05MusicSampleLoadPickerCancelAndReplacement() {
         launch(); enter(); tap(app.tabBars.buttons["Music"])
-        tap(app.buttons["demoMusic"])
-        XCTAssertTrue(text("Petal-Steps").waitForExistence(timeout: 15))
-        XCTAssertTrue(text("00:48").exists)
-        capture("05-local-sample-loaded")
+        tap(app.buttons["track.t01"])
+        XCTAssertTrue(text("Slow Walk").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("01:24").waitForExistence(timeout: 5))
+        capture("05-bundled-piece-loaded")
         tap(app.buttons["Change"])
         capture("05-system-source-picker")
         tap(app.buttons["Cancel"])
-        XCTAssertTrue(text("Petal-Steps").waitForExistence(timeout: 5))
-        XCTAssertTrue(text("00:48").exists)
+        XCTAssertTrue(text("Slow Walk").waitForExistence(timeout: 5))
+        XCTAssertTrue(text("01:24").exists)
         capture("05-picker-cancel-keeps-original")
-        tap(app.buttons["demoMusic"])
-        XCTAssertTrue(text("Petal-Steps").waitForExistence(timeout: 15))
-        capture("05-sample-reload")
+        tap(app.buttons["musicLibrary"])
+        XCTAssertTrue(app.buttons["library.t02"].waitForExistence(timeout: 5))
+        capture("05-included-music-list")
+        tap(app.buttons["library.t02"])
+        XCTAssertTrue(text("Evening Lamp").waitForExistence(timeout: 20))
+        capture("05-second-piece-loaded")
     }
     func test06ClearRemovesSavedAndOpenDraftAfterRestart() {
         launch(); enter(); create("Erase This Work")
@@ -306,6 +309,9 @@ final class RecoveryUITests: XCTestCase {
             tap(app.buttons[done])
             for (index, title) in tabs.enumerated() {
                 let tab = app.tabBars.buttons[title]; tap(tab)
+                // A synthesized tap right after the accessibility audit is occasionally dropped by the
+                // simulator; one retry keeps the test about layout rather than input timing.
+                if !tab.waitForSelected(timeout: 3) { tap(tab) }
                 wait("selected == true", on: tab)
                 XCTAssertTrue(tab.isSelected)
                 XCTAssertEqual(app.tabBars.buttons.count, 4)
@@ -344,5 +350,12 @@ final class RecoveryUITests: XCTestCase {
                 attachment.name = "ACCESSIBILITY-\(lang)-\(mode)-tab\(index)"; attachment.lifetime = .keepAlways; add(attachment)
             }
         }
+    }
+}
+
+extension XCUIElement {
+    func waitForSelected(timeout: Double) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: self)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

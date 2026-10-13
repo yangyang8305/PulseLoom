@@ -1,142 +1,134 @@
 import PulseLoomCore
 import SwiftUI
 
+/// The main screen lays itself out to fit one screen: artwork, the current piece, two shelves of
+/// choices, strength, and an always-visible start/stop dock. Nothing here scrolls vertically.
 struct HomeView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.loom) var c
-    @Environment(\.dynamicTypeSize) var textSize
-    private let quick = ["p01", "p02", "p04", "p03", "p05", "p06"]
     var body: some View {
         GeometryReader { geo in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 15) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(T("home.title")).font(.title.bold())
-                            Text(T("home.subtitle")).font(.footnote).foregroundStyle(c.muted)
-                        }
-                        Spacer()
-                        Text("Pulse Loom").font(.system(.title3, design: .serif).italic()).foregroundStyle(
-                            c.muted
-                        ).padding(.top, 12)
-                    }
-                    VStack(spacing: 3) {
-                        TactileArt(style: app.theme.art, level: app.playback.level).frame(
-                            height: geo.size.height < 570 ? 90 : 145)
-                        Text(app.current.displayName()).font(.system(.title2, design: .serif))
-                            .accessibilityIdentifier("currentPattern")
-                        Text(
-                            app.current.builtin
-                                ? T("pattern.subtitle." + app.current.id) : T("pattern.custom")
-                        ).font(.caption).foregroundStyle(c.muted)
-                    }.frame(maxWidth: .infinity)
-                    HStack {
-                        Text(T("home.presets")).font(.subheadline)
-                        Spacer()
-                        Button {
-                            app.sheet = .presets
-                        } label: {
-                            Label(T("home.allPresets"), systemImage: "arrow.right").font(.caption)
-                        }.frame(minHeight: 44)
-                    }
-                    LazyVGrid(
-                        columns: Array(
-                            repeating: GridItem(.flexible(), spacing: 8),
-                            count: textSize.isAccessibilitySize ? 2 : 3), spacing: 8
-                    ) {
-                        ForEach(quick, id: \.self) { id in
-                            if let p = app.library.pattern(id) {
-                                Button {
-                                    app.select(p)
-                                } label: {
-                                    VStack(spacing: 5) {
-                                        Text(p.displayName()).font(.subheadline)
-                                        Text(T("pattern.subtitle." + p.id)).font(.caption2).foregroundStyle(
-                                            c.muted
-                                        ).lineLimit(1)
-                                    }.frame(maxWidth: .infinity).padding(.vertical, 12).background(
-                                        app.current.id == id ? c.tint : c.surface,
-                                        in: RoundedRectangle(cornerRadius: 18)
-                                    ).overlay(
-                                        RoundedRectangle(cornerRadius: 18).stroke(
-                                            app.current.id == id ? c.accent : c.line, lineWidth: 0.8))
-                                }.buttonStyle(.plain).accessibilityIdentifier("preset." + id)
-                                    .accessibilityAddTraits(app.current.id == id ? .isSelected : [])
-                            }
-                        }
-                    }
-                    LoomSlider(title: "home.intensity", value: app.pref(\.gain)) {
-                        app.perform { try app.adjust() }
-                    }.accessibilityIdentifier("homeIntensity")
-                    HStack {
-                        Button {
-                            app.sheet = .timer
-                        } label: {
-                            Label(
-                                String(format: T("home.timerFormat"), Int(app.prefs.timer / 60)),
-                                systemImage: "clock"
-                            ).font(.caption).padding(11).overlay(Capsule().stroke(c.line, lineWidth: 1))
-                        }.accessibilityIdentifier("timerButton")
-                        Spacer()
-                        Button {
-                            app.sheet = .adjust
-                        } label: {
-                            Label(T("home.adjust"), systemImage: "slider.horizontal.3").font(.caption)
-                        }.frame(minHeight: 44)
-                    }
-                    if app.playback.state == .interrupted { Notice(text: "home.interrupted") }
-                    Text(String(
-                        format: T("output.targetFormat"),
-                        app.playback.isPlaying
-                            ? app.playback.outputs.activeName : app.playback.outputs.selectedName
-                    ))
-                    .font(.caption).foregroundStyle(c.muted)
-                    if let warning = app.playback.outputs.lastFallbackReason {
-                        Text(String(format: T("output.fallbackFormat"), warning))
-                            .font(.caption).foregroundStyle(c.muted)
-                    }
-                    if !app.playback.outputs.supported {
-                        Button {
-                            app.error = T("error.hapticsUnavailable")
-                        } label: {
-                            Label(T("error.hapticsUnavailable"), systemImage: "info.circle").font(.caption)
-                                .foregroundStyle(c.muted)
-                        }.frame(minHeight: 44)
-                    }
-                }.padding(.horizontal, 23).padding(.top, 14).padding(.bottom, 14)
-            }.safeAreaInset(edge: .bottom) {
-                HapticDock().padding(.horizontal, 23).padding(.vertical, 10).background(c.background)
+            let compact = geo.size.height < 640
+            VStack(alignment: .leading, spacing: compact ? 7 : 11) {
+                header
+                HeroArt(level: app.playback.level, playing: app.playback.isPlaying)
+                    .frame(maxWidth: .infinity, minHeight: 104, maxHeight: .infinity)
+                nameplate
+                PatternShelf(title: favorites.isEmpty ? "home.loops" : "home.favorites", patterns: favorites.isEmpty ? Catalog.presets : favorites)
+                LoomSlider(title: "home.intensity", value: app.pref(\.gain), live: { app.adjustLive(gain: $0) }) {
+                    app.perform { try app.adjust() }
+                }.accessibilityIdentifier("homeIntensity")
+                status
+                HapticDock()
             }
-        }.loomBackground().toolbar(.hidden, for: .navigationBar)
+            .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 8)
+        }
+        .loomBackground().toolbar(.hidden, for: .navigationBar)
+    }
+    /// Built-in rhythms the user marked with a heart, in catalog order.
+    private var favorites: [HapticPattern] {
+        let ids = Set(app.library.snapshot.favorites)
+        return Catalog.presets.filter { ids.contains($0.id) }
+    }
+    private var header: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Pulse Loom").font(.system(.title3, design: .serif).italic())
+                Text(T("home.subtitle")).font(.caption2).foregroundStyle(c.muted).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            LoomChip(
+                title: String(format: T("time.minutes"), Int(app.prefs.timer / 60)), symbol: "clock"
+            ) { app.sheet = .timer }
+                .accessibilityIdentifier("timerButton")
+            LoomIconButton(symbol: "square.grid.2x2", label: T("home.allPresets")) { app.sheet = .presets }
+            LoomIconButton(symbol: "lock", label: T("lock.enter")) { app.lockPrompt = true }.accessibilityIdentifier("lockButton")
+        }
+    }
+    private var nameplate: some View {
+        VStack(spacing: 2) {
+            Text(app.current.displayName()).font(.system(.title2, design: .serif))
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .accessibilityIdentifier("currentPattern")
+            Text(app.current.builtin ? T("pattern.subtitle." + app.current.id) : T("pattern.custom"))
+                .font(.caption).foregroundStyle(c.muted).lineLimit(1)
+        }.frame(maxWidth: .infinity)
+    }
+    @ViewBuilder private var status: some View {
+        if app.playback.state == .interrupted {
+            Text(T("home.interrupted")).font(.caption).foregroundStyle(c.muted).lineLimit(1)
+        } else if let warning = app.playback.outputs.lastFallbackReason {
+            Text(String(format: T("output.fallbackFormat"), warning)).font(.caption).foregroundStyle(c.muted).lineLimit(1)
+        } else if !app.playback.outputs.supported {
+            Button {
+                app.error = T("error.hapticsUnavailable")
+            } label: {
+                Label(T("error.hapticsUnavailable"), systemImage: "info.circle").font(.caption).foregroundStyle(c.muted).lineLimit(1)
+            }
+        } else {
+            HStack {
+                Text(String(
+                    format: T("output.targetFormat"),
+                    app.playback.isPlaying ? app.playback.outputs.activeName : app.playback.outputs.selectedName))
+                Spacer()
+                if app.playback.isPlaying || app.playback.state == .paused {
+                    Text(T("home.remaining") + " " + timeText(app.playback.remaining)).monospacedDigit()
+                }
+            }.font(.caption).foregroundStyle(c.muted).lineLimit(1)
+        }
     }
 }
-struct HapticDock: View {
+
+/// One horizontal shelf of selectable chips; the current selection is highlighted.
+struct PatternShelf: View {
     @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
+    let title: String
+    let patterns: [HapticPattern]
     var body: some View {
-        VStack(spacing: 8) {
-            if app.playback.isPlaying || app.playback.state == .paused {
-                Text(T("home.remaining") + " " + timeText(app.playback.remaining)).font(.caption)
-                    .monospacedDigit()
-            }
-            HStack(spacing: 12) {
-                LoomButton(
-                    title: app.playback.isPlaying
-                        ? "home.pause" : app.playback.state == .paused ? "home.resume" : "home.start",
-                    symbol: "power"
-                ) { app.toggle() }.accessibilityIdentifier("hapticStart")
-                LoomButton(title: "common.stop", symbol: "stop", secondary: true) { app.stopAll() }.frame(
-                    width: 85
-                ).accessibilityIdentifier("hapticStop")
+        VStack(alignment: .leading, spacing: 4) {
+            Text(T(title)).font(.caption.weight(.semibold)).foregroundStyle(c.muted)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(patterns) { p in
+                        LoomChip(
+                            title: p.displayName(),
+                            symbol: p.premium && !app.pro ? "lock" : nil,
+                            detail: nil,
+                            selected: app.current.id == p.id
+                        ) { app.select(p) }
+                        .accessibilityIdentifier("preset." + p.id)
+                    }
+                }.padding(.horizontal, 2).padding(.vertical, 4)
             }
         }
     }
 }
+
+struct HapticDock: View {
+    @EnvironmentObject var app: AppModel
+    var body: some View {
+        HStack(spacing: 10) {
+            LoomButton(
+                title: app.playback.isPlaying
+                    ? "home.pause" : app.playback.state == .paused ? "home.resume" : "home.start",
+                symbol: app.playback.isPlaying ? "pause.fill" : "play.fill"
+            ) { app.toggle() }.accessibilityIdentifier("hapticStart")
+            LoomButton(title: "common.stop", symbol: "stop.fill", secondary: true, fill: false) { app.stopAll() }
+                .accessibilityIdentifier("hapticStop")
+            LoomIconButton(symbol: "slider.horizontal.3", label: T("home.adjust")) { app.sheet = .adjust }
+        }
+    }
+}
+
 struct PresetPickerView: View {
     @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
     @Environment(\.dismiss) var dismiss
     @State private var query = ""
     @State private var filter = "all"
     @State private var category = "all"
+    private let categories = ["基础", "轻柔", "节奏", "渐变", "custom"]
     var filtered: [HapticPattern] {
         app.library.allPatterns.filter { p in
             (query.isEmpty
@@ -148,41 +140,51 @@ struct PresetPickerView: View {
     }
     var body: some View {
         NavigationStack {
-            PlainScene {
+            PlainScene(spacing: 12) {
                 Picker(T("pattern.filter"), selection: $filter) {
                     Text(T("common.all")).tag("all")
                     Text(T("common.free")).tag("free")
                     Text(T("my.favorites")).tag("favorites")
                 }.pickerStyle(.segmented)
-                Picker(T("pattern.category"), selection: $category) {
-                    Text(T("common.all")).tag("all")
-                    ForEach(["基础", "轻柔", "节奏", "渐变", "custom"], id: \.self) { value in
-                        Text(T("category." + value)).tag(value)
-                    }
-                }.pickerStyle(.menu)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        LoomChip(title: T("common.all"), selected: category == "all") { category = "all" }
+                        ForEach(categories, id: \.self) { value in
+                            LoomChip(title: T("category." + value), selected: category == value) { category = value }
+                        }
+                    }.padding(.vertical, 2)
+                }
                 ForEach(filtered) { p in
-                    HStack {
+                    HStack(spacing: 10) {
                         Button {
                             app.select(p)
                         } label: {
-                            HStack(spacing: 14) {
-                                PatternWave(pattern: p).frame(width: 58, height: 43)
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(p.displayName())
-                                    Text(String(format: T("pattern.cycleFormat"), p.durationMS / 1000)).font(
-                                        .caption
-                                    ).foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                PatternWave(pattern: p).frame(width: 64, height: 40)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(p.displayName()).font(.body)
+                                    Text(
+                                        p.category == Catalog.pieceCategory
+                                            ? String(format: T("pattern.durationShort"), Int(p.durationMS / 1000))
+                                            : String(format: T("pattern.cycleFormat"), p.durationMS / 1000)
+                                    ).font(.caption).foregroundStyle(c.muted)
                                 }
                                 Spacer()
-                                if p.premium { Text("Pro").font(.caption2) }
+                                if app.current.id == p.id { Image(systemName: "checkmark").foregroundStyle(c.accent) }
+                                if p.premium { Text("Pro").font(.caption2.weight(.semibold)).foregroundStyle(c.muted) }
                             }
                         }.buttonStyle(.plain)
+                        let loved = app.library.snapshot.favorites.contains(p.id)
+                        Button { app.perform { try app.library.favorite(p.id) } } label: {
+                            Image(systemName: loved ? "heart.fill" : "heart").foregroundStyle(loved ? c.accent : c.muted).frame(width: 40, height: 40)
+                        }.accessibilityLabel(T("pattern.favorite")).accessibilityAddTraits(loved ? .isSelected : [])
+                        .accessibilityIdentifier("favorite." + p.id)
                         NavigationLink {
                             PatternDetailView(pattern: p)
                         } label: {
-                            Image(systemName: "info.circle").frame(width: 44, height: 44)
+                            Image(systemName: "info.circle").frame(width: 40, height: 40)
                         }
-                    }.padding(.vertical, 6)
+                    }.padding(.vertical, 3)
                 }
                 if filtered.isEmpty { EmptyState(title: "empty.search", detail: "empty.searchHelp") }
             }.searchable(text: $query, prompt: Text(T("pattern.search"))).navigationTitle(
@@ -193,20 +195,32 @@ struct PresetPickerView: View {
         }
     }
 }
+
 struct PatternDetailView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var editor: EditorModel
+    @Environment(\.loom) var c
     let pattern: HapticPattern
     var body: some View {
         PlainScene {
-            TactileArt(style: app.theme.art).frame(height: 145)
-            Text(pattern.displayName()).font(.system(.largeTitle, design: .serif))
-            PatternWave(pattern: pattern)
-            Text(String(format: T("pattern.cycleFormat"), pattern.durationMS / 1000)).font(.caption)
-            LoomButton(title: "pattern.preview", symbol: "hand.tap", secondary: true) { app.preview(pattern) }
+            LoomArt(style: app.theme.art).frame(height: 130)
+            Text(pattern.displayName()).font(.system(.largeTitle, design: .serif)).frame(maxWidth: .infinity)
+            if pattern.builtin {
+                Text(T("pattern.subtitle." + pattern.id)).font(.footnote).foregroundStyle(c.muted).frame(maxWidth: .infinity)
+            }
+            LoomCard(padding: 12) { PatternWave(pattern: pattern) }
+            Text(
+                pattern.category == Catalog.pieceCategory
+                    ? String(format: T("pattern.durationShort"), Int(pattern.durationMS / 1000))
+                    : String(format: T("pattern.cycleFormat"), pattern.durationMS / 1000)
+            ).font(.caption).foregroundStyle(c.muted)
             LoomButton(title: "pattern.use", symbol: "checkmark") {
                 app.select(pattern)
                 app.tab = .home
+            }
+            HStack(spacing: 10) {
+                LoomButton(title: "pattern.preview", symbol: "hand.tap", secondary: true) { app.preview(pattern) }
+                LoomButton(title: "common.stop", symbol: "stop.fill", secondary: true, fill: false) { app.stopAll() }
             }
             HStack {
                 Button {
@@ -214,8 +228,7 @@ struct PatternDetailView: View {
                 } label: {
                     Label(
                         T("my.favorites"),
-                        systemImage: app.library.snapshot.favorites.contains(pattern.id)
-                            ? "heart.fill" : "heart"
+                        systemImage: app.library.snapshot.favorites.contains(pattern.id) ? "heart.fill" : "heart"
                     ).frame(minHeight: 44)
                 }
                 Spacer()
@@ -238,65 +251,83 @@ struct PatternDetailView: View {
         }
     }
 }
+
 struct TimerView: View {
     @EnvironmentObject var app: AppModel
+    @Environment(\.loom) var c
     @Environment(\.dismiss) var dismiss
-    @State private var seconds = 180.0
+    @State private var minutes = 3.0
     var body: some View {
         NavigationStack {
-            PlainScene {
-                ForEach([60, 180, 300, 600], id: \.self) { n in
+            PlainScene(spacing: 10) {
+                ForEach([60, 180, 300, 600, 900, 1800, 3600], id: \.self) { n in
                     Button {
                         app.setTimer(Double(n))
                     } label: {
                         HStack {
                             Text(String(format: T("time.minutes"), n / 60))
                             Spacer()
-                            if app.prefs.timer == Double(n) { Image(systemName: "checkmark") }
-                        }.frame(minHeight: 45)
-                    }
+                            if app.prefs.timer == Double(n) { Image(systemName: "checkmark").foregroundStyle(c.accent) }
+                        }.frame(minHeight: 44).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                    Divider()
                 }
                 DisclosureGroup(T("timer.custom")) {
                     Stepper(
-                        String(format: T("time.seconds"), Int(seconds)), value: $seconds, in: 30...600,
-                        step: 30)
-                    LoomButton(title: "common.apply") { app.setTimer(seconds) }
+                        String(format: T("time.minutes"), Int(minutes)), value: $minutes, in: 1...120, step: 1)
+                    LoomButton(title: "common.apply", compact: true) { app.setTimer(minutes * 60) }
                 }
-                Notice(text: "timer.limit")
             }.navigationTitle(T("timer.title")).navigationBarTitleDisplayMode(.inline).toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button(T("common.done")) { dismiss() } }
-            }.onAppear { seconds = app.prefs.timer }
+            }.onAppear { minutes = max(1, (app.prefs.timer / 60).rounded()) }
         }
     }
 }
+
+/// Secondary feel controls live here so the home screen only carries strength.
 struct AdjustmentView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.dismiss) var dismiss
+    @State private var showTest = false
     var body: some View {
         NavigationStack {
-            PlainScene {
-                LoomSlider(title: "home.intensity", value: app.pref(\.gain)) {
+            PlainScene(spacing: 14) {
+                LoomSlider(title: "home.intensity", value: app.pref(\.gain), live: { app.adjustLive(gain: $0) }) {
                     app.perform { try app.adjust() }
                 }
-                LoomSlider(title: "home.speed", value: app.pref(\.speed), range: 0.5...2, unit: "×") {
+                LoomSlider(
+                    title: "home.speed", value: app.pref(\.speed), range: 0.5...2, unit: "×",
+                    live: { app.adjustLive(speed: $0) }
+                ) {
                     app.perform { try app.adjust() }
                 }
-                LoomSlider(title: "home.texture", value: app.pref(\.sharpness)) {
+                LoomSlider(title: "home.texture", value: app.pref(\.sharpness), live: { app.adjustLive(sharp: $0) }) {
                     app.perform { try app.adjust() }
                 }
                 Notice(text: "home.parametersHelp")
-                LoomButton(title: "home.focus", secondary: true) { app.sheet = .focus }
-                LoomButton(title: "common.reset", secondary: true) {
+                Picker(T("lock.auto"), selection: $app.autoLockSeconds) {
+                    Text(T("lock.off")).tag(0)
+                    Text(String(format: T("lock.after"), 10)).tag(10)
+                    Text(String(format: T("lock.after"), 30)).tag(30)
+                    Text(String(format: T("lock.after"), 60)).tag(60)
+                }
+                HStack(spacing: 10) {
+                    LoomButton(title: "home.testHaptics", symbol: "bolt", secondary: true, compact: true) { showTest = true }
+                        .accessibilityIdentifier("homeTestStrength")
+                    LoomButton(title: "common.reset", secondary: true, compact: true) {
                     app.perform {
+                        let defaults = Preferences()
                         try app.library.preferences {
-                            $0.gain = 0.55
-                            $0.speed = 1
-                            $0.sharpness = 0.25
+                            $0.gain = defaults.gain
+                            $0.speed = defaults.speed
+                            $0.sharpness = defaults.sharpness
                         }
                         try app.adjust()
                     }
                 }
-            }.navigationTitle(T("home.adjust")).navigationBarTitleDisplayMode(.inline).toolbar {
+                }
+            }.navigationDestination(isPresented: $showTest) { TroubleshootingView() }
+            .navigationTitle(T("home.adjust")).navigationBarTitleDisplayMode(.inline).toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button(T("common.done")) { dismiss() } }
             }
         }

@@ -4,10 +4,13 @@ import XCTest
 
 final class CatalogTests: XCTestCase {
     func testSixteenStablePresets() {
-        XCTAssertEqual(Catalog.presets.count, 16)
-        XCTAssertEqual(Catalog.presets.map(\.id), (1...16).map { String(format: "p%02d", $0) })
+        XCTAssertEqual(Catalog.loops.count, 16)
+        XCTAssertEqual(Catalog.loops.map(\.id), (1...16).map { String(format: "p%02d", $0) })
+        XCTAssertGreaterThanOrEqual(Catalog.pieces.count, 10)
+        XCTAssertEqual(Catalog.presets.count, Catalog.loops.count + Catalog.pieces.count)
     }
-    func testSixFreePresets() { XCTAssertEqual(Catalog.presets.filter { !$0.premium }.count, 6) }
+    func testSixFreePresets() { XCTAssertEqual(Catalog.loops.filter { !$0.premium }.count, 6)
+        XCTAssertTrue(Catalog.pieces.allSatisfy { !$0.premium }, "Composed pieces are free") }
     func testAllPresetsAreValid() {
         for p in Catalog.presets { XCTAssertNoThrow(try Validation.pattern(p), p.id) }
     }
@@ -193,12 +196,12 @@ final class ClockAndEditorTests: XCTestCase {
         c.tick(now: 110)
         XCTAssertEqual(c.played, 25)
     }
-    func testTimerCannotExtendPastTenMinutes() throws {
+    func testTimerCannotExtendPastTwoHours() throws {
         var c = SessionClock()
-        try c.start(now: 0, duration: 600)
-        c.tick(now: 550)
-        try c.setRemaining(600)
-        XCTAssertEqual(c.limit, 600)
+        try c.start(now: 0, duration: 7200)
+        c.tick(now: 7150)
+        try c.setRemaining(7200)
+        XCTAssertEqual(c.limit, 7200)
         XCTAssertEqual(c.remaining, 50)
     }
     func testNegativeClockJumpIgnored() throws {
@@ -554,5 +557,65 @@ final class FinalRegressionTests: XCTestCase {
     func testFallbackPaletteHasCompletePairs() {
         XCTAssertEqual(ThemeDefinition.fallback.light.count, 12)
         XCTAssertEqual(ThemeDefinition.fallback.dark.count, 12)
+    }
+}
+
+/// Presets are tuned so that the intensity slider's 100% is the device's full output.
+final class PresetTuningTests: XCTestCase {
+    func testEveryPresetReachesFullOutputAtMaximumIntensity() {
+        XCTAssertEqual(Catalog.loops.count, 16)
+        for p in Catalog.presets {
+            let peak = p.segments.map(\.gain).max() ?? 0
+            XCTAssertEqual(peak, 1, accuracy: 0.0001, p.id + " must contain a segment at full strength")
+            XCTAssertTrue(p.segments.allSatisfy { $0.gain > 0 && $0.gain <= 1 }, p.id)
+            XCTAssertNoThrow(try Validation.pattern(p), p.id)
+        }
+    }
+    func testLayeringInsidePresetsIsPreserved() throws {
+        let wave = try XCTUnwrap(Catalog.presets.first { $0.id == "p04" })
+        let gains = wave.segments.map(\.gain)
+        XCTAssertLessThan(gains[0], gains[7], "Slow Wave still rises toward its crest")
+        XCTAssertGreaterThan(gains[0], 0.2, "The quietest step was scaled up with the rest")
+    }
+    func testShortSegmentsPlayAsTransientTaps() {
+        var taps = 0
+        for p in Catalog.presets {
+            for s in p.segments where s.duration <= 50 {
+                XCTAssertEqual(s.type, .transient, p.id + " short segment must be a tap")
+                taps += 1
+            }
+        }
+        XCTAssertGreaterThan(taps, 0)
+    }
+    func testDefaultPreferencesStartStrongWithNeutralTexture() {
+        let d = Preferences()
+        XCTAssertEqual(d.gain, 0.8)
+        XCTAssertEqual(d.sharpness, 0.5)
+        XCTAssertNoThrow(try Validation.snapshot(LibrarySnapshot()))
+    }
+}
+
+/// Composed pieces: longer programmes with structure, free, non-looping, full-strength peaks.
+final class PieceCatalogTests: XCTestCase {
+    func testPiecesAreValidFreeStructuredCompositions() throws {
+        XCTAssertGreaterThanOrEqual(Catalog.pieces.count, 10)
+        let ids = Set(Catalog.presets.map(\.id))
+        XCTAssertEqual(ids.count, Catalog.presets.count, "Loop and piece identifiers must not collide")
+        for p in Catalog.pieces {
+            XCTAssertNoThrow(try Validation.pattern(p), p.id)
+            XCTAssertTrue(p.builtin && !p.premium && !p.loop, p.id)
+            XCTAssertEqual(p.category, Catalog.pieceCategory)
+            XCTAssertGreaterThanOrEqual(p.durationMS, 45_000, p.id + " should last at least 45 seconds")
+            XCTAssertLessThanOrEqual(p.durationMS, 180_000, p.id)
+            XCTAssertEqual(p.segments.map(\.gain).max() ?? 0, 1, accuracy: 0.001, p.id)
+            XCTAssertFalse(p.japaneseName.isEmpty, p.id)
+            XCTAssertFalse(p.englishName.isEmpty, p.id)
+            XCTAssertEqual(Set(p.segments.map(\.id)).count, p.segments.count, p.id)
+        }
+    }
+    func testPieceLevelTracksItsOwnTimeline() throws {
+        let heartbeat = try XCTUnwrap(Catalog.pieces.first { $0.id == "m02" })
+        XCTAssertGreaterThan(PatternMath.level(heartbeat, at: 0.01), 0.9, "The first beat lands at once")
+        XCTAssertEqual(PatternMath.level(heartbeat, at: heartbeat.durationMS / 1000 + 1), 0, "Non-looping pieces end")
     }
 }

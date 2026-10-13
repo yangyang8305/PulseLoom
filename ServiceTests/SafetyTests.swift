@@ -509,3 +509,105 @@ extension RemoteSafetyTests {
         XCTAssertEqual(invalidations, 1)
     }
 }
+
+@MainActor private final class RecordingPlayer: HapticPlayerIO {
+    var completionHandler: ((Error?) -> Void)?
+    var loopEnabled = false
+    var loopEnd = 0.0
+    var started = false
+    var sentBeforeStart: [[CHHapticDynamicParameter]] = []
+    var sentAfterStart: [[CHHapticDynamicParameter]] = []
+    func start(atTime: TimeInterval) throws { started = true }
+    func stop(atTime: TimeInterval) throws {}
+    func sendParameters(_ parameters: [CHHapticDynamicParameter], atTime: TimeInterval) throws {
+        if started { sentAfterStart.append(parameters) } else { sentBeforeStart.append(parameters) }
+    }
+}
+@MainActor private final class RecordingEngine: HapticEngineIO {
+    var stoppedHandler: ((CHHapticEngine.StoppedReason) -> Void)?
+    var resetHandler: (() -> Void)?
+    var isMutedForHaptics = false
+    var patterns: [CHHapticPattern] = []
+    let player = RecordingPlayer()
+    func start() throws {}
+    func stop(completion: @escaping (Error?) -> Void) { completion(nil) }
+    func makeAdvancedPlayer(with pattern: CHHapticPattern) throws -> any HapticPlayerIO {
+        patterns.append(pattern)
+        return player
+    }
+}
+
+/// Parameters handed to Core Haptics, verified without claiming anything about the physical motor.
+@MainActor final class HapticTuningTests: XCTestCase {
+    private func driver(_ engine: RecordingEngine) -> HapticDriver {
+        HapticDriver(makeEngine: { engine }, supportsHaptics: { true }, isForeground: { true }, thermalSafe: { true })
+    }
+    func testStreamPrimesLevelBeforeStartAndEmbedsNoResetParameter() throws {
+        let engine = RecordingEngine()
+        let d = driver(engine)
+        var dispatches: [HapticDispatch] = []
+        d.dispatched = { dispatches.append($0) }
+        try d.stream(intensity: 0.9, sharpness: 0.3)
+        let pattern: CHHapticPattern = try XCTUnwrap(engine.patterns.first)
+        let exported: [CHHapticPattern.Key: Any] = try pattern.exportDictionary()
+        let entries = exported[CHHapticPattern.Key.pattern] as? [[CHHapticPattern.Key: Any]] ?? []
+        XCTAssertFalse(entries.isEmpty)
+        XCTAssertFalse(
+            entries.contains { $0[CHHapticPattern.Key.parameter] != nil },
+            "A looped stream must not carry a pattern parameter that resets the level every cycle")
+        let primed = try XCTUnwrap(engine.player.sentBeforeStart.first)
+        XCTAssertEqual(primed.first { $0.parameterID == .hapticIntensityControl }?.value, 0.9)
+        XCTAssertEqual(engine.player.sentAfterStart.count, 1)
+        XCTAssertEqual(dispatches.last?.kind, "stream")
+        XCTAssertEqual(dispatches.last?.peakIntensity ?? 0, 0.9, accuracy: 0.001)
+        try d.stream(intensity: 0.2, sharpness: 0.3)
+        XCTAssertEqual(engine.patterns.count, 1, "Level changes reuse the running player")
+        XCTAssertEqual(engine.player.sentAfterStart.count, 2)
+    }
+    func testPresetAtFullIntensityDispatchesFullHardwareLevel() throws {
+        let engine = RecordingEngine()
+        let d = driver(engine)
+        var dispatches: [HapticDispatch] = []
+        d.dispatched = { dispatches.append($0) }
+        let still = try XCTUnwrap(Catalog.presets.first { $0.id == "p01" })
+        try d.play(still, phase: 0, length: 2, sessionElapsed: 0, sessionLimit: 600, gain: 1, speed: 1, sharp: 0.5)
+        let full = try XCTUnwrap(dispatches.last)
+        XCTAssertEqual(full.kind, "pattern")
+        XCTAssertEqual(full.peakIntensity, 1, accuracy: 0.001, "100% intensity must request the full event level")
+        XCTAssertEqual(full.sharpness, still.segments[0].sharp, accuracy: 0.001, "Neutral texture keeps the preset's own sharpness")
+        try d.play(still, phase: 0, length: 2, sessionElapsed: 0, sessionLimit: 600, gain: 0.5, speed: 1, sharp: 1)
+        let half = try XCTUnwrap(dispatches.last)
+        XCTAssertEqual(half.peakIntensity, 0.5, accuracy: 0.001)
+        XCTAssertEqual(half.sharpness, min(1, still.segments[0].sharp + 0.5), accuracy: 0.001)
+    }
+    func testTapPresetsScheduleTransientEvents() throws {
+        let engine = RecordingEngine()
+        let d = driver(engine)
+        let taps = try XCTUnwrap(Catalog.presets.first { $0.id == "p03" })
+        try d.play(taps, phase: 0, length: 2, sessionElapsed: 0, sessionLimit: 600, gain: 1, speed: 1, sharp: 0.5)
+        let pattern: CHHapticPattern = try XCTUnwrap(engine.patterns.first)
+        let exported: [CHHapticPattern.Key: Any] = try pattern.exportDictionary()
+        let entries = exported[CHHapticPattern.Key.pattern] as? [[CHHapticPattern.Key: Any]] ?? []
+        let types = entries.compactMap {
+            ($0[CHHapticPattern.Key.event] as? [CHHapticPattern.Key: Any])?[CHHapticPattern.Key.eventType] as? String
+        }
+        XCTAssertTrue(types.contains(CHHapticEvent.EventType.hapticTransient.rawValue), "\(types)")
+    }
+    func testReferenceTestIsFullStrengthOnEveryEvent() throws {
+        let p = HapticReference.pattern()
+        XCTAssertNoThrow(try Validation.pattern(p, requireName: false))
+        XCTAssertFalse(p.loop)
+        XCTAssertTrue(p.segments.allSatisfy { $0.gain == 1 })
+        XCTAssertTrue(p.segments.contains { $0.type == .transient })
+        XCTAssertTrue(p.segments.contains { $0.type == .continuous && $0.sharp == 0 })
+        XCTAssertTrue(p.segments.contains { $0.type == .continuous && $0.sharp == 1 })
+    }
+    func testCoordinatorPublishesLastDispatchForTheTroubleshootingPage() throws {
+        let engine = RecordingEngine()
+        let coordinator = PlaybackCoordinator(driver: driver(engine))
+        XCTAssertNil(coordinator.lastDispatch)
+        try coordinator.stream(0.7, sharpness: 0.5, source: "manual")
+        XCTAssertEqual(coordinator.lastDispatch?.target, "iPhone")
+        XCTAssertEqual(coordinator.lastDispatch?.peakIntensity ?? 0, 0.7, accuracy: 0.001)
+    }
+}

@@ -4,14 +4,14 @@ import PulseLoomCore
 import SwiftUI
 import WidgetKit
 
-func T(_ key: String) -> String { NSLocalizedString(key, comment: "") }
+func T(_ key: String) -> String { AppLanguage.bundle.localizedString(forKey: key, value: nil, table: nil) }
 func timeText(_ seconds: Double) -> String {
     let n = max(0, Int(seconds.rounded(.up)))
     return String(format: "%02d:%02d", n / 60, n % 60)
 }
 enum MainTab: Int, CaseIterable { case home, music, create, my }
 enum SheetRoute: String, Identifiable {
-    case presets, timer, adjust, themes, premium, musicSources, mixes, focus
+    case presets, timer, adjust, themes, artwork, premium, musicSources, mixes
     var id: String { rawValue }
 }
 struct SharedFile: Identifiable {
@@ -19,11 +19,20 @@ struct SharedFile: Identifiable {
     let url: URL
 }
 
+/// Personal debug builds define PULSELOOM_PERSONAL_PRO on the xcodebuild command line only.
+/// Release and CI configurations never define it, so StoreKit stays the sole source of truth there.
+enum PersonalBuild {
+    #if PULSELOOM_PERSONAL_PRO
+        static let proUnlocked = true
+    #else
+        static let proUnlocked = false
+    #endif
+}
+
 @MainActor final class AppModel: ObservableObject {
     let library: LibraryStore
     let playback: PlaybackCoordinator
     let music = MusicService()
-    let sound = SoundscapeService()
     let purchase = PurchaseService()
     let cloud: CloudSyncService
     let remote: RemoteService
@@ -32,13 +41,55 @@ struct SharedFile: Identifiable {
     let diagnostics = Diagnostics()
     @Published var tab: MainTab = .home
     @Published var sheet: SheetRoute?
-    @Published var error: String?
+    /// In-app language: "system", "zh-Hans", "en" or "ja". Applies immediately; views re-render via .id.
+    @Published var language: String = UserDefaults.standard.string(forKey: AppLanguage.defaultsKey) ?? "system" {
+        didSet { AppLanguage.apply(language) }
+    }
+    /// Hero artwork choice; app-local (UserDefaults), not part of the synced library.
+    @Published var artwork: String = UserDefaults.standard.string(forKey: ArtworkCatalog.defaultsKey) ?? "saturn" {
+        didSet { UserDefaults.standard.set(artwork, forKey: ArtworkCatalog.defaultsKey) }
+    }
+    @Published var error: String? { didSet { if let error { DiagLog.write("UI error: " + error) } } }
     @Published var share: SharedFile?
     @Published var privacyHidden = false
     @Published var inviteInput = ""
     @Published var showInvite = false
     private var observers = Set<AnyCancellable>()
     private var notifications: [NSObjectProtocol] = []
+    /// Lock mode: black screen that swallows touches while output continues; triple tap unlocks.
+    @Published private(set) var locked = false
+    /// Shown before entering lock mode so the way out is explained first.
+    @Published var lockPrompt = false
+    private let lockMode = LockMode()
+    private var autoLockWork: DispatchWorkItem?
+    @Published var autoLockSeconds: Int = UserDefaults.standard.integer(forKey: "pulseloom.autoLock") {
+        didSet { UserDefaults.standard.set(autoLockSeconds, forKey: "pulseloom.autoLock"); scheduleAutoLock() }
+    }
+    func lock() {
+        guard !locked else { return }
+        locked = true
+        lockMode.enter()
+    }
+    func unlock() {
+        autoLockWork?.cancel()
+        guard locked else { return }
+        locked = false
+        lockMode.exit()
+    }
+    private var outputActive: Bool { playback.isPlaying || music.isPlaying }
+    private func scheduleAutoLock() {
+        autoLockWork?.cancel()
+        guard autoLockSeconds > 0, outputActive, !locked else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.outputActive, !self.locked else { return }
+            self.lock()
+        }
+        autoLockWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(autoLockSeconds), execute: work)
+    }
+    private func playbackDidChange() {
+        if !outputActive { unlock() } else { scheduleAutoLock() }
+    }
     private var pendingShare: Task<Void, Never>?
     private var shareGeneration = UUID()
     private var remoteOutputID: UUID?
@@ -47,7 +98,7 @@ struct SharedFile: Identifiable {
         library.pattern(prefs.lastPattern) ?? Catalog.presets.first ?? HapticPattern(name: "Unavailable")
     }
     private let entitlementReader: (() -> Bool)?
-    var pro: Bool { entitlementReader?() ?? purchase.pro }
+    var pro: Bool { entitlementReader?() ?? (PersonalBuild.proUnlocked || purchase.pro) }
     var theme: ThemeDefinition {
         let fallback = Catalog.themes.first ?? .fallback
         return Catalog.themes.first { $0.id == prefs.theme && ($0.free || pro) } ?? fallback
@@ -63,29 +114,27 @@ struct SharedFile: Identifiable {
         self.systemMusic = musicService ?? SystemMusicService()
         for publisher in [
             library.objectWillChange, playback.objectWillChange, music.objectWillChange,
-            sound.objectWillChange, purchase.objectWillChange, cloud.objectWillChange,
+            purchase.objectWillChange, cloud.objectWillChange,
             remote.objectWillChange, watch.objectWillChange, systemMusic.objectWillChange,
             playback.outputs.controllers.objectWillChange,
         ] {
             publisher.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observers)
         }
+        music.$isPlaying.dropFirst().sink { [weak self] _ in Task { @MainActor in self?.playbackDidChange() } }.store(in: &observers)
         remote.entitlementReader = { [weak self] in self?.pro ?? false }
         playback.willAcquire = { [weak self] kind in
             guard let self else { return }
             if kind != "remote" { self.relinquishRemoteControl() }
             if kind != "music" { self.music.pause() }
             self.systemMusic.pause()
-            if kind != "routine" && kind != "breath" { self.sound.stop() }
         }
         playback.didStopExternal = { [weak self] _ in
             guard let self else { return }
             self.music.pause()
-            self.sound.stop()
         }
-        playback.didChange = { [weak self] in self?.publishWatchState() }
-        playback.accompaniment = { [weak self] enabled in
-            guard let self else { return }
-            if enabled { try self.sound.play() } else { self.sound.stop() }
+        playback.didChange = { [weak self] in
+            self?.publishWatchState()
+            self?.playbackDidChange()
         }
         playback.didFinish = { [weak self] name, kind, seconds, reason in
             self?.library.record(title: name, kind: kind, seconds: seconds, reason: reason)
@@ -94,7 +143,6 @@ struct SharedFile: Identifiable {
             guard let self else { return }
             self.relinquishRemoteControl()
             self.systemMusic.pause()
-            self.sound.stop()
             self.playback.stop(reason: "music", notifyExternal: false)
         }
         music.output = { [weak self] value, sharp in
@@ -107,17 +155,11 @@ struct SharedFile: Identifiable {
         music.finished = { [weak self] title, seconds, reason in
             self?.library.record(title: title, kind: "music", seconds: seconds, reason: reason)
         }
-        sound.willStart = { [weak self] in
-            self?.relinquishRemoteControl()
-            self?.music.pause()
-            self?.systemMusic.pause()
-        }
         systemMusic.willPlay = { [weak self] in
             // Stop other owners without canceling the system-music request acquiring output.
             guard let self else { return }
             self.relinquishRemoteControl()
             self.music.stop()
-            self.sound.stop()
             self.playback.stop()
             self.updatePreferences()
         }
@@ -180,7 +222,9 @@ struct SharedFile: Identifiable {
                 }
             })
         updatePreferences()
-        if Catalog.presets.count != 16 || Catalog.themes.count != 6 { error = T("error.catalog") }
+        if Catalog.loops.count != 16 || Catalog.pieces.count < 10 || Catalog.themes.count != 6 {
+            error = T("error.catalog")
+        }
     }
     deinit { notifications.forEach { NotificationCenter.default.removeObserver($0) } }
     /// Shared by StoreKit's synchronous change callback and controlled Apple SDK regression tests.
@@ -264,7 +308,6 @@ struct SharedFile: Identifiable {
         stopAll()
         do {
             try playback.playRoutine(routine, resolver: { self.library.pattern($0) }, pro: pro)
-            if routine.sound { try sound.play() }
         } catch { stopAll(); throw error }
     }
     func select(_ p: HapticPattern) {
@@ -298,6 +341,13 @@ struct SharedFile: Identifiable {
         }
     }
     func adjust() throws { try playback.adjust(gain: prefs.gain, speed: prefs.speed, sharp: prefs.sharpness) }
+    /// Live preview while a slider is dragged; the slider commits preferences on release.
+    func adjustLive(gain: Double? = nil, speed: Double? = nil, sharp: Double? = nil) {
+        perform {
+            try playback.adjust(
+                gain: gain ?? prefs.gain, speed: speed ?? prefs.speed, sharp: sharp ?? prefs.sharpness)
+        }
+    }
     func setTimer(_ value: Double) {
         perform {
             guard Validation.finite(value, 30...600) else { throw LoomError.invalid("Invalid timer.") }
@@ -318,14 +368,12 @@ struct SharedFile: Identifiable {
     func stopAll() {
         music.stop()
         systemMusic.pause()
-        sound.stop()
         playback.stop()
         updatePreferences()
     }
     func interrupt(_ reason: String) {
         music.pause()
         systemMusic.pause()
-        sound.stop()
         playback.interrupt(reason)
         remote.authorize(false)
         watch.allowed = false
@@ -339,6 +387,7 @@ struct SharedFile: Identifiable {
         remote.foreground = active
         watch.foreground = active
         if !active {
+            unlock()
             privacyHidden = prefs.privacyCover
             interrupt(T("error.interruption"))
         } else {
@@ -487,7 +536,7 @@ struct SharedFile: Identifiable {
     }
     private func consumeShortcut() {
         guard playback.foreground, !library.recoveryRequired,
-            let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
+            let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String, !group.isEmpty,
             let preferences = UserDefaults(suiteName: group),
             let id = preferences.string(forKey: "shortcutPattern")
         else { return }
@@ -497,7 +546,7 @@ struct SharedFile: Identifiable {
         select(pattern)  // Navigation and selection only. No shortcut starts haptic output.
     }
     func publishWidget() {
-        guard let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String, !group.isEmpty,
             let d = UserDefaults(suiteName: group)
         else { return }
         d.set(

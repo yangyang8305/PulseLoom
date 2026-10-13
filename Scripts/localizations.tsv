@@ -46,8 +46,6 @@ home.remaining|Remaining|剩余|残り
 home.speed|Rhythm speed|节奏速度|リズムの速さ
 home.texture|Texture: soft to crisp|质感：柔和至清晰|感触：柔らかい〜鮮明
 home.parametersHelp|Intensity is relative to the device. Speed changes the rhythm, not a physical motor frequency.|强度是设备内的相对值。速度改变节奏，不代表马达物理频率。|強さは端末内の相対値です。速さはリズムを変え、モーターの物理周波数を指定するものではありません。
-home.guard|Prevent accidental adjustment|防误触|誤操作を防ぐ
-home.focus|Focus controls|专注控制|集中コントロール
 pattern.custom|Your own vibration pattern|你的自定义震动模式|自作の振動パターン
 pattern.cycleFormat|%.1f seconds per cycle|每轮 %.1f 秒|1周期 %.1f秒
 pattern.details|Pattern details|震动模式详情|パターンの詳細
@@ -73,9 +71,20 @@ pattern.subtitle.p13|Slowly softens|慢慢减弱|徐々に弱く
 pattern.subtitle.p14|An unhurried wave|更慢的波浪|ゆったりした波
 pattern.subtitle.p15|A varied sequence|变化的节奏|変化するリズム
 pattern.subtitle.p16|A sequence of touches|复合触碰节奏|触れるリズムの連なり
+pattern.subtitle.m01|Slow swells that brighten, then settle|缓缓涌起，渐亮渐息|ゆっくり満ちて、静まる
+pattern.subtitle.m02|A calm pulse that eases to rest|平稳的脉搏，慢慢放缓|落ち着いた鼓動がゆるむ
+pattern.subtitle.m03|Scattered drops gather into rain|零星雨点，汇成雨声|まばらな雨粒が雨音に
+pattern.subtitle.m04|Long waves that rise and recede|长浪涌来，又退去|長い波が寄せて、引く
+pattern.subtitle.m05|A sixteen-beat tabla cycle|十六拍的塔布拉鼓|16拍のタブラのサイクル
+pattern.subtitle.m06|A warm glow with soft crackles|温暖余热，偶有噼啪|温かな灯と、はぜる音
+pattern.subtitle.m07|An unhurried walk with echoes|不急的脚步，带着回声|ゆっくりした足音と残響
+pattern.subtitle.m08|A rocking gait that breathes|摇曳的步伐，起伏呼吸|揺れる歩みと呼吸
+pattern.subtitle.m09|Pulses that quicken, then unwind|渐快旋转，再慢慢松开|速まり、ほどける鼓動
+pattern.subtitle.m10|Breathing waves sinking to stillness|呼吸般的波，沉入安静|呼吸の波が静けさへ
+pattern.subtitle.m11|Gathering rumbles, cracks, then rain|闷雷聚集，裂响，继而落雨|轟き、裂け、雨になる
+pattern.subtitle.m12|Petals opening toward one bloom|花瓣次第展开，直至盛放|花びらがひらき、咲く
 timer.title|Stop timer|停止定时|停止タイマー
 timer.custom|Custom length|自定义时长|時間を指定
-timer.limit|A session has at most 10 minutes of active output. Pauses do not consume the timer.|一次会话累计输出最多 10 分钟；暂停时不扣除剩余时长。|1回の出力は合計10分までです。一時停止中は時間を消費しません。
 time.minutes|%d min|%d 分钟|%d分
 time.seconds|%d seconds|%d 秒|%d秒
 unit.seconds|s|秒|秒
@@ -136,7 +145,6 @@ music.analyzing|Finding the rhythm…|正在分析节奏…|リズムを解析�
 music.bringSong|Bring a song you love.|选一首喜欢的音乐。|好きな曲を選んでください。
 music.select|Choose music|选择音乐|音楽を選ぶ
 music.change|Change|换一首|曲を変更
-music.demo|Try the included sample|使用内置示例|サンプルを試す
 music.feel|Follow feel|跟随触感|追従する感触
 music.feel.soft|Soft|柔和|柔らかい
 music.feel.balanced|Balanced|均衡|バランス
@@ -241,14 +249,6 @@ manual.release|Release to stop|松手停止|離すと停止
 manual.hold|Hold to feel|按住感受|押して感触を試す
 manual.continuous|Continuous control|连续控制|連続操作
 manual.shortTest|Try a half-second touch|体验半秒触感|0.5秒の感触を試す
-sound.title|Soundscapes|声景|サウンドスケープ
-sound.help|Three original synthesized sounds. Start at low volume. Audio stops when the app leaves the foreground.|三种原创合成音色，从较低音量开始。离开前台时停止。|オリジナルの合成音3種類です。小さな音量で始めてください。バックグラウンドでは停止します。
-sound.rain|Rain|细雨|雨
-sound.air|Air|轻风|風
-sound.hum|Hum|低音|低い音
-sound.pause|Pause sounds|暂停声景|音を一時停止
-sound.start|Play sounds|播放声景|音を再生
-sound.withHaptics|Add the current vibration|搭配当前震动|現在の振動を合わせる
 breath.title|Breathing & touch|呼吸与轻触|呼吸とタッチ
 breath.custom|Adjust timing|调整节奏|タイミングを調整
 breath.even|Even 4 / 4|均匀 4 / 4|均等 4 / 4
@@ -263,7 +263,6 @@ routine.title|Routines|组合会话|組み合わせ
 routine.edit|Arrange a routine|组合编排|組み合わせを編集
 routine.fade|Transition fade: %.1f s|段间淡化：%.1f 秒|切替フェード：%.1f秒
 routine.options|Routine options|组合选项|組み合わせの設定
-routine.sound|Include soundscape|搭配声景|音を合わせる
 routine.template|A gentle three minutes|轻柔三分钟|ゆったり3分間
 routine.total|Total|总时长|合計
 routine.untitled|My routine|我的组合|マイ組み合わせ
@@ -340,6 +339,13 @@ help.troubleshoot|Haptic troubleshooting|触感故障排查|触覚のトラブ�
 help.supported|This device supports Core Haptics.|设备支持 Core Haptics。|この端末はCore Hapticsに対応しています。
 help.testHelp|Hardware support and feeling a vibration are separate. Try three short levels and confirm what you feel.|硬件支持与实际感知分开判断。试三个级别的短触感，确认是否有感觉。|ハードウェア対応と実際に感じることは別です。3段階の短い感触で確認してください。
 help.test|Test three levels|测试三档触感|3段階で試す
+home.testHaptics|Test strength|测试强度|強さをテスト
+help.reference|Full-strength reference|满强度对照|最大強度の比較
+help.referenceHelp|Three sharp taps, then one second of soft buzz and one second of crisp buzz, all at this device's maximum. The 100% on the sliders is this ceiling.|三下清脆敲击，然后一秒柔和嗡震、一秒清晰嗡震，全部是这台设备的最大输出。滑块的 100% 就是这个上限。|鋭いタップ3回のあと、柔らかい振動1秒と鮮明な振動1秒を、この端末の最大出力で再生します。スライダーの100%はこの上限です。
+help.lastDispatch|Last sent to hardware: %@|最近一次发送到硬件：%@|最後にハードウェアへ送信：%@
+help.dispatchFormat|%@ · %@ events · peak intensity %@ · sharpness %@|%@ · %@ 个事件 · 峰值强度 %@ · 质感 %@|%@ · イベント%@件 · 最大強度 %@ · 鮮明さ %@
+help.dispatchNone|Nothing has been sent to the haptic hardware yet.|还没有向触觉硬件发送过任何内容。|まだ触覚ハードウェアへ何も送信していません。
+help.testLevels|Three levels: 40%, 70%, 100%.|三档：40%、70%、100%。|3段階：40%、70%、100%。
 help.felt|I felt it|感觉到了|感じました
 help.confirmed|Your confirmation is noted for this test. It does not measure hardware strength.|已记录本次测试确认，不代表硬件强度测量。|今回の確認を記録しました。ハードウェアの強度測定ではありません。
 help.settings|If you feel nothing, check Settings → Accessibility → Touch → Vibration. The app cannot read or change this global switch.|没有感觉时，检查“设置 → 辅助功能 → 触控 → 振动”。App 不能读取或修改这个全局开关。|感じない場合は「設定 → アクセシビリティ → タッチ → バイブレーション」を確認してください。アプリはこの設定を読み書きできません。
@@ -413,3 +419,57 @@ watch.connect|Connect iPhone|连接 iPhone|iPhoneに接続
 watch.start|Start|开始|開始
 watch.pause|Pause|暂停|一時停止
 watch.intensity|Intensity|强度|強度
+home.loops|Rhythms|节奏|リズム
+pattern.durationShort|%d s|%d 秒|%d秒
+home.nowPlaying|Now|正在|再生中
+home.selectHint|Pick a piece or a loop, set the strength, then start.|选一首曲目或节奏，调好强度，开始。|曲かリズムを選び、強さを決めて開始。
+music.sources|Apple Music & soundscapes|Apple Music 与声景|Apple Musicとサウンド
+create.hint.tap|Start recording and tap the pad in rhythm.|开始录制后，按节奏轻点面板。|記録を開始し、リズムに合わせてタップ。
+create.hint.xy|Start recording, then hold and move: up is stronger, right is crisper.|开始录制后按住并移动：越上越强，越右越清晰。|記録を開始し、押しながら動かす：上は強く、右は鮮明。
+create.hint.basic|Each bar is one segment. Tap a bar to adjust it.|每根柱子是一个片段，点选后调整。|バーは1区間。タップして調整。
+create.hint.curve|Drag the points to shape the strength over time.|拖动节点，画出强度随时间的变化。|ポイントを動かして強さの変化を描く。
+my.library|Library|作品库|ライブラリ
+settings.quick|Quick settings|常用设置|よく使う設定
+settings.more|More|更多|その他
+editor.tapType|Short tap instead of a hold|短促敲击（而非持续）|長押しではなく短いタップ
+editor.shape|Shape|形状|形
+editor.timing|Timing|时序|タイミング
+music.library|Included music|内置曲库|内蔵の曲
+music.libraryHelp|Eight original pieces made for haptics. Tap one to follow it.|八首为触感而作的原创曲目，点一首即可跟随。|触覚のために作った8曲。タップするとすぐ追従します。
+music.libraryTitle|Included music|内置曲库|内蔵の曲
+music.bpmFormat|%d bpm|%d 拍/分|%d bpm
+music.style.lofi|Lo-fi beat|慢拍|ローファイ
+music.style.piano|Piano ballad|钢琴|ピアノ
+music.style.tabla|Tabla groove|塔布拉|タブラ
+music.style.synth|Synth pulse|电子|シンセ
+music.style.waltz|Waltz|圆舞曲|ワルツ
+music.style.bossa|Bossa nova|波萨诺瓦|ボサノバ
+music.style.ambient|Ambient|氛围|アンビエント
+music.style.drums|Drumline|鼓乐|太鼓
+error.trackMissing|This piece is missing from the app bundle.|找不到这首内置曲目。|この曲はアプリ内に見つかりません。
+artwork.title|Artwork|主图|メインアート
+artwork.classic|Theme pattern|主题纹样|テーマ模様
+artwork.saturn|Classic|经典|クラシック
+artwork.moon|Moon & Orbits|月与星轨|月と軌道
+artwork.mandala|Gilt Mandala|金线曼陀罗|金線マンダラ
+artwork.lotus|Lotus Pond|莲池|蓮の池
+artwork.water|Still Water|静水|静かな水面
+artwork.guilloche|Guilloché|雕版织纹|ギョーシェ
+artwork.silk|Silk|织锦|絹織り
+artwork.ink|Ink Bloom|墨晕|墨のにじみ
+theme.palette|Color scheme|配色|配色
+artwork.help|The artwork on Home and Music follows your vibration and music. Colors follow the chosen color scheme.|首页与音乐页的主图会随震动和音乐而动，颜色跟随所选配色。|ホームと音楽のメインアートは振動や音楽に合わせて動き、色は選んだ配色に従います。
+home.favorites|Favorite rhythms|收藏的节奏|お気に入りのリズム
+pattern.favorite|Favorite|收藏|お気に入り
+settings.language|Language|语言|言語
+language.system|Follow system|跟随系统|システムに従う
+lock.enter|Lock screen|锁定屏幕|画面をロック
+lock.hint|Triple-tap anywhere to unlock|连点三下屏幕解锁|画面を3回タップして解除
+lock.auto|Auto-lock while playing|播放时自动锁定|再生中に自動ロック
+lock.off|Off|关|オフ
+lock.after|After %d s|%d 秒后|%d秒後
+lock.confirmTitle|Lock the screen?|进入锁定模式？|画面をロックしますか？
+lock.confirmMessage|The screen goes dark and ignores touches while output continues. To unlock, tap anywhere three times quickly.|屏幕将变黑并忽略所有触摸，震动继续。解锁方法：在屏幕任意位置快速连点三下。|画面が暗くなりタッチを無視します。出力は続きます。解除するには画面を素早く3回タップしてください。
+lock.confirm|Enter lock mode|确定锁定|ロックする
+help.probe|Run controller probe|开始手柄测试|コントローラーテスト
+help.probeTriggers|Trigger sweep|扳机测试|トリガーテスト

@@ -8,6 +8,7 @@ import UIKit
     var interrupted: ((String) -> Void)?
     var terminationConfirmed: (() -> Void)?
     var windowCompleted: (() -> Void)?
+    var dispatched: ((HapticDispatch) -> Void)?
     private var engine: (any HapticEngineIO)?
     private var player: (any HapticPlayerIO)?
     private var generation: UInt64 = 0
@@ -41,13 +42,10 @@ import UIKit
             throw LoomError.unavailable("Haptic shutdown is not confirmed. Stop again before restarting.")
         }
         guard supported else {
-            throw LoomError.unavailable(NSLocalizedString("error.unsupported", comment: ""))
-        }
-        guard isForeground() else {
-            throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
+            throw LoomError.unavailable(T("error.unsupported"))
         }
         guard thermalSafe() else {
-            throw LoomError.unavailable(NSLocalizedString("error.thermal", comment: ""))
+            throw LoomError.unavailable(T("error.thermal"))
         }
         if engine == nil {
             let e = try makeEngine()
@@ -73,7 +71,7 @@ import UIKit
                 Task { @MainActor in
                     guard let self, self.engineEpoch == epoch else { return }
                     self.releaseTerminatedEngine(epoch: epoch)
-                    self.reportFailure(NSLocalizedString("error.engineReset", comment: ""))
+                    self.reportFailure(T("error.engineReset"))
                 }
             }
             engine = e
@@ -103,7 +101,7 @@ import UIKit
                     eventType: .hapticContinuous,
                     parameters: [
                         .init(parameterID: .hapticIntensity, value: 1),
-                        .init(parameterID: .hapticSharpness, value: Float(sharp)),
+                        .init(parameterID: .hapticSharpness, value: Float(Self.texture(p.sharpness, sharp))),
                     ], relativeTime: 0, duration: duration)
             ]
         } else {
@@ -168,6 +166,40 @@ import UIKit
                     parameterID: .hapticIntensityControl, controlPoints: cps, relativeTime: origin))
             i = end
         }
+        if engine.simplePatterns {
+            // Bake the intensity channel (curve shape × gain × fades) into the events themselves.
+            let level: (Double) -> Float = { t in
+                let i = min(points.count - 1, max(0, Int((t / 0.02).rounded())))
+                return points[i].1
+            }
+            let tone = engine.controllerTone ?? .motor
+            let controllerIntensity: (Float) -> Float = { v in v <= 0 ? 0 : Float(pow(Double(min(1, v)), tone == .voiceCoil ? 0.55 : 0.7)) }
+            let controllerSharpness: (Float) -> Float = { s in Self.controllerSharpness(s, tone: tone) }
+            if p.mode == .curve {
+                events = stride(from: 0.0, to: duration, by: 0.05).map { t in
+                    CHHapticEvent(
+                        eventType: .hapticContinuous,
+                        parameters: [
+                            .init(parameterID: .hapticIntensity, value: controllerIntensity(level(t))),
+                            .init(parameterID: .hapticSharpness, value: controllerSharpness(Float(Self.texture(p.sharpness, sharp)))),
+                        ], relativeTime: t, duration: min(0.05, duration - t))
+                }
+            } else {
+                events = events.map { e in
+                    let scaled = e.eventParameters.map { q in
+                        switch q.parameterID {
+                        case .hapticIntensity: return CHHapticEventParameter(parameterID: .hapticIntensity, value: controllerIntensity(q.value * level(e.relativeTime)))
+                        case .hapticSharpness: return CHHapticEventParameter(parameterID: .hapticSharpness, value: controllerSharpness(q.value))
+                        default: return q
+                        }
+                    }
+                    return e.type == .hapticTransient
+                        ? CHHapticEvent(eventType: .hapticTransient, parameters: scaled, relativeTime: e.relativeTime)
+                        : CHHapticEvent(eventType: .hapticContinuous, parameters: scaled, relativeTime: e.relativeTime, duration: e.duration)
+                }
+            }
+            curves = []
+        }
         let pattern = try CHHapticPattern(events: events, parameterCurves: curves)
         let newPlayer = try engine.makeAdvancedPlayer(with: pattern)
         generation &+= 1
@@ -184,24 +216,69 @@ import UIKit
         }
         player = newPlayer
         streaming = false
-        do { try newPlayer.start(atTime: CHHapticTimeImmediate) } catch {
+        do {
+            try newPlayer.start(atTime: CHHapticTimeImmediate)
+            DiagLog.write("player started events=\(events.count) curves=\(curves.count) length=\(duration)")
+        } catch {
+            let e = error as NSError
+            DiagLog.write("player start FAILED domain=\(e.domain) code=\(e.code) \(e.localizedDescription)")
             quarantineOutput()
             throw error
         }
+        let peakEvent = events.map { Self.value(.hapticIntensity, in: $0) }.max() ?? 0
+        let peakSharp = events.map { Self.value(.hapticSharpness, in: $0) }.max() ?? 0
+        let peakControl = points.map { Double($0.1) }.max() ?? 0
+        dispatched?(HapticDispatch(
+            kind: "pattern", events: events.count, peakIntensity: peakEvent * peakControl,
+            sharpness: peakSharp))
+    }
+    private static func value(_ id: CHHapticEvent.ParameterID, in event: CHHapticEvent) -> Double {
+        Double(event.eventParameters.first { $0.parameterID == id }?.value ?? 0)
     }
     private func params(_ s: Segment, gain: Double, sharp: Double) -> [CHHapticEventParameter] {
         [
             .init(parameterID: .hapticIntensity, value: Float(s.gain * gain)),
-            .init(parameterID: .hapticSharpness, value: Float(min(1, max(0, s.sharp + sharp - 0.25)))),
+            .init(parameterID: .hapticSharpness, value: Float(Self.texture(s.sharp, sharp))),
+        ]
+    }
+    /// Texture slider semantics: 0.5 plays a segment's own sharpness; the ends shift it by ±0.5.
+    static func texture(_ base: Double, _ offset: Double) -> Double {
+        min(1, max(0, base + (offset - 0.5)))
+    }
+    /// Phone sharpness (0–1) → controller sharpness. Voice coils (DualSense) only feel strong at low
+    /// frequency; eccentric motors (Xbox) only at high frequency, so the texture slider moves within
+    /// each actuator's strong band instead of across the whole range.
+    static func controllerSharpness(_ s: Float, tone: ControllerTone) -> Float {
+        let v = min(1, max(0, s))
+        switch tone {
+        case .voiceCoil: return v * 0.3
+        case .motor: return 0.75 + v * 0.25
+        }
+    }
+    private static func controls(intensity: Double, sharpness: Double) -> [CHHapticDynamicParameter] {
+        [
+            .init(
+                parameterID: .hapticIntensityControl, value: Float(min(1, max(0, intensity))),
+                relativeTime: 0),
+            .init(
+                parameterID: .hapticSharpnessControl, value: Float(min(1, max(0, sharpness))),
+                relativeTime: 0),
         ]
     }
     func stream(intensity: Double, sharpness: Double) throws {
         guard !shutdownPending else {
             throw LoomError.unavailable("Haptic shutdown is not confirmed.")
         }
+        // Preparing discovers the actuator; even the first render must use its calibration.
         if !streaming {
             try prepare()
             try stopPlayer()
+        }
+        let tone = engine?.controllerTone
+        let controls = Self.controls(
+            intensity: tone != nil ? pow(min(1, max(0, intensity)), tone == .voiceCoil ? 0.55 : 0.7) : intensity,
+            sharpness: tone.map { Double(Self.controllerSharpness(Float(sharpness), tone: $0)) } ?? sharpness)
+        if !streaming {
             guard let engine else { throw LoomError.unavailable("Haptic engine unavailable.") }
             let e = CHHapticEvent(
                 eventType: .hapticContinuous,
@@ -209,32 +286,27 @@ import UIKit
                     .init(parameterID: .hapticIntensity, value: 1),
                     .init(parameterID: .hapticSharpness, value: 0),
                 ], relativeTime: 0, duration: 1)
-            let p = try engine.makeAdvancedPlayer(
-                with: CHHapticPattern(
-                    events: [e],
-                    parameters: [.init(parameterID: .hapticIntensityControl, value: 0, relativeTime: 0)]))
+            // No pattern-level parameter: a looped pattern replays its own parameter events every
+            // cycle, which would pull the level back to that value each second.
+            let p = try engine.makeAdvancedPlayer(with: CHHapticPattern(events: [e], parameters: []))
             p.loopEnabled = true
             p.loopEnd = 1
             player = p
+            // Prime the level before the first render; the authoritative send follows start().
+            try? p.sendParameters(controls, atTime: CHHapticTimeImmediate)
             do { try p.start(atTime: CHHapticTimeImmediate) } catch {
                 quarantineOutput()
                 throw error
             }
             streaming = true
         }
-        do { try player?.sendParameters(
-            [
-                .init(
-                    parameterID: .hapticIntensityControl, value: Float(min(1, max(0, intensity))),
-                    relativeTime: 0),
-                .init(
-                    parameterID: .hapticSharpnessControl, value: Float(min(1, max(0, sharpness))),
-                    relativeTime: 0),
-            ], atTime: CHHapticTimeImmediate)
-        } catch {
+        do { try player?.sendParameters(controls, atTime: CHHapticTimeImmediate) } catch {
             quarantineOutput()
             throw error
         }
+        dispatched?(HapticDispatch(
+            kind: "stream", events: 1, peakIntensity: Double(controls[0].value),
+            sharpness: Double(controls[1].value)))
     }
     private func stopPlayer() throws {
         guard !shutdownPending else {

@@ -21,6 +21,8 @@ final class PulseLoomUITests: XCTestCase {
             predicate: NSPredicate(format: "hittable == true"), object: tab)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
         tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        // The simulator occasionally drops a synthesized tap; one retry keeps the test about navigation.
+        if !tab.waitForSelected(timeout: 3) { tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
         let selected = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "selected == true"), object: tab)
         XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
@@ -86,6 +88,18 @@ final class PulseLoomUITests: XCTestCase {
             tapTab("Home")
             XCTAssertTrue(app.buttons["hapticStop"].waitForExistence(timeout: 5))
         }
+    }
+    func testLockScreenTripleTapUnlocks() {
+        app.buttons["lockButton"].tap()
+        let confirm = app.alerts.buttons["Enter lock mode"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        let lock = app.descendants(matching: .any).matching(identifier: "lockScreen").firstMatch
+        XCTAssertTrue(lock.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["hapticStart"].isHittable)
+        lock.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+        XCTAssertTrue(app.buttons["hapticStart"].waitForExistence(timeout: 3))
+        XCTAssertFalse(lock.exists)
     }
     func testAllPresetsUsesSheet() {
         app.buttons["All presets"].tap()

@@ -1,0 +1,1466 @@
+<title>Pulse Loom 主图工作室</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<style>
+/* Layout: phone column. Option tabs, the stage, rhythm chips, dock, then the designer's note. */
+:root{
+  --bg:#fcf7f3; --surface:#fffcf9; --ink:#423238; --muted:#806d75; --line:#dfced3;
+  --accent:#966879; --hero1:#f7e8e7; --hero2:#e7c6d1; --hero3:#c7a2b9; --on-accent:#fffaf8;
+  --display:"Cormorant Garamond",Georgia,"Songti SC",serif;
+  --body:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#161416; --surface:#222024; --ink:#f2ecef; --muted:#c0b0ba; --line:#4b4148;
+  --accent:#dab7c6; --hero1:#3a2f36; --hero2:#5a4252; --hero3:#8a6a7c; --on-accent:#271c24; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#161416; --surface:#222024; --ink:#f2ecef; --muted:#c0b0ba; --line:#4b4148;
+  --accent:#dab7c6; --hero1:#3a2f36; --hero2:#5a4252; --hero3:#8a6a7c; --on-accent:#271c24; color-scheme:dark }
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);padding-inline:16px;padding-block:12px 24px}
+.wrap{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-style:italic;font-weight:500;font-size:28px;margin:0}
+.tools{display:flex;gap:8px;align-items:center}
+.row{display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:40px;padding:8px 14px;border-radius:999px;border:0.8px solid var(--line);
+  background:color-mix(in srgb,var(--surface) 90%,transparent);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:transparent;box-shadow:0 6px 18px -8px var(--accent)}
+.chip:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{position:relative;aspect-ratio:440/470;max-width:100%;border-radius:22px;overflow:hidden;background:var(--surface);border:0.8px solid var(--line)}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.nameplate{position:absolute;left:0;right:0;bottom:12px;text-align:center;pointer-events:none}
+.nameplate b{font-family:var(--display);font-weight:500;font-size:24px;display:block;line-height:1.1}
+.nameplate span{color:var(--muted);font-size:12px}
+.dock{display:flex;gap:10px;align-items:center}
+.btn{flex:1;min-height:46px;border-radius:999px;border:0;font:inherit;font-size:16px;cursor:pointer;color:var(--on-accent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 85%,white),var(--accent));box-shadow:0 10px 24px -12px var(--accent)}
+.btn.secondary{flex:0 0 auto;padding-inline:18px;background:var(--surface);color:var(--ink);border:0.8px solid var(--line);box-shadow:none}
+.note{font-size:13px;line-height:1.6;color:var(--muted)}
+.note b{color:var(--ink);font-size:15px}
+.note ul{margin:6px 0 0;padding-left:18px}
+.note li{margin:2px 0}
+</style>
+
+<div class="wrap">
+  <header><h1>Pulse Loom</h1>
+    <div class="tools"><button class="chip" id="theme" aria-pressed="false">深色</button></div>
+  </header>
+  <div class="row" id="modes" role="tablist" aria-label="方案"><button class="chip" data-m="saturn" aria-pressed="true">环宇</button><button class="chip" data-m="water" aria-pressed="false">雨落静水</button><button class="chip" data-m="mandala" aria-pressed="false">金线曼陀罗</button><button class="chip" data-m="guilloche" aria-pressed="false">雕版织纹</button><button class="chip" data-m="moon" aria-pressed="false">月与星轨</button><button class="chip" data-m="ink" aria-pressed="false">墨晕</button><button class="chip" data-m="silk" aria-pressed="false">织锦经纬</button><button class="chip" data-m="lotus" aria-pressed="false">莲池</button></div>
+  <div class="stage"><canvas id="art" aria-hidden="true"></canvas>
+    <div class="nameplate"><b id="name">柔绽</b><span id="sub">轻震、停歇</span></div></div>
+  <div class="row" id="rhythms" role="group" aria-label="节奏">
+    <button class="chip" data-r="bloom" aria-pressed="true">柔绽</button>
+    <button class="chip" data-r="heart" aria-pressed="false">心跳</button>
+    <button class="chip" data-r="tabla" aria-pressed="false">塔布拉</button>
+    <button class="chip" data-r="wave" aria-pressed="false">缓浪</button>
+    <button class="chip" data-r="music" aria-pressed="false">音乐 112 bpm</button>
+  </div>
+  <div class="dock"><button class="btn" id="play">▶ 开始震动</button><button class="btn secondary" id="stop">■ 停止</button></div>
+  <div class="note" id="note"></div>
+</div>
+
+<script>
+// Shared rhythm engine for the Pulse Loom artwork options. Deterministic: no Date/random inside step().
+// Signal model mirrors the app: a level in [0,1] from haptic segments or a music energy curve.
+(function () {
+  const T = (d, g, gain) => ({ type: 'transient', d, g, gain });
+  const C = (d, g, gain) => ({ type: 'continuous', d, g, gain });
+  const rhythms = {
+    bloom: { name: '柔绽', sub: '轻震、停歇', cycle: 2000, segs: [C(120, 0, .35), C(160, 0, .8), C(220, 0, 1), C(240, 0, .55), C(180, 1080, .25)] },
+    heart: { name: '心跳', sub: '平稳的脉搏', cycle: 1000, segs: [T(30, 110, 1), T(30, 830, .65)] },
+    tabla: { name: '塔布拉', sub: '十六拍一循环', cycle: 2400, segs: 'dha dhin dhin dha dha dhin dhin dha dha tin tin ta ta dhin dhin dha'.split(' ').map(b => T(30, 120, b === 'dha' ? 1 : b === 'dhin' ? .75 : b === 'tin' ? .5 : .6)) },
+    wave: { name: '缓浪', sub: '长浪起伏', cycle: 4000, segs: [C(500, 0, .2), C(500, 0, .5), C(500, 0, .85), C(500, 0, 1), C(500, 0, .7), C(500, 0, .4), C(500, 500, .15)] },
+    music: { name: '心潮', sub: '合成器 · 112 bpm', cycle: 2143, segs: null },
+  };
+  function segLevel(r, t) {
+    let x = t % r.cycle, acc = 0;
+    for (const s of r.segs) {
+      const local = x - acc;
+      if (local < 0) break;
+      if (local < s.d) return s.gain;
+      if (local < s.d + s.g) return s.type === 'transient' ? s.gain * Math.max(0, 1 - (local - s.d) / 120) : 0;
+      acc += s.d + s.g;
+    }
+    return 0;
+  }
+  function musicLevel(t) {
+    const beat = 60000 / 112, x = (t % (beat * 4)) / beat;
+    const kick = Math.max(0, 1 - ((t % beat) / 110)), clap = (x % 2 >= 1 && x % 2 < 1.12) ? .8 : 0;
+    const phrase = .35 + .25 * Math.sin(t / 4300) + .15 * Math.sin(t / 900);
+    return Math.min(1, phrase * .7 + kick * .7 + clap);
+  }
+  function levelAt(mode, t, gain) {
+    if (!mode || mode === 'idle') return 0;
+    const r = rhythms[mode];
+    return (r.segs ? segLevel(r, t) : musicLevel(t)) * gain;
+  }
+
+  // Engine state advanced by step(dt). `hits` are onsets within the last 1.6 s: {born, gain}.
+  function createEngine() {
+    return { env: 0, prev: 0, spring: 0, springV: 0, rot: 0, hits: [], time: 0 };
+  }
+  function step(e, lv, dtMs, reduce) {
+    const dt = Math.min(50, dtMs) / 1000;
+    e.time += dtMs;
+    e.env += (lv - e.env) * (lv > e.env ? 0.45 : 0.06);
+    if (lv - e.prev > 0.28 && !reduce) { e.springV += 2.4 * lv; e.hits.push({ born: e.time, gain: lv }); }
+    e.prev = lv;
+    e.springV += (-90 * e.spring - 9 * e.springV) * dt; e.spring += e.springV * dt;
+    if (!reduce) e.rot += dt * (0.08 + e.env * 0.3);
+    for (let i = e.hits.length - 1; i >= 0; i--) if (e.time - e.hits[i].born > 1600) e.hits.splice(i, 1);
+    // breath: a slow 10 s idle cycle
+    e.breath = reduce ? 0 : 0.5 + 0.5 * Math.sin(e.time / 1600);
+  }
+  function hex(n) { return parseInt(n.slice(1), 16); }
+  function rgba(h, a) { const n = hex(h); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+  function luminance(h) { const n = hex(h); return (0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255)) / 255; }
+
+  const palettes = {
+    light: { bg: '#fcf7f3', surface: '#fffcf9', ink: '#423238', muted: '#806d75', line: '#dfced3', accent: '#966879', hero1: '#f7e8e7', hero2: '#e7c6d1', hero3: '#c7a2b9' },
+    dark: { bg: '#161416', surface: '#222024', ink: '#f2ecef', muted: '#c0b0ba', line: '#4b4148', accent: '#dab7c6', hero1: '#3a2f36', hero2: '#5a4252', hero3: '#8a6a7c' },
+  };
+
+  window.LoomEngine = { rhythms, levelAt, createEngine, step, rgba, luminance, palettes };
+})();
+
+window.LOOM_OPTIONS = {};
+(function(){ let __opt; // 土星与环系 — a single Saturn with a complete ring system. Canvas 2D, deterministic.
+// Geometry: the ring plane is drawn in a "plane space" (translate → rotate φ → scale(1,k)),
+// so strokes are foreshortened like a real tilted disc. Light comes from left / front / north,
+// so the globe's shadow falls on the far ring to the right, and the rings shade the southern hemisphere.
+(function () {
+  const TAU = Math.PI * 2;
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+  // Radial structure, r in planet radii: C ring (faint), B ring (bright, wide), Cassini division,
+  // A ring with the Encke gap. Returns body (soft fill) and grain (fine striation) alphas.
+  function ringProfile(r) {
+    const g0 = 0.5 + 0.5 * (0.6 * Math.sin(r * 23 + 0.4) + 0.4 * Math.sin(r * 47 + 2.2));          // slow density
+    const g1 = 0.5 + 0.5 * (0.55 * Math.sin(r * 61) + 0.3 * Math.sin(r * 147 + 1.3) + 0.15 * Math.sin(r * 331 + 2.1)); // fine grain
+    const gap = (at, wd, depth) => 1 - depth * Math.exp(-Math.pow((r - at) / wd, 2));              // narrow ringlet gap
+    if (r < 1.50) return { body: (0.10 + 0.08 * g0) * smooth(1.20, 1.30, r), zone: 0, grain: 0.3 * g1 };
+    if (r < 1.96) { const e = smooth(1.50, 1.57, r) * (1 - 0.3 * smooth(1.92, 1.96, r)) * gap(1.64, 0.007, 0.6) * gap(1.81, 0.006, 0.5); return { body: (0.45 + 0.30 * g0) * e, zone: 1, grain: g1 * e }; }
+    if (r < 2.03) return { body: 0.08, zone: 0, grain: 0.15 * g1 };
+    if (r < 2.28) { const e = gap(2.21, 0.012, 0.85) * gap(2.10, 0.006, 0.5) * (1 - 0.5 * smooth(2.24, 2.28, r)); return { body: (0.32 + 0.25 * g0) * e, zone: 1, grain: 0.7 * g1 * e }; }
+    return { body: 0, zone: 0, grain: 0 };
+  }
+
+  // Deterministic one-time init: ring line table, dust grains, background stars (fixed-seed LCG).
+  function init(state) {
+    if (state.saturn) return state.saturn;
+    let seed = 20261009;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const lines = [];
+    for (let i = 0; i < 104; i++) { const r = 1.20 + i * 0.0106; lines.push({ r, ...ringProfile(r) }); }
+    const dust = [];
+    for (let i = 0; i < 120; i++) {
+      const u = rnd();
+      const r = u < 0.16 ? 1.24 + rnd() * 0.25 : u < 0.70 ? 1.56 + rnd() * 0.38 : u < 0.95 ? 2.04 + rnd() * 0.23 : 2.33 + rnd() * 0.05;
+      dust.push({ r, a: rnd() * TAU, s: 0.3 + rnd() * 0.45, al: 0.35 + rnd() * 0.65 });
+    }
+    const stars = [];
+    while (stars.length < 14) {
+      const x = 0.06 + rnd() * 0.88, y = 0.06 + rnd() * 0.88, dx = (x - 0.5) / 0.47, dy = (y - 0.46) / 0.27;
+      if (dx * dx + dy * dy < 1) continue;
+      stars.push({ x, y, s: 0.55 + rnd() * 0.7, al: 0.35 + rnd() * 0.65, ph: rnd() * TAU });
+    }
+    state.saturn = { lines, dust, stars, t: 0 };
+    return state.saturn;
+  }
+
+  // Latitude bands on the globe: [lat0, lat1, alpha, lit?]. Very faint, alternating.
+  const BANDS = [[-0.10, 0.08, 0.07, 1], [0.16, 0.30, 0.06, 0], [0.36, 0.42, 0.06, 1], [0.50, 0.63, 0.07, 0],
+    [0.72, 0.80, 0.05, 0], [0.92, 1.05, 0.06, 0], [-0.20, -0.32, 0.06, 0], [-0.40, -0.46, 0.05, 1]];
+
+  __opt = {
+    name: '环宇', english: 'Saturn', note: '静止时尘粒极慢绕行、环面十秒级微进动；震动时环的亮度与宽度随强度呼吸、行星光晕变亮；每次起音一粒亮点沿 B 环前缘从左向右滑过淡去。',
+
+    tick(p) {
+      const S = init(p.state);
+      S.t += p.dt * (1 + p.env * 0.8); // dust orbital clock, faster while playing
+    },
+
+    draw(p) {
+      const { ctx, w, h, cx, cy, R, now, env, spring, hits, breath, palette: P, dark, rgba, reduce } = p;
+      const S = init(p.state);
+      const Rp = R * 0.42;                                           // planet radius
+      const mot = reduce ? 0 : 1;
+      const phi = -0.28 + mot * 0.02 * Math.sin(TAU * now / 12000);   // ring plane rotation (slow precession)
+      const k = 0.33 + mot * 0.012 * Math.sin(TAU * now / 9000 + 1);  // ring tilt (minor / major)
+      const cp = Math.cos(phi), sp = Math.sin(phi);
+      const rs = 1 + env * 0.03 + spring * 0.02;                      // rings widen with intensity
+      const lift = 1 + env * 0.35;                                    // rings brighten with intensity
+      const toScreen = (r, th) => { const x = r * Rp * Math.cos(th), y = r * Rp * Math.sin(th) * k; return [cx + x * cp - y * sp, cy + x * sp + y * cp]; };
+      const planeSpace = () => { ctx.translate(cx, cy); ctx.rotate(phi); ctx.scale(1, k); };
+
+      // colours, only from the palette. In light mode hero1 is the lightest, in dark mode hero3 is.
+      const lit = dark ? P.hero3 : P.hero1, mid = P.hero2, dim = dark ? P.hero1 : P.hero3;
+      const shade = dark ? P.bg : P.accent;
+      const bodyCol = [dark ? P.hero2 : P.hero3, dark ? P.hero3 : P.hero2];   // by zone: faint / bright
+      const grainCol = P.accent, bodyMul = (dark ? 0.85 : 0.82) * lift, grainMul = (dark ? 0.55 : 0.4) * lift;
+      const haloC = dark ? P.hero3 : P.hero2, starC = dark ? P.ink : P.accent, coreC = dark ? P.ink : P.hero1;
+
+      // --- stars ------------------------------------------------------------
+      for (const s of S.stars) {
+        const tw = 0.7 + 0.3 * Math.sin(now / 1400 + s.ph);
+        ctx.fillStyle = rgba(starC, s.al * tw * (dark ? 0.45 : 0.3));
+        ctx.beginPath(); ctx.arc(s.x * w, s.y * h, s.s, 0, TAU); ctx.fill();
+      }
+
+      // --- planet halo (brightens with env) ---------------------------------
+      {
+        const a = (dark ? 0.08 : 0.06) + env * (dark ? 0.22 : 0.2) + breath * 0.015;
+        const g = ctx.createRadialGradient(cx, cy, Rp * 0.85, cx, cy, Rp * 1.9);
+        g.addColorStop(0, rgba(haloC, a)); g.addColorStop(0.5, rgba(haloC, a * 0.35)); g.addColorStop(1, rgba(haloC, 0));
+        ctx.fillStyle = g; ctx.fillRect(cx - 2 * Rp, cy - 2 * Rp, 4 * Rp, 4 * Rp);
+      }
+
+      // --- ring strokes: body lines (overlapping, soft) then grain lines (hairline), then the F ring ---
+      const strokeRings = (s0, s1) => {
+        for (const pass of [0, 1]) {
+          ctx.lineWidth = pass ? 0.45 : 0.85;
+          for (const L of S.lines) {
+            const a = pass ? L.grain * grainMul : L.body * bodyMul;
+            if (a < 0.012) continue;
+            ctx.strokeStyle = rgba(pass ? grainCol : bodyCol[L.zone], Math.min(1, a));
+            ctx.beginPath(); ctx.arc(0, 0, L.r * Rp * rs, s0, s1); ctx.stroke();
+          }
+        }
+        ctx.lineWidth = 0.5; ctx.strokeStyle = rgba(grainCol, 0.3 * lift);
+        ctx.beginPath(); ctx.arc(0, 0, 2.36 * Rp * rs, s0, s1); ctx.stroke();
+      };
+      // The globe's shadow on the rings: a half-ellipse on the anti-sun side (back, slightly right).
+      // Three nested clips grade the edge; inside each, body lines are re-stroked in the shade colour.
+      const SHADOW_ANG = -0.7;
+      const shadowPass = (s0, s1) => {
+        for (const [sc, a] of [[1, dark ? 0.4 : 0.26], [0.88, dark ? 0.3 : 0.2], [0.76, dark ? 0.3 : 0.2]]) {
+          ctx.save(); ctx.rotate(SHADOW_ANG);
+          ctx.beginPath(); ctx.ellipse(0, 0, 1.6 * Rp * sc, Rp * sc, 0, -Math.PI / 2, Math.PI / 2); ctx.closePath(); ctx.clip();
+          ctx.rotate(-SHADOW_ANG); ctx.lineWidth = 0.85;
+          for (const L of S.lines) {
+            if (L.r > 1.62 * sc) break;
+            const al = L.body * bodyMul * a; if (al < 0.012) continue;
+            ctx.strokeStyle = rgba(shade, al);
+            ctx.beginPath(); ctx.arc(0, 0, L.r * Rp * rs, s0, s1); ctx.stroke();
+          }
+          ctx.restore();
+        }
+      };
+
+      // --- rings (far half) with the globe's shadow -----------------------
+      ctx.save(); planeSpace(); strokeRings(Math.PI, TAU); shadowPass(Math.PI, TAU); ctx.restore();
+
+      // --- dust grains: Keplerian drift, hidden behind the globe, dimmed in its shadow ---
+      const drawDust = (front) => {
+        const ux = Math.cos(SHADOW_ANG), uy = Math.sin(SHADOW_ANG);
+        for (const d of S.dust) {
+          const th = d.a + S.t * 0.14 / Math.pow(d.r, 1.5);
+          if ((Math.sin(th) > 0) !== front) continue;
+          const [x, y] = toScreen(d.r * rs, th);
+          let a = d.al * (0.35 + env * 0.4) * (dark ? 1 : 0.7);
+          if (!front) { const dx = x - cx, dy = y - cy; if (dx * dx + dy * dy < Rp * Rp * 1.02) continue; }
+          const X = d.r * Math.cos(th), Y = d.r * Math.sin(th);
+          const along = X * ux + Y * uy, across = -X * uy + Y * ux;
+          if (along > 0 && (along / 1.6) ** 2 + across ** 2 < 1) a *= 0.35;
+          ctx.fillStyle = rgba(grainCol, a);
+          ctx.beginPath(); ctx.arc(x, y, d.s, 0, TAU); ctx.fill();
+        }
+      };
+      drawDust(false);
+
+      // --- the globe --------------------------------------------------------
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, Rp, 0, TAU); ctx.clip();
+      let g = ctx.createRadialGradient(cx - 0.42 * Rp, cy - 0.40 * Rp, 0, cx - 0.2 * Rp, cy - 0.2 * Rp, 1.45 * Rp);
+      g.addColorStop(0, lit); g.addColorStop(0.45, mid); g.addColorStop(1, dim);
+      ctx.fillStyle = g; ctx.fillRect(cx - Rp, cy - Rp, 2 * Rp, 2 * Rp);
+      // latitude bands, and the rings' shadow on the southern hemisphere: front arcs of latitude circles
+      ctx.save(); planeSpace();
+      const ci = Math.sqrt(1 - k * k) / k;
+      const latArc = (lam, s0, s1, ccw) => ctx.arc(0, -Rp * Math.sin(lam) * ci, Rp * Math.cos(lam), s0, s1, ccw);
+      const band = (l0, l1, col, a) => { ctx.beginPath(); latArc(l0, 0, Math.PI, false); latArc(l1, Math.PI, 0, true); ctx.closePath(); ctx.fillStyle = rgba(col, a); ctx.fill(); };
+      for (const [l0, l1, a, isLit] of BANDS) band(l0, l1, isLit ? lit : dim, a);
+      band(-0.50, -0.76, shade, 0.07); band(-0.53, -0.73, shade, 0.08); band(-0.56, -0.70, shade, 0.09);
+      ctx.restore();
+      // soft terminator and limb darkening
+      g = ctx.createRadialGradient(cx - 0.3 * Rp, cy - 0.3 * Rp, 0.45 * Rp, cx - 0.3 * Rp, cy - 0.3 * Rp, 1.5 * Rp);
+      g.addColorStop(0, rgba(shade, 0)); g.addColorStop(0.5, rgba(shade, dark ? 0.1 : 0.07)); g.addColorStop(1, rgba(shade, dark ? 0.6 : 0.55));
+      ctx.fillStyle = g; ctx.fillRect(cx - Rp, cy - Rp, 2 * Rp, 2 * Rp);
+      g = ctx.createRadialGradient(cx, cy, 0.76 * Rp, cx, cy, Rp);
+      g.addColorStop(0, rgba(shade, 0)); g.addColorStop(1, rgba(shade, dark ? 0.3 : 0.36));
+      ctx.fillStyle = g; ctx.fillRect(cx - Rp, cy - Rp, 2 * Rp, 2 * Rp);
+      ctx.restore();
+
+      // --- rings (near half): the ring plane is opaque, so it hides the southern limb ------------
+      // Fill each ring band (gaps such as the Cassini division stay open) with the surface colour first,
+      // then stroke the lines over it; over the background the fill is invisible, over the globe it occludes.
+      if (!S.bands) {
+        S.bands = []; let b = null;
+        for (const L of S.lines) {
+          if (L.body < 0.02) continue;
+          if (b && L.r - b[1] < 0.045) b[1] = L.r; else { b = [L.r, L.r]; S.bands.push(b); }
+        }
+      }
+      ctx.save(); planeSpace();
+      ctx.fillStyle = rgba(P.surface, dark ? 0.9 : 0.94);
+      for (const [r0, r1] of S.bands) {
+        if (r1 - r0 < 0.02) continue;
+        ctx.beginPath(); ctx.arc(0, 0, (r1 + 0.012) * Rp * rs, 0, Math.PI); ctx.arc(0, 0, Math.max(0.01, r0 - 0.012) * Rp * rs, Math.PI, 0, true); ctx.closePath(); ctx.fill();
+      }
+      strokeRings(0, Math.PI); shadowPass(0, Math.PI); ctx.restore();
+      drawDust(true);
+
+      // --- onset glint: a bright grain slides left → right along the near B ring, with a fading tail ---
+      if (!reduce) for (const hh of hits) {
+        const u = hh.age / 1.2; if (u >= 1) continue;
+        const th = Math.PI * (1 - easeOut(u)), rB = 1.74 * rs, fade = hh.gain * (1 - u) * (1 - u);
+        ctx.save(); planeSpace(); ctx.lineWidth = 2.4;
+        for (let i = 0; i < 7; i++) {
+          const t0 = th + i * 0.05, t1 = t0 + 0.055; if (t1 > Math.PI) break;
+          ctx.strokeStyle = rgba(grainCol, fade * 0.55 * (1 - i / 7));
+          ctx.beginPath(); ctx.arc(0, 0, rB * Rp, t0, t1); ctx.stroke();
+        }
+        ctx.restore();
+        const [gx, gy] = toScreen(rB, th), gr = 4 + 3 * (1 - u);
+        g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+        g.addColorStop(0, rgba(coreC, fade)); g.addColorStop(0.22, rgba(grainCol, fade * 0.7)); g.addColorStop(1, rgba(grainCol, 0));
+        ctx.fillStyle = g; ctx.fillRect(gx - gr, gy - gr, 2 * gr, 2 * gr);
+      }
+    },
+  };
+})();
+
+ window.LOOM_OPTIONS['saturn'] = __opt; })();
+(function(){ let __opt; // 雨落静水 — Still Water. A shallow stone basin of water seen from slightly above (rings are ellipses,
+// ry = K·rx). Each drop spawns 2–3 concentric rings that travel outward, lose amplitude and fade; every
+// ring is two hairlines (light toward the top-left light source, dark toward the bottom-right) so it reads
+// as relief. Idle: a light drop every few seconds. Haptics: onset gain picks the landing spot (strong =
+// centre) and the amplitude. Music: the same, plus a fine drizzle that follows env. Two petals rest on the
+// surface and get nudged by passing rings.
+__opt = {
+  name: '雨落静水', english: 'Still Water',
+  note: '静止时每隔几秒落一滴轻雨；震动时起音强度决定落点与波幅；音乐时随能量再添细碎小涟漪。',
+
+  tick(p) {
+    const { dt, now, env, state } = p;
+    const s = init(state);
+    // quiet timer: idle rain only after 1.5 s of silence
+    s.quiet = env < 0.04 ? s.quiet + dt : 0;
+    if (s.quiet === 0) s.nextRain = now + 1800;
+    if (s.quiet > 1.5 && now >= s.nextRain) {
+      const ang = rnd(s) * Math.PI * 2, rad = 0.15 + 0.6 * Math.sqrt(rnd(s));
+      spawn(s, now, Math.cos(ang) * rad, Math.sin(ang) * rad, 0.42 + 0.3 * rnd(s), 'rain');
+      s.nextRain = now + 2100 + 1500 * rnd(s);
+    }
+    // continuous energy (music): a fine drizzle whose rate follows env
+    if (env > 0.3 && rnd(s) < dt * env * 1.6 && s.drops.filter(d => d.kind === 'fine').length < 2) {
+      const ang = rnd(s) * Math.PI * 2, rad = 0.15 + 0.75 * Math.sqrt(rnd(s));
+      spawn(s, now, Math.cos(ang) * rad, Math.sin(ang) * rad, 0.12 + 0.1 * env, 'fine');
+    }
+    s.drops = s.drops.filter(d => now - d.born < d.life * 1000);
+  },
+
+  draw(p) {
+    const { ctx, cx, cy, R, now, env, spring, hits, breath, palette: P, dark, rgba, reduce, state } = p;
+    const s = init(state);
+    const K = 0.62, rx = R * 0.96, ry = rx * K, LIP = 7;   // water ellipse and the width of the stone lip
+    // light mode: highlights are the page white, shadows the deep blush; dark mode: highlights are the pale
+    // accent rose (never the grey of pure ink), shadows the page black
+    const lightCol = dark ? P.accent : P.surface, darkCol = dark ? P.bg : P.hero3;
+    const t = now / 1000;
+
+    // --- haptic onsets → drops (dedupe by birth time; works both live and in a single-frame render)
+    if (!reduce) for (const hit of hits) {
+      const born = Math.round(now - hit.age * 1000);
+      if (born <= s.lastHit) continue;
+      s.lastHit = born;
+      const ang = hash(born) * Math.PI * 2, rad = (1 - hit.gain) * 0.8 + 0.12 * hash(born + 7);
+      spawn(s, born, Math.cos(ang) * rad, Math.sin(ang) * rad, 0.45 + 0.55 * hit.gain, 'hit');
+    }
+
+    // --- stone lip: a flat ledge almost the colour of the page; only its rounded outer edge catches light
+    let g;
+    ellipse(ctx, cx, cy, rx + LIP, ry + LIP);
+    ctx.fillStyle = rgba(P.hero2, dark ? 0.1 : 0.14); ctx.fill();
+    g = diag(ctx, cx, cy, rx + LIP, ry + LIP);
+    g.addColorStop(0, rgba(lightCol, dark ? 0.05 : 0.6)); g.addColorStop(0.5, rgba(darkCol, 0.03)); g.addColorStop(1, rgba(darkCol, dark ? 0.6 : 0.22));
+    ctx.lineWidth = 0.7; ctx.strokeStyle = g; ctx.stroke();
+
+    // --- water body: clip to the pool; far side (top) reflects a little sky, the middle is the deepest
+    ctx.save();
+    ellipse(ctx, cx, cy, rx, ry); ctx.clip();
+    ctx.fillStyle = P.hero1; ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+    g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
+    if (dark) { g.addColorStop(0, rgba(P.hero2, 0.62)); g.addColorStop(0.5, rgba(P.hero2, 0.2)); g.addColorStop(1, rgba(P.bg, 0.5 + env * 0.1)); }
+    else { g.addColorStop(0, rgba(P.hero2, 0.3)); g.addColorStop(0.55, rgba(P.hero2, 0.62)); g.addColorStop(1, rgba(P.hero2, 0.92 + env * 0.08)); }
+    ctx.fillStyle = g; ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+    // depth: the basin floor shows through, a shade deeper toward the centre
+    ctx.save(); ctx.translate(cx, cy + ry * 0.12); ctx.scale(1, K);
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, rgba(darkCol, dark ? 0.22 : 0.14)); g.addColorStop(0.55, rgba(darkCol, dark ? 0.1 : 0.06)); g.addColorStop(1, rgba(darkCol, 0));
+    ctx.fillStyle = g; ctx.fillRect(-rx, -rx, rx * 2, rx * 2); ctx.restore();
+
+    // --- sky reflection: one wide, very flat, very soft patch near the far rim, drifting on a ~10 s cycle,
+    //     swelling with the breath and jolted a touch by the spring
+    const lx = cx - rx * 0.22 + Math.sin(t / 2.1) * 9 + spring * 6, ly = cy - ry * 0.5 + Math.cos(t / 2.9) * 4 + spring * 3;
+    const la = (dark ? 0.05 : 0.24) * (1 + env * 0.35 + breath * 0.12);
+    ctx.save(); ctx.translate(lx, ly); ctx.rotate(-0.22); ctx.scale(1, 0.3);
+    glow(ctx, rgba, lightCol, rx * 0.78 + breath * 6, la);
+    ctx.restore();
+
+    // --- concave cues: the lip shades the water along the far, top-left side (a soft 12 px inner shadow
+    //     built from four stacked hairline-to-wide strokes); its lit inner wall shows as one line bottom-right
+    for (let i = 0; i < 4; i++) {
+      g = diag(ctx, cx, cy, rx, ry);
+      g.addColorStop(0, rgba(darkCol, (dark ? 0.26 : 0.11) * (1 - i * 0.18))); g.addColorStop(0.42, rgba(darkCol, 0)); g.addColorStop(1, rgba(darkCol, 0));
+      const wdt = 4 + i * 4;
+      ellipse(ctx, cx, cy, rx + wdt / 2 - 0.5, ry + wdt / 2 - 0.5); ctx.lineWidth = wdt * 2; ctx.strokeStyle = g; ctx.stroke();
+    }
+    g = diag(ctx, cx, cy, rx, ry);
+    g.addColorStop(0, rgba(lightCol, 0)); g.addColorStop(0.55, rgba(lightCol, 0)); g.addColorStop(1, rgba(lightCol, dark ? 0.3 : 0.9));
+    ellipse(ctx, cx, cy, rx - 0.8, ry - 0.8); ctx.lineWidth = 1.2; ctx.strokeStyle = g; ctx.stroke();
+
+    // --- ripples
+    if (!reduce) {
+      const V = 54, DELAY = 0.3;
+      for (const d of s.drops) {
+        const age = (now - d.born) / 1000, x0 = cx + d.u * rx, y0 = cy + d.v * ry;
+        const fade = Math.pow(Math.max(0, 1 - age / d.life), 1.3);
+        const rings = d.kind === 'fine' ? 1 : d.amp > 0.75 ? 3 : 2;
+        for (let i = 0; i < rings; i++) {
+          const r = R0 + V * (d.kind === 'fine' ? 0.7 : 1) * (age - i * DELAY);
+          if (r <= R0) continue;
+          const amp = d.amp * (1 - 0.28 * i) * fade / (1 + r / 120);
+          if (amp < 0.015) continue;
+          ring(ctx, rgba, x0, y0, r, r * K, amp, lightCol, darkCol, dark);
+        }
+        // impact: a small bead of light that sinks into the opening dimple over the first 0.3 s
+        if (age < 0.32 && d.kind !== 'fine') {
+          const k = 1 - age / 0.32, rr = 2 + 8 * age;
+          ctx.beginPath(); ctx.ellipse(x0, y0 + 0.4, rr, rr * K, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = rgba(darkCol, (dark ? 0.3 : 0.26) * k * d.amp); ctx.lineWidth = 0.7; ctx.stroke();
+          ctx.beginPath(); ctx.arc(x0 - 0.3, y0 - 0.5, 0.7 + d.amp * 1.0 * k, 0, Math.PI * 2);
+          ctx.fillStyle = rgba(lightCol, (dark ? 0.4 : 0.7) * k * d.amp); ctx.fill();
+        }
+      }
+    }
+
+    // --- petals: home + slow drift + a nudge from each passing leading ring
+    for (const pt of s.petals) {
+      let px = cx + pt.u * rx + Math.sin(t / 3.7 + pt.ph) * 3, py = cy + pt.v * ry + Math.cos(t / 4.3 + pt.ph) * 1.6;
+      let rot = pt.rot + Math.sin(t / 5.1 + pt.ph) * 0.05;
+      if (!reduce) for (const d of s.drops) {
+        const age = (now - d.born) / 1000, dx = px - (cx + d.u * rx), dy = (py - (cy + d.v * ry)) / K;
+        const dist = Math.hypot(dx, dy) || 1, r = R0 + 54 * age;
+        const push = d.amp * 5 * Math.exp(-Math.pow((dist - r) / 9, 2)) * Math.max(0, 1 - age / d.life);
+        px += dx / dist * push; py += dy / dist * push * K; rot += push * 0.03 * Math.sign(dx);
+      }
+      petal(ctx, rgba, px, py, rot, pt.len, P, dark, lightCol, darkCol);
+    }
+    ctx.restore(); // water clip
+  },
+};
+
+// ---------- helpers ----------
+const R0 = 4;
+function init(s) {
+  if (s.drops) return s;
+  s.seed = 7; s.drops = []; s.quiet = 0; s.nextRain = 1200; s.lastHit = -1;
+  s.petals = [
+    { u: 0.4, v: 0.36, rot: -0.55, len: 24, ph: 0 },
+    { u: -0.46, v: 0.16, rot: 0.75, len: 20, ph: 2.1 },
+  ];
+  return s;
+}
+function rnd(s) { s.seed = (s.seed * 1664525 + 1013904223) >>> 0; return s.seed / 4294967296; }
+function hash(n) { let x = (n * 2654435761) >>> 0; x ^= x >>> 15; x = (x * 2246822519) >>> 0; x ^= x >>> 13; return (x >>> 0) / 4294967296; }
+function spawn(s, born, u, v, amp, kind) {
+  const life = kind === 'fine' ? 1.3 : kind === 'rain' ? 3.4 : 1.9 + 1.6 * amp;
+  s.drops.push({ born, u, v, amp, kind, life });
+  if (s.drops.length > 5) s.drops.shift(); // keep the surface calm
+}
+function glow(ctx, rgba, col, r, a) {
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  g.addColorStop(0, rgba(col, a)); g.addColorStop(0.45, rgba(col, a * 0.4)); g.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+}
+function ellipse(ctx, x, y, rx, ry) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
+// gradient along the light direction (top-left → bottom-right) across an ellipse
+function diag(ctx, x, y, rx, ry) { return ctx.createLinearGradient(x - rx, y - ry, x + rx, y + ry); }
+// One ripple ring = light hairline offset toward the light, dark hairline offset away; each alpha-graded
+// along the light direction so the crest looks embossed instead of outlined.
+function ring(ctx, rgba, x, y, rx, ry, amp, lightCol, darkCol, dark) {
+  const o = 0.6, aL = Math.min(1, amp * (dark ? 0.5 : 1.2)), aD = amp * (dark ? 0.8 : 0.7);
+  let g = diag(ctx, x, y, rx, ry);
+  g.addColorStop(0, rgba(lightCol, aL)); g.addColorStop(0.5, rgba(lightCol, aL * 0.3)); g.addColorStop(1, rgba(lightCol, 0));
+  ctx.beginPath(); ctx.ellipse(x - o * 0.6, y - o, rx, ry, 0, 0, Math.PI * 2);
+  ctx.lineWidth = 0.85; ctx.strokeStyle = g; ctx.stroke();
+  g = diag(ctx, x, y, rx, ry);
+  g.addColorStop(0, rgba(darkCol, 0)); g.addColorStop(0.5, rgba(darkCol, aD * 0.3)); g.addColorStop(1, rgba(darkCol, aD));
+  ctx.beginPath(); ctx.ellipse(x + o * 0.6, y + o, rx, ry, 0, 0, Math.PI * 2);
+  ctx.lineWidth = 0.8; ctx.strokeStyle = g; ctx.stroke();
+}
+// A cherry petal (rounded base, notched tip) lying flat on the water: a faint reflection right beneath it
+// (no cast-shadow offset — it floats on the surface, not above it), a lit top-left half and a hairline edge.
+function petal(ctx, rgba, x, y, rot, len, P, dark, lightCol, darkCol) {
+  const L = len / 2, W = len * 0.3;
+  const shape = () => {
+    ctx.beginPath(); ctx.moveTo(-L, 0);
+    ctx.bezierCurveTo(-L * 0.6, -W * 1.15, L * 0.55, -W, L, -W * 0.28);
+    ctx.quadraticCurveTo(L * 0.72, 0, L, W * 0.28);
+    ctx.bezierCurveTo(L * 0.55, W, -L * 0.6, W * 1.15, -L, 0); ctx.closePath();
+  };
+  ctx.save(); ctx.translate(x + 0.6, y + 1.4); ctx.rotate(rot); ctx.scale(1.04, 0.9);
+  shape(); ctx.fillStyle = rgba(darkCol, dark ? 0.35 : 0.12); ctx.fill(); // reflection on the water
+  ctx.restore();
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(1, 0.86);
+  shape(); ctx.fillStyle = dark ? rgba(P.hero3, 0.85) : rgba(P.hero2, 0.95); ctx.fill();
+  shape(); ctx.fillStyle = rgba(P.hero3, dark ? 0 : 0.22); ctx.fill();
+  // lit half: the side facing the light source, faded toward the midrib
+  ctx.save(); ctx.clip();
+  const g = ctx.createLinearGradient(0, -W, 0, W * 0.4);
+  g.addColorStop(0, rgba(lightCol, dark ? 0.35 : 0.6)); g.addColorStop(1, rgba(lightCol, 0));
+  ctx.fillStyle = g; ctx.fillRect(-L, -W * 1.2, 2 * L, 2.4 * W); ctx.restore();
+  shape(); ctx.lineWidth = 0.55; ctx.strokeStyle = rgba(P.accent, dark ? 0.5 : 0.35); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-L * 0.85, 0); ctx.quadraticCurveTo(0, -W * 0.15, L * 0.6, 0);
+  ctx.lineWidth = 0.5; ctx.strokeStyle = rgba(P.accent, dark ? 0.3 : 0.22); ctx.stroke();
+  ctx.restore();
+}
+
+ window.LOOM_OPTIONS['water'] = __opt; })();
+(function(){ let __opt; // 金线曼陀罗 — Gilt Mandala. A jali / rangoli style badge drawn in 0.5–0.9 px accent hairlines.
+// Seven layers, outside → in: scalloped rim, hairline ring, bead ring, 16 double-lined lotus petals,
+// interlaced 8-point star (two squares, woven over/under), 12 small arches, 6-petal rosette + dot.
+// Motion: each layer counter-rotates at its own glacial speed; env lifts line brightness and opens the
+// petals; every onset sends a brightness wave outward, each layer lit after a delay ∝ its radius.
+(function () {
+  const TAU = Math.PI * 2, LIGHT = -2.4;                    // light source: upper left
+  const SPEED = { rim: 0.10, ring: -0.07, bead: -0.14, petal: 0.06, star: -0.20, arch: 0.16, rose: -0.28 };
+  const pol = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
+
+  function draw(p) {
+    const { ctx, cx, cy, R, env, spring, hits, rot, breath, palette: P, dark, rgba, reduce } = p;
+    const A = P.accent, HI = dark ? P.ink : P.surface, tame = dark ? 0.86 : 1;              // dark accent is brighter: pull it back a little
+    const base = (0.85 + 0.15 * breath) * (1 + 0.45 * env);  // breath + intensity lift
+    // Brightness wave: an onset reaches radius fraction r after r*0.30 s, snaps on, then decays.
+    const wave = r => {
+      let s = 0;
+      for (const h of hits) { const u = h.age - r * 0.30; if (u > 0) s += h.gain * (u < 0.035 ? u / 0.035 : Math.exp(-(u - 0.035) / 0.32)); }
+      return Math.min(1.2, s);
+    };
+    const lit = a => 0.70 + 0.30 * Math.cos(a - LIGHT);    // metallic: brighter facing the light
+    const alpha = (b, wv, a) => Math.min(1, b * tame * lit(a) * (base + 0.9 * wv));
+    const stroke = (w, b, wv, a) => { ctx.lineWidth = w; ctx.strokeStyle = rgba(A, alpha(b, wv, a)); };
+    const open = reduce ? 0 : Math.max(0, env * 0.035 + spring * 0.02);  // petal opening (radius fraction)
+
+    ctx.save(); ctx.translate(cx, cy); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    // 0. A barely-there warm disc, offset toward the light, to lift the badge from the surface
+    const g = ctx.createRadialGradient(-R * 0.15, -R * 0.15, 0, 0, 0, R * 1.02);
+    g.addColorStop(0, rgba(P.hero1, (dark ? 0.5 : 0.8) * (0.55 + 0.45 * env)));
+    g.addColorStop(1, rgba(P.hero1, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, R * 1.02, 0, TAU); ctx.fill();
+
+    // ---- helpers ---------------------------------------------------------------------------------
+    // ring: a hairline circle drawn in 36 arcs so the alpha can follow the light
+    function ring(rf, w, b, th) {
+      const wv = wave(rf), r = R * rf * (1 + 0.012 * wv), n = 36;
+      ctx.lineCap = 'butt';
+      for (let i = 0; i < n; i++) {
+        const a0 = th + i * TAU / n, a1 = a0 + TAU / n + 0.004;
+        stroke(w, b, wv, a0 + TAU / n / 2); ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
+      }
+      ctx.lineCap = 'round';
+    }
+    // rim: n tiny outward scallops sitting on a hairline ring
+    function rim(rf, n, th) {
+      const wv = wave(rf), r = R * rf * (1 + 0.012 * wv), s = Math.PI * r / n;
+      ring(rf, 0.5, 0.28, th);
+      for (let i = 0; i < n; i++) {
+        const a = th + i * TAU / n, [x, y] = pol(r, a);
+        stroke(0.55, 0.36, wv, a); ctx.beginPath(); ctx.arc(x, y, s, a - Math.PI / 2, a + Math.PI / 2); ctx.stroke();
+      }
+    }
+    // beads: n filled dots with a speck of highlight toward the light
+    function beads(rf, n, th) {
+      const wv = wave(rf), r = R * rf * (1 + 0.012 * wv);
+      for (let i = 0; i < n; i++) {
+        const a = th + i * TAU / n, [x, y] = pol(r, a);
+        ctx.fillStyle = rgba(A, alpha(0.62, wv, a)); ctx.beginPath(); ctx.arc(x, y, 1.5, 0, TAU); ctx.fill();
+        ctx.fillStyle = rgba(HI, 0.55); ctx.beginPath(); ctx.arc(x - 0.45, y - 0.45, 0.5, 0, TAU); ctx.fill();
+      }
+    }
+    // petal outline in local coords, pointing along +x: base at r0 (half width wb), tip at r1
+    function petalPath(r0, r1, wb, wm, wt) {
+      const L = r1 - r0;
+      ctx.beginPath(); ctx.moveTo(r0, -wb);
+      ctx.bezierCurveTo(r0 + L * 0.30, -wm, r1 - L * 0.25, -wt, r1, 0);
+      ctx.bezierCurveTo(r1 - L * 0.25, wt, r0 + L * 0.30, wm, r0, wb);
+      ctx.closePath();
+    }
+    function petals(n, th) {
+      const wv = wave(0.66), r0 = R * 0.505, r1 = R * (0.82 + open) * (1 + 0.010 * wv), k = 1 + 0.08 * env;
+      for (let i = 0; i < n; i++) {
+        const a = th + i * TAU / n;
+        ctx.save(); ctx.rotate(a);
+        // faint inner fill (brightens a little with intensity)
+        petalPath(r0 + 2.8, r1 - 4.5, 6.4 * k, 13.9 * k, 5.2 * k);
+        ctx.fillStyle = rgba(P.hero2, (dark ? 0.45 : 0.22) * (0.8 + 0.5 * env + 0.4 * wv)); ctx.fill();
+        stroke(0.55, 0.42, wv, a); ctx.stroke();                     // inner line
+        petalPath(r0, r1, 9 * k, 16.5 * k, 7.4 * k);
+        stroke(0.8, 0.72, wv, a); ctx.stroke();                      // outer line
+        stroke(0.5, 0.30, wv, a); ctx.beginPath(); ctx.moveTo(r0 + 8, 0); ctx.lineTo(r1 - 10, 0); ctx.stroke(); // midrib
+        ctx.restore();
+      }
+    }
+    // star: two squares (circumradius rs) woven over/under. Every edge passes under the other square
+    // at 70.7 % of its length and over it at 29.3 %, so a true gap there is all the weaving needs.
+    function star(rf, th) {
+      const wv = wave(rf * 0.85), rs = R * rf * (1 + 0.012 * wv), gp = 2.3 / (rs * Math.SQRT2), tc = 1 - Math.SQRT1_2;
+      ring(rf, 0.5, 0.30, th);                                        // seat ring shared with the petal bases
+      for (let q = 0; q < 2; q++) for (let i = 0; i < 4; i++) {
+        const a0 = th + q * Math.PI / 4 + i * Math.PI / 2, [x0, y0] = pol(rs, a0), [x1, y1] = pol(rs, a0 + Math.PI / 2);
+        const at = t => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+        stroke(0.8, 0.70, wv, a0 + Math.PI / 4); ctx.beginPath();
+        ctx.moveTo(x0, y0); ctx.lineTo(...at(tc - gp)); ctx.moveTo(...at(tc + gp)); ctx.lineTo(x1, y1); ctx.stroke();
+      }
+    }
+    // arches: n lancet arches on a hairline ring — parallel jambs climb straight, then meet in a point
+    function arches(n, th) {
+      const wv = wave(0.27), rb = R * 0.235 * (1 + 0.012 * wv), ra = R * 0.325 * (1 + 0.012 * wv);
+      const wb = rb * Math.sin(0.36 * TAU / n), rm = rb + (ra - rb) * 0.60;
+      ring(0.235, 0.5, 0.30, th);
+      for (let i = 0; i < n; i++) {
+        ctx.save(); ctx.rotate(th + i * TAU / n);
+        stroke(0.65, 0.55, wv, th + i * TAU / n); ctx.beginPath(); ctx.moveTo(rb, -wb);
+        ctx.bezierCurveTo(rm, -wb, rm + (ra - rm) * 0.5, -wb * 0.32, ra, 0);
+        ctx.bezierCurveTo(rm + (ra - rm) * 0.5, wb * 0.32, rm, wb, rb, wb); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    // rosette: six petals of arcs around a centre dot, enclosed by a hairline ring
+    function rosette(th) {
+      const wv = wave(0.12), rf = R * 0.15 * (1 + 0.012 * wv);
+      ring(0.19, 0.5, 0.34, th);
+      for (let i = 0; i < 6; i++) {
+        const a = th + i * TAU / 6, [tx, ty] = pol(rf, a), [l0, l1] = pol(rf * 0.62, a - 0.52), [r0, r1] = pol(rf * 0.62, a + 0.52);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(l0, l1, tx, ty); ctx.quadraticCurveTo(r0, r1, 0, 0);
+        ctx.fillStyle = rgba(P.hero2, (dark ? 0.45 : 0.22) * (0.8 + 0.5 * env + 0.4 * wv)); ctx.fill();
+        stroke(0.75, 0.78, wv, a); ctx.stroke();
+      }
+      const wd = wave(0), rd = 2.4 + 0.6 * wd;
+      ctx.fillStyle = rgba(A, alpha(0.95, wd, LIGHT)); ctx.beginPath(); ctx.arc(0, 0, rd, 0, TAU); ctx.fill();
+      ctx.fillStyle = rgba(HI, 0.7); ctx.beginPath(); ctx.arc(-rd * 0.34, -rd * 0.34, rd * 0.26, 0, TAU); ctx.fill();
+    }
+
+    // ---- layers, outside → in ------------------------------------------------------------------
+    const up = -Math.PI / 2;
+    rim(0.965, 88, up + rot * SPEED.rim);
+    ring(0.925, 0.5, 0.26, up + rot * SPEED.ring);
+    beads(0.885, 72, up + rot * SPEED.bead);
+    petals(16, up + rot * SPEED.petal);
+    star(0.50, up + rot * SPEED.star);
+    arches(12, up + rot * SPEED.arch);
+    rosette(up + rot * SPEED.rose);
+
+    ctx.restore();
+  }
+
+  __opt = {
+    name: '金线曼陀罗', english: 'Gilt Mandala',
+    note: '静止时七层细线以各自极慢的速度正反旋转并随呼吸微明暗；震动时线条随强度变亮、莲瓣略张；每次起音一道亮度波从中心逐层向外传过去。',
+    draw,
+  };
+})();
+
+ window.LOOM_OPTIONS['mandala'] = __opt; })();
+(function(){ let __opt; // 雕版织纹 · Guilloché — an engine-turned rosette, the way a geometric lathe cuts one on a banknote
+// or a watch dial: ONE lobed curve r(θ) = base + A·sin(kθ + φ) is repeated with evenly spaced phases,
+// so the copies cross each other in a regular lattice of lens-shaped cells that tighten towards a
+// clean centre circle. Two such lattices (8 lobes and 6 lobes) lie over each other and turn in
+// opposite directions, so the moiré between them drifts very slowly. Precision comes from the
+// regularity of hairlines, not from colour; light comes from the upper left (the stroke itself is
+// an off-centre radial gradient), so no overlay discs are needed and dark mode stays clean.
+__opt = {
+  name: '雕版织纹', english: 'Guilloché',
+  note: '静止时两层格纹反向极慢旋转、莫尔纹缓缓流动；震动时格纹随强度向外张开、墨色加深；每次起音一圈涟漪从中心小圆扫过格纹到外缘（经过处线条短暂外鼓再回落），中心细环同时亮一下。',
+
+  draw(p) {
+    const { ctx, cx, cy, R, env, spring, hits, rot, breath, palette: P, dark, rgba, reduce, state: S } = p;
+    const N = 300;                                              // samples per curve
+    if (!S.cos) {                                               // one-time trig tables
+      S.cos = new Float32Array(N + 1); S.sin = new Float32Array(N + 1);
+      for (let j = 0; j <= N; j++) { const t = j / N * Math.PI * 2; S.cos[j] = Math.cos(t); S.sin[j] = Math.sin(t); }
+    }
+    const C = S.cos, Sn = S.sin, col = P.accent;
+    const TAU = Math.PI * 2;
+
+    // --- geometry (all in units of R)
+    const grow = 1 + (reduce ? 0 : spring * 0.018) + (breath - 0.5) * 0.008;   // onset nudge + 10 s breath
+    const open = 1 + env * 0.10;                                // vibration: the lattice opens outward
+    const base = 0.53 * grow; let ampl = 0.27 * grow * open;        // rosette spans 0.26R … 0.80R
+    const rCentre = R * (base - ampl) * 0.985;                  // the clean centre circle
+
+    // --- onset ripples: a radial bulge that runs from the centre circle to the rim in 0.6 s
+    const fronts = reduce ? [] : hits
+      .map(h => ({ pos: 0.2 + h.age / 0.6 * 0.75, fade: Math.max(0, 1 - h.age / 0.9) * h.gain }))
+      .filter(f => f.fade > 0.01);
+    const bump = (rn) => { let s = 0; for (const f of fronts) { const d = (rn - f.pos) / 0.09; s += f.fade * Math.exp(-d * d); } return s; };
+    const ping = fronts.reduce((m, f) => Math.max(m, f.fade), 0);  // freshest onset, for the centre ring
+
+    // --- underlay: a faint blush disc lit from the upper left, gone before the lattice ends
+    const under = dark ? P.hero2 : P.hero1;                    // in dark, hero2 keeps the centre from reading as a hole
+    const g = ctx.createRadialGradient(cx - R * 0.22, cy - R * 0.26, 0, cx, cy, R * 0.86);
+    g.addColorStop(0, rgba(under, dark ? 0.5 : 0.95));
+    g.addColorStop(0.3, rgba(under, dark ? 0.26 : 0.75));
+    g.addColorStop(0.6, rgba(under, dark ? 0.1 : 0.45));
+    g.addColorStop(1, rgba(under, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 0.86, 0, TAU); ctx.fill();
+
+    // --- the ink: strongest near the upper-left of the centre, fading outward and to the lower right
+    const ink = ctx.createRadialGradient(cx - R * 0.22, cy - R * 0.24, R * 0.06, cx, cy, R * 0.84);
+    ink.addColorStop(0, rgba(col, 1));
+    ink.addColorStop(0.45, rgba(col, dark ? 0.72 : 0.78));
+    ink.addColorStop(1, rgba(col, dark ? 0.16 : 0.22));
+    ctx.strokeStyle = ink; ctx.lineJoin = 'round';
+
+    // one copy of the lobed curve; rotating a copy by α is the same as shifting its phase by -kα
+    const curve = (k, phi) => {
+      ctx.beginPath();
+      for (let j = 0; j <= N; j++) {
+        let rn = base + ampl * Math.sin(k * (j / N * TAU) + phi);
+        if (fronts.length) rn += 0.022 * bump(rn);
+        const x = cx + R * rn * C[j], y = cy + R * rn * Sn[j];
+        if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+    // a lattice: n evenly phased copies, the whole thing slowly rotating
+    const lattice = (k, n, rotation, width, alpha) => {
+      ctx.lineWidth = width;
+      ctx.globalAlpha = Math.min(0.9, alpha * (1 + env * 0.3) * (dark ? 0.9 : 1));
+      for (let i = 0; i < n; i++) curve(k, i * TAU / n - k * rotation);
+    };
+    const rotA = reduce ? 0 : rot * 0.12, rotB = reduce ? 0 : -rot * 0.09;   // ≈0.5°/s at rest
+    lattice(8, 16, rotA, 0.6, 0.42);
+    ampl *= 0.93;                                               // the second lattice nests just inside the first
+    lattice(6, 10, rotB + 0.05, 0.5, 0.24);
+
+    // --- centre: one hairline ring, which brightens for a moment on each onset
+    ctx.globalAlpha = 1; ctx.lineWidth = 0.7;
+    ctx.strokeStyle = rgba(col, (dark ? 0.55 : 0.5) + 0.35 * ping);
+    ctx.beginPath(); ctx.arc(cx, cy, rCentre, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 0.5; ctx.strokeStyle = rgba(col, dark ? 0.22 : 0.2);   // a quieter inner chapter ring
+    ctx.beginPath(); ctx.arc(cx, cy, rCentre * 0.88, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 0.5;                                        // the ripples themselves, leaving the ring
+    for (const f of fronts) {
+      ctx.strokeStyle = rgba(col, 0.3 * f.fade);
+      ctx.beginPath(); ctx.arc(cx, cy, R * f.pos, 0, TAU); ctx.stroke();
+    }
+  },
+};
+
+ window.LOOM_OPTIONS['guilloche'] = __opt; })();
+(function(){ let __opt; // 月与星轨 — a small shaded moon, three nested hairline orbits with slow beads, a sparse star field.
+// Light from the upper-left; the sphere is baked per pixel (Lambert) once per theme; craters only on the lit face.
+__opt = {
+  name: '月与星轨', english: 'Moon & Orbits',
+  note: '静止时珠子极慢运行、星点轻闪；震动时月晕随强度变亮、轨道线提亮；每次起音最靠前的珠子闪一下并沿轨道拖出一段淡尾。',
+
+  init(p) {
+    const { w, h, cx, cy, R, state } = p;
+    let s = 1234567;                                   // fixed-seed LCG → reproducible layout
+    const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const r = R * 0.3;
+    // stars: sparse and evenly spread (min distance), kept out of the orbit ellipse, three brighter ones far apart
+    const stars = [];
+    let tries = 0;
+    while (stars.length < 42 && tries++ < 4000) {
+      const x = 30 + rnd() * (w - 60), y = 30 + rnd() * (h - 60);
+      const ex = (x - cx) / (R * 1.2), ey = (y - cy) / (R * 0.72);
+      if (ex * ex + ey * ey < 1 + rnd() * 0.4) continue;
+      if (stars.some(o => Math.hypot(o.x - x, o.y - y) < 30)) continue;
+      const big = stars.length % 13 === 4;
+      if (big && stars.some(o => o.big && Math.hypot(o.x - x, o.y - y) < 200)) continue;
+      stars.push({ x, y, rad: big ? 1.1 + rnd() * 0.25 : 0.4 + rnd() * 0.55, a: big ? 0.8 : 0.22 + rnd() * 0.4,
+        T: 1500 + rnd() * 2600, ph: rnd() * 6.283, big });
+    }
+    // craters: on the lit (upper-left) face only, in moon-local units (fraction of r)
+    const L = [-0.6, -0.8];                            // light direction (unit)
+    const craters = [];
+    while (craters.length < 5) {
+      const x = (rnd() * 2 - 1) * 0.9, y = (rnd() * 2 - 1) * 0.9;
+      if (Math.hypot(x, y) > 0.88 || x * L[0] + y * L[1] < 0.1) continue;
+      if (craters.some(c => Math.hypot(c.x - x, c.y - y) < 0.3)) continue;
+      craters.push({ x, y, rad: 0.03 + rnd() * 0.065 });
+    }
+    // maria: two large, barely-there darker patches on the lit face
+    const maria = [{ x: -0.18, y: 0.12, rx: 0.34, ry: 0.22, ang: -0.5 }, { x: 0.12, y: -0.3, rx: 0.2, ry: 0.14, ang: 0.4 }];
+    // orbits: nested (never cross), a gentle fan of tilts; only the inner one passes across the moon's face
+    const orbits = [
+      { a: R * 0.60, k: 0.36, tilt: -0.24, th0: 1.1, spd: 1.00 },
+      { a: R * 0.80, k: 0.48, tilt: -0.13, th0: 3.9, spd: -0.72 },
+      { a: R * 1.00, k: 0.47, tilt: -0.04, th0: 5.4, spd: 0.55 },
+    ];
+    Object.assign(state, { r, L, stars, craters, maria, orbits, flash: {} });
+  },
+
+  // Shade the sphere per pixel once per theme (Lambert, light from upper-left and slightly in front).
+  sphere(p, C) {
+    const { ctx, dark, state: S } = p, r = S.r, sc = ctx.getTransform().a || 2, n = Math.ceil(r * 2 * sc);
+    if (S.img && S.imgDark === dark) return S.img;
+    const cv = document.createElement('canvas'); cv.width = cv.height = n;
+    const ic = cv.getContext('2d'), im = ic.createImageData(n, n), d = im.data;
+    const rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const stops = [[-1, rgb(C.deep)], [-0.3, rgb(C.deep)], [0, rgb(C.shade)], [0.32, rgb(C.mid)], [0.7, rgb(C.lit)], [1, rgb(C.hi)]];
+    const Lx = -0.52, Ly = -0.69, Lz = 0.50;                  // normalised light vector
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const nx = (x + 0.5) / n * 2 - 1, ny = (y + 0.5) / n * 2 - 1, dd = Math.hypot(nx, ny);
+      const o = (y * n + x) * 4, edge = Math.max(0, Math.min(1, (1 - dd) * r * sc + 0.5));
+      if (edge <= 0) continue;
+      const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+      let I = nx * Lx + ny * Ly + nz * Lz;                      // Lambert term, negative past the terminator
+      I = I >= 0 ? Math.pow(I, 0.85) * (1 - 0.18 * Math.pow(dd, 6)) : I;   // slight limb darkening on the lit face
+      let k = 1; while (k < stops.length - 1 && stops[k][0] < I) k++;
+      const [a, ca] = stops[k - 1], [b, cb] = stops[k], t = Math.max(0, Math.min(1, (I - a) / (b - a)));
+      d[o] = ca[0] + (cb[0] - ca[0]) * t; d[o + 1] = ca[1] + (cb[1] - ca[1]) * t; d[o + 2] = ca[2] + (cb[2] - ca[2]) * t; d[o + 3] = 255 * edge;
+    }
+    ic.putImageData(im, 0, 0); S.img = cv; S.imgDark = dark;
+    return cv;
+  },
+
+  draw(p) {
+    const { ctx, w, h, cx, cy, R, now, env, hits, rot, breath, palette: P, dark, rgba, reduce, state: S } = p;
+    if (!S.orbits) this.init(p);
+    const { r, L, stars, craters, maria, orbits } = S;
+    const TAU = Math.PI * 2;
+    // hex blend (t toward b) so the role colours can sit between palette entries
+    const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+    // role colors per theme (lit face must be the bright end in both themes)
+    const C = dark
+      ? { hi: P.ink, lit: P.accent, mid: P.hero3, shade: P.hero2, deep: P.hero1, bead: P.ink, star: P.ink, line: P.line, lineF: P.accent }
+      : { hi: mix(P.surface, P.hero1, 0.4), lit: P.hero1, mid: P.hero2, shade: P.hero3, deep: mix(P.accent, P.hero3, 0.3), bead: P.accent, star: P.accent, line: P.line, lineF: P.accent };
+    const onset = hits.reduce((m, hh) => m + hh.gain * Math.exp(-hh.age * 3.5), 0); // summed onset energy
+
+    // ---- star field --------------------------------------------------------------------------
+    for (const st of stars) {
+      const tw = reduce ? 1 : 0.72 + 0.28 * Math.sin(now / st.T + st.ph);
+      const a = st.a * tw * (dark ? 0.9 : 0.7) * (1 + env * 0.25);
+      if (st.big) {                                     // glint: two hairline rays instead of a blurred halo
+        const len = st.rad * 4.2;
+        ctx.lineWidth = 0.5; ctx.strokeStyle = rgba(C.star, a * 0.35);
+        ctx.beginPath(); ctx.moveTo(st.x - len, st.y); ctx.lineTo(st.x + len, st.y); ctx.moveTo(st.x, st.y - len); ctx.lineTo(st.x, st.y + len); ctx.stroke();
+      }
+      ctx.fillStyle = rgba(C.star, Math.min(1, a));
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.rad, 0, TAU); ctx.fill();
+    }
+
+    // ---- orbit geometry helpers ------------------------------------------------------------
+    // point on orbit o at angle th → screen xy and depth z (positive = in front of the moon)
+    const orbPt = (o, th) => {
+      const x = o.a * Math.cos(th), y = o.a * o.k * Math.sin(th);
+      const c = Math.cos(o.tilt), s = Math.sin(o.tilt);
+      return { x: cx + x * c - y * s, y: cy + x * s + y * c, z: Math.sin(th) };
+    };
+    const beadTh = o => o.th0 + rot * o.spd;
+    const strokeArc = (o, th1, th2, color, alpha, lw) => {   // polyline arc of an orbit
+      ctx.beginPath();
+      const n = 48;
+      for (let i = 0; i <= n; i++) { const q = orbPt(o, th1 + (th2 - th1) * i / n); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+      ctx.strokeStyle = rgba(color, alpha); ctx.lineWidth = lw; ctx.stroke();
+    };
+    // frontmost bead gets assigned to each onset once (keyed by onset birth time)
+    let frontIdx = 0, frontZ = -2;
+    orbits.forEach((o, i) => { const z = Math.sin(beadTh(o)); if (z > frontZ) { frontZ = z; frontIdx = i; } });
+    const flashOf = new Array(orbits.length).fill(0);
+    for (const hh of hits) {
+      const key = Math.round((now - hh.age * 1000) / 25);
+      if (S.flash[key] === undefined) S.flash[key] = frontIdx;
+      flashOf[S.flash[key]] += hh.gain * Math.exp(-hh.age * 3.2);
+    }
+    for (const k in S.flash) if (now - k * 25 > 2000) delete S.flash[k];
+
+    const drawBead = (o, th, flash, front) => {
+      const q = orbPt(o, th);
+      const depth = 0.78 + 0.22 * q.z;                       // slightly smaller when behind
+      const rad = 1.8 * depth, base = (front ? 0.95 : 0.5) * (dark ? 1 : 0.9);
+      if (flash > 0.02) {                                     // onset: short fading tail + bloom
+        const len = 0.55 * Math.min(1, flash * 1.4), dir = Math.sign(o.spd) || 1, seg = 14;
+        for (let i = 0; i < seg; i++) {
+          const t0 = th - dir * len * (i + 1) / seg, t1 = th - dir * len * i / seg, f = 1 - i / seg;
+          const a = orbPt(o, t0), b = orbPt(o, t1);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = rgba(C.bead, 0.55 * flash * f * f); ctx.lineWidth = 0.5 + 1.1 * f; ctx.stroke();
+        }
+        const bc = dark ? C.bead : C.hi, ba = dark ? 0.32 : 0.6;   // light theme: a pale bloom so it reads over the moon's shadow too
+        const bg = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, rad * 5.5);
+        bg.addColorStop(0, rgba(bc, ba * flash)); bg.addColorStop(0.4, rgba(bc, ba * 0.3 * flash)); bg.addColorStop(1, rgba(bc, 0));
+        ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(q.x, q.y, rad * 5.5, 0, TAU); ctx.fill();
+      }
+      ctx.fillStyle = rgba(C.bead, Math.min(1, base + flash * 0.4));
+      ctx.beginPath(); ctx.arc(q.x, q.y, rad + flash * 0.6, 0, TAU); ctx.fill();
+    };
+
+    // ---- back halves of the orbits and beads behind the moon --------------------------------
+    const lineA = (dark ? 0.75 : 0.9) * (0.55 + env * 0.3);
+    orbits.forEach((o, i) => {
+      strokeArc(o, Math.PI, TAU, C.line, lineA * 0.7, 0.6);
+      const th = beadTh(o); if (Math.sin(th) <= 0) drawBead(o, th, flashOf[i], false);
+    });
+
+    // ---- halo ------------------------------------------------------------------------------
+    const haloA = (dark ? 0.16 : 0.26) * (0.42 + 0.1 * breath + env * 1.0 + onset * 0.35);
+    const haloR = r * (2.0 + env * 0.3 + onset * 0.12);
+    let g = ctx.createRadialGradient(cx, cy, r * 0.85, cx, cy, haloR);
+    g.addColorStop(0, rgba(dark ? C.lit : C.mid, haloA)); g.addColorStop(0.45, rgba(dark ? C.lit : C.mid, haloA * 0.28)); g.addColorStop(1, rgba(C.mid, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, haloR, 0, TAU); ctx.fill();
+
+    // ---- moon sphere -------------------------------------------------------------------------
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
+    ctx.drawImage(this.sphere(p, C), cx - r, cy - r, r * 2, r * 2);
+    // maria: two soft darker patches (gradient ellipses)
+    for (const m of maria) {
+      ctx.save(); ctx.translate(cx + m.x * r, cy + m.y * r); ctx.rotate(m.ang); ctx.scale(m.rx, m.ry);
+      const mg = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      mg.addColorStop(0, rgba(C.deep, dark ? 0.14 : 0.08)); mg.addColorStop(0.55, rgba(C.deep, dark ? 0.08 : 0.04)); mg.addColorStop(1, rgba(C.deep, 0));
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    // craters: foreshortened near the limb, inner shadow toward the light, lit rim away from it
+    for (const c of craters) {
+      const d = Math.hypot(c.x, c.y), sq = Math.sqrt(Math.max(0.08, 1 - d * d));
+      const ang = Math.atan2(c.y, c.x), cr = c.rad * r;
+      const lit = Math.max(0, c.x * L[0] + c.y * L[1]);          // fade out toward the terminator
+      ctx.save();
+      ctx.translate(cx + c.x * r, cy + c.y * r); ctx.rotate(ang); ctx.scale(sq, 1); ctx.rotate(-ang);
+      const cg = ctx.createRadialGradient(-cr * 0.25, -cr * 0.25, 0, 0, 0, cr);
+      cg.addColorStop(0, rgba(C.deep, 0.11 * (0.3 + lit))); cg.addColorStop(0.75, rgba(C.deep, 0.04 * (0.3 + lit))); cg.addColorStop(1, rgba(C.deep, 0));
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, cr, 0, TAU); ctx.fill();
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = rgba(C.hi, 0.4 * (0.2 + lit)); ctx.beginPath(); ctx.arc(0, 0, cr * 0.85, 0.35, 1.65); ctx.stroke();   // lit far wall
+      ctx.strokeStyle = rgba(C.deep, 0.12 * (0.2 + lit)); ctx.beginPath(); ctx.arc(0, 0, cr * 0.85, 3.6, 4.8); ctx.stroke();   // shadowed near wall
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx, cy, r - 0.25, 0, TAU);                 // soft hairline limb so the lit edge still reads on cream
+    ctx.strokeStyle = rgba(dark ? C.shade : C.mid, dark ? 0.15 : 0.5); ctx.lineWidth = 0.5; ctx.stroke();
+
+    // ---- front halves of the orbits, beads in front --------------------------------------------
+    orbits.forEach((o, i) => {
+      strokeArc(o, 0, Math.PI, C.lineF, lineA * 0.62, 0.6);
+      const th = beadTh(o); if (Math.sin(th) > 0) drawBead(o, th, flashOf[i], true);
+    });
+  },
+};
+
+ window.LOOM_OPTIONS['moon'] = __opt; })();
+(function(){ let __opt; // 墨晕 · Ink Bloom — a single drop of colour spreading in still water.
+// One stain, a second wetter pass that crept past its rim toward the lower right, and a wet halo
+// ahead of it toward the light — three washes of one hue, so nothing muddies. Each wash is a stack of nested organic
+// outlines filled at low alpha: the softness follows the outline the way pigment thins at the edge of
+// a wet stain, and the outermost layer is a hair denser (the dried rim). Light multiplies, dark adds plum.
+// Every onset blooms a fresh wash from the pooled centre: fast spread, slow sink.
+__opt = {
+  name: '墨晕', english: 'Ink Bloom',
+  note: '静止时一滴色晕极慢漂移、轮廓缓缓呼吸；震动时颜色随强度沉淀变浓；每次起音从色心晕开一团新淡色，快速铺开再慢慢沉下去。',
+
+  // ---- deterministic setup (LCG, runs once) --------------------------------------------------------
+  init(state) {
+    let s = 11;
+    const rnd = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+    // washes: relative offset (ox, oy), radius r, colour key, density a (light), density in dark
+    const spec = [
+      [-0.03, -0.02, 0.52, 'hero1', 0.45, 0.12],   // the wet halo: water, not colour
+      [0.00, 0.00, 0.40, 'hero3', 0.46, 0.60],     // the drop itself
+      [0.06, 0.06, 0.44, 'hero3', 0.13, 0.14],     // a second, wetter pass that crept past the first rim
+    ];
+    state.blobs = spec.map(([ox, oy, r, key, a, ad]) => ({
+      ox, oy, r, key, a, ad,
+      // Lissajous drift: different periods per axis, tiny amplitude (fractions of R)
+      ax: 0.025 + rnd() * 0.02, ay: 0.02 + rnd() * 0.02,
+      fx: 1 / (26 + rnd() * 14), fy: 1 / (31 + rnd() * 16), ph: rnd() * 6.283,
+      // outline harmonics: wavenumber, amplitude, phase, slow phase drift (rad/s). Calm, nearly round.
+      h: [2, 3, 5].map(k => ({ k, amp: (k === 2 ? 0.065 : k === 3 ? 0.04 : 0.014) * (0.8 + rnd() * 0.5), ph: rnd() * 6.283, w: (rnd() - 0.5) * 0.04 })),
+      // pigment pools toward lower-right (light from upper-left): inner layers slide that way
+      px: 0.16 + rnd() * 0.08, py: 0.14 + rnd() * 0.08,
+    }));
+    state.ready = true;
+  },
+
+  // ---- colour helpers ------------------------------------------------------------------------------
+  mix(a, b, t) {
+    const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+    return '#' + [16, 8, 0].map(sh => Math.round((A >> sh & 255) * (1 - t) + (B >> sh & 255) * t).toString(16).padStart(2, '0')).join('');
+  },
+
+  // ---- one organic outline: radius modulated by a few low-order sines ------------------------------
+  outline(ctx, x, y, r, h, t, phase) {
+    const N = 64;
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const th = (i / N) * 6.283;
+      let m = 1;
+      for (const hh of h) m += hh.amp * Math.sin(hh.k * th + hh.ph + phase + t * hh.w);
+      const rr = r * m;
+      i ? ctx.lineTo(x + Math.cos(th) * rr, y + Math.sin(th) * rr) : ctx.moveTo(x + Math.cos(th) * rr, y + Math.sin(th) * rr);
+    }
+    ctx.closePath();
+  },
+
+  // ---- one wash: nested outlines, outermost a hair denser (the dried rim), inner ones pooled -------
+  // `core` is an optional second colour the layers lean toward as they pool (dark mode: a mauve glow).
+  wash(ctx, rgba, x, y, r, color, core, A, b, t, rim) {
+    const L = 30, la = 1 - Math.pow(1 - A, 1 / L);
+    for (let i = 0; i < L; i++) {
+      const u = Math.pow(i / L, 1.3), sc = 1 - 0.78 * u;     // close steps at the rim, wider inside
+      const k = i === 0 ? rim : i === 1 ? 0.45 : 1;           // rim: a hairline of settled pigment, then a paler gap
+      ctx.fillStyle = rgba(core ? this.mix(color, core, u * 0.8) : color, la * k);
+      this.outline(ctx, x + b.px * r * u, y + b.py * r * u, r * sc, b.h, t, i * 0.05);
+      ctx.fill();
+    }
+  },
+
+  draw(p) {
+    const { ctx, cx, cy, R, now, env, spring, hits, breath, palette, dark, rgba, reduce, state } = p;
+    if (!state.ready) this.init(state);
+    const t = now / 1000, drift = reduce ? 0 : 1;
+    // whole mark breathes imperceptibly, swells a touch with env and the onset spring
+    const scale = 1 + env * 0.05 + spring * 0.04 + drift * (breath - 0.5) * 0.012;
+    // light multiplies (darker = denser). Dark adds light, but adds the deepest plum (hero2) — the most
+    // chromatic colour per unit of brightness — so thin edges stay plum instead of greying; only the pooled
+    // core leans toward hero3/accent and glows.
+    const density = (dark ? 0.9 : 1.1) * (1 + env * 0.45);
+    const rim = dark ? 1.5 : 2.6;
+    const col = key => (dark ? palette.hero2 : palette[key]);
+    const core = dark ? this.mix(palette.hero3, palette.accent, 0.35) : null;
+    const fresh = dark ? this.mix(palette.hero3, palette.accent, 0.4) : palette.hero2;   // onset colour
+
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(scale, scale);
+    ctx.globalCompositeOperation = dark ? 'lighter' : 'multiply';
+
+    // 1. the standing washes
+    for (const b of state.blobs) {
+      const a = (dark ? b.ad : b.a) * density;
+      if (a <= 0) continue;
+      const x = (b.ox + drift * b.ax * Math.sin(t * b.fx * 6.283 + b.ph)) * R;
+      const y = (b.oy + drift * b.ay * Math.sin(t * b.fy * 6.283 + b.ph * 1.7)) * R;
+      this.wash(ctx, rgba, x, y, b.r * R, col(b.key), core, Math.min(0.95, a), b, t, rim);
+    }
+
+    // 2. onset blooms: a fresh wash spreads fast from where the pigment pools, then slowly sinks away
+    const drop = state.blobs[1];
+    for (const h of hits) {
+      const k = 1 - Math.exp(-h.age * 3.4);                   // fast spread
+      const r = R * (0.14 + 0.30 * k);
+      const life = Math.max(0, 1 - h.age / 1.6);
+      const a = h.gain * (dark ? 0.1 : 0.30) * life * life;
+      if (a < 0.004) continue;
+      this.wash(ctx, rgba, R * 0.05, R * 0.04, r, fresh, null, a, drop, t + h.age * 0.6, 1);   // wet: no rim
+    }
+    ctx.restore();
+  },
+};
+
+ window.LOOM_OPTIONS['ink'] = __opt; })();
+(function(){ let __opt; // 织锦经纬 — Silk. A round swatch of plain-woven silk. Fine warp threads (slightly tilted) are crossed by
+// denser weft threads; weft rows are dashed with alternating phase so each dash is a thread passing OVER
+// one warp, with a hairline highlight above and shadow below every dash so the crossing reads as relief.
+// Warp and weft are dyed a shade apart (shot silk). The cloth lies in a few gentle, curved folds that taper
+// along their length: threads bunch on the ridges and a strip-wise gradient shades each fold from the
+// top-left light. Idle: a specular sheen glides across in ~14 s, the folds drift by a hair. Haptics: the fold
+// amplitude and a soft wind follow env; each onset blooms at the centre then sends one radial wave out
+// (displacement + a faint luminous crest). Music: both.
+__opt = {
+  name: '织锦经纬', english: 'Silk',
+  note: '静止时高光带每十余秒缓缓扫过一次、褶皱微漂；震动时褶皱随强度被托起，每次起音从中心亮起并荡出一圈波峰；音乐时两者叠加。',
+
+  draw(p) {
+    const { ctx, cx, cy, R, now, env, spring, hits, breath, palette: P, dark, reduce, rgba } = p;
+    const t = now / 1000, Rc = R * 0.93, TILT = -0.09;
+    const SW = 3.6, SF = 2.9;                       // warp spacing, weft spacing (weft is packed denser)
+    const lightCol = dark ? P.ink : P.surface, shadeCol = dark ? P.bg : P.hero3;
+    const EXT = Rc + 8, box = () => ctx.fillRect(-EXT, -EXT, 2 * EXT, 2 * EXT);
+
+    // --- colours (parsed once per frame)
+    const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const h1 = hex(P.hero1), h2 = hex(P.hero2), h3 = hex(P.hero3);
+    const mix = (a, b, k, al) => `rgba(${(a[0] + (b[0] - a[0]) * k) | 0},${(a[1] + (b[1] - a[1]) * k) | 0},${(a[2] + (b[2] - a[2]) * k) | 0},${al})`;
+
+    // --- folds: nearly vertical ridges, slightly curved, tapering along their length.
+    // u runs across the folds, v along them.
+    const FB = 0.24, fnx = Math.cos(FB), fny = Math.sin(FB), FL = 124;
+    const fphase = reduce ? 0 : t * 0.05 + 0.35 * breath;                    // drifts a few px per 10 s
+    const famp = 0.6 + (reduce ? 0 : env * 0.6);                             // folds lift with intensity
+    const foldShade = (u, v) => -Math.cos((u / FL) * Math.PI * 2 + fphase - 0.9 + 0.55 * Math.sin(v / 170 + 0.8))
+      * (0.55 + 0.45 * Math.sin(v / 150 + 1.3)) * famp;
+
+    // --- displacement field (px): fold bunching + wind that follows env + onset wave packets
+    const wind = reduce ? 0 : env * 3;
+    const waves = reduce ? [] : hits.map(h => ({ front: h.age * 240, amp: 6 * h.gain * Math.exp(-h.age * 1.6) * Math.min(1, h.age / 0.14) }));
+    function disp(x, y) {
+      const u = x * fnx + y * fny, v = -x * fny + y * fnx, b = foldShade(u, v) * 2.4;
+      let dx = b * fnx, dy = b * fny;
+      if (wind) {
+        dy += wind * Math.sin(x / 80 + t * 2.2) * (0.5 + 0.5 * Math.sin(y / 110 - t * 1.1));
+        dx += wind * 0.3 * Math.sin(y / 90 - t * 1.7 + 1);
+      }
+      for (const w of waves) {
+        const r = Math.hypot(x, y) + 1e-3, d = r - w.front, win = Math.exp(-(d * d) / 2400);
+        if (win < 0.02) continue;
+        const a = w.amp * win * Math.sin(d / 10) / (1 + r / 130);
+        dx += a * x / r; dy += a * y / r;
+      }
+      return [dx, dy];
+    }
+    const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); };
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    const sc = 1 + spring * 0.015; ctx.scale(sc, sc);
+    ctx.rotate(TILT);
+    ctx.beginPath(); ctx.arc(0, 0, Rc + 4, 0, Math.PI * 2); ctx.clip();
+
+    // --- cloth ground (the colour seen between threads; close to the threads so the grid never shows)
+    ctx.fillStyle = dark ? mix(h2, h3, 0.08, 1) : mix(h1, h2, 0.8, 1); box();
+
+    // --- warp (slightly tilted verticals): a shade deeper than the weft, in soft stripes across x
+    ctx.lineCap = 'butt'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.6;
+    const nW = Math.ceil(Rc / SW);
+    for (let k = -nW; k < nW; k++) {
+      const x = (k + 0.5) * SW;
+      if (Math.abs(x) >= Rc) continue;
+      const L = Math.sqrt(Rc * Rc - x * x) + 6;
+      const stripe = 0.5 + 0.5 * Math.sin(x / 64 + 0.6) * Math.cos(x / 210);
+      ctx.strokeStyle = mix(h2, h3, (dark ? 0.3 : 0.12) + 0.25 * stripe, 0.85);
+      const pts = [];
+      for (let y = -L; y <= L + 0.01; y += 5) { const [dx, dy] = disp(x, y); pts.push(x + dx, y + dy); }
+      poly(pts); ctx.stroke();
+    }
+
+    // --- weft (horizontals): dashed so each dash passes OVER one warp, phase alternating per row;
+    // a hairline highlight above and shadow below each dash (light from the top-left)
+    const nF = Math.ceil(Rc / SF);
+    ctx.setLineDash([SW, SW]);
+    const hi = rgba(lightCol, dark ? 0.14 : 0.42), sh = rgba(shadeCol, dark ? 0.3 : 0.16);
+    for (let j = -nF; j < nF; j++) {
+      const y = (j + 0.5) * SF;
+      if (Math.abs(y) >= Rc) continue;
+      const L = Math.sqrt(Rc * Rc - y * y) + 6, m = Math.ceil(L / SW), x0 = -m * SW;
+      const stripe2 = 0.5 + 0.5 * Math.sin(y / 54 - 0.3);
+      const pts = [];
+      for (let x = x0; x <= -x0 + 0.01; x += 5) { const [dx, dy] = disp(x, y); pts.push(x + dx, y + dy); }
+      ctx.lineDashOffset = ((m & 1) ^ ((j + 1000) & 1)) ? SW : 0;
+      ctx.save(); ctx.translate(0, 0.9); ctx.lineWidth = 1.7; ctx.strokeStyle = sh; poly(pts); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.translate(0, -0.9); ctx.lineWidth = 0.9; ctx.strokeStyle = hi; poly(pts); ctx.stroke(); ctx.restore();
+      ctx.lineWidth = 1.7;
+      ctx.strokeStyle = dark ? mix(h2, h3, 0.42 + 0.18 * stripe2, 0.9) : mix(h1, h2, 0.55 + 0.3 * stripe2, 0.9);
+      poly(pts); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // --- fold shading: strips across u, each a gradient along v (so folds curve and taper)
+    ctx.save(); ctx.rotate(FB);                       // now x ≡ u, y ≡ v
+    const NS = 44, sw = (2 * EXT) / NS, la = dark ? 0.1 : 0.3, da = dark ? 0.3 : 0.15;
+    for (let i = 0; i < NS; i++) {
+      const u = -EXT + (i + 0.5) * sw, g = ctx.createLinearGradient(0, -EXT, 0, EXT);
+      for (let k = 0; k <= 8; k++) {
+        const v = -EXT + (2 * EXT * k) / 8, s = foldShade(u, v);
+        g.addColorStop(k / 8, s > 0 ? rgba(lightCol, s * la) : rgba(shadeCol, -s * da));
+      }
+      ctx.fillStyle = g; ctx.fillRect(u - sw / 2 - 0.3, -EXT, sw + 0.6, 2 * EXT);
+    }
+    ctx.restore();
+
+    // --- lighting: a broad glow from the top-left, a touch of depth toward the bottom-right
+    let g = ctx.createRadialGradient(-Rc * 0.5, -Rc * 0.55, 0, -Rc * 0.25, -Rc * 0.25, Rc * 1.45);
+    g.addColorStop(0, rgba(lightCol, dark ? 0.08 : 0.28)); g.addColorStop(0.55, rgba(lightCol, 0));
+    g.addColorStop(1, rgba(shadeCol, dark ? 0.18 : 0.1));
+    ctx.fillStyle = g; box();
+
+    // --- onsets: a soft bloom at the centre that becomes a luminous crest travelling with the wave
+    const flash = hits.reduce((a, h) => Math.max(a, h.gain * Math.exp(-h.age * 5)), 0);
+    if (flash > 0.01) {
+      g = ctx.createRadialGradient(0, 0, 0, 0, 0, 46);
+      g.addColorStop(0, rgba(lightCol, flash * (dark ? 0.22 : 0.5))); g.addColorStop(1, rgba(lightCol, 0));
+      ctx.fillStyle = g; box();
+    }
+    for (const w of waves) {
+      if (w.front < 10) continue;
+      const a = Math.min(1, w.amp / 6) * (dark ? 0.14 : 0.32);
+      g = ctx.createRadialGradient(0, 0, Math.max(0, w.front - 28), 0, 0, w.front + 28);
+      g.addColorStop(0, rgba(lightCol, 0)); g.addColorStop(0.5, rgba(lightCol, a)); g.addColorStop(1, rgba(lightCol, 0));
+      ctx.fillStyle = g; box();
+    }
+
+    // --- sheen: a specular band along the warp direction that glides across in ~14 s, brighter on onsets
+    const u0 = (reduce ? 0.1 : -1.5 + ((now / 14000) % 1) * 3.0) * Rc;
+    const peak = (dark ? 0.12 : 0.3) * (0.8 + 0.2 * breath) + flash * (dark ? 0.07 : 0.15) + env * (dark ? 0.03 : 0.05);
+    const band = (uc, half, a) => {
+      const gg = ctx.createLinearGradient(fnx * (uc - half), fny * (uc - half), fnx * (uc + half), fny * (uc + half));
+      gg.addColorStop(0, rgba(lightCol, 0)); gg.addColorStop(0.35, rgba(lightCol, a * 0.45));
+      gg.addColorStop(0.5, rgba(lightCol, a)); gg.addColorStop(0.65, rgba(lightCol, a * 0.45)); gg.addColorStop(1, rgba(lightCol, 0));
+      ctx.fillStyle = gg; box();
+    };
+    band(u0, Rc * 0.4, peak);
+    band(u0 - Rc * 0.5, Rc * 0.18, peak * 0.45);
+
+    // --- soft edge: a short feather so the swatch stays a definite disc
+    g = ctx.createRadialGradient(0, 0, Rc * 0.85, 0, 0, Rc + 1);
+    g.addColorStop(0, rgba(P.surface, 0)); g.addColorStop(0.45, rgba(P.surface, 0.35)); g.addColorStop(1, rgba(P.surface, 1));
+    ctx.fillStyle = g; box();
+    ctx.restore();
+  },
+};
+
+ window.LOOM_OPTIONS['silk'] = __opt; })();
+(function(){ let __opt; // 莲池 — Lotus Pond. A half-closed lotus seen from above: two rings of six plump, stroke-less petals, each
+// shaded by one gradient along its length (deep base → pale tip) and one across it (lit side toward the
+// top-left light), with a faint midrib. A small seed pod sits in the heart. The flower floats on water that
+// is only implied: a soft pool of tint, a light patch, two or three very faint elliptical ripples and a pair
+// of small lily pads far off. Idle: the flower turns once in ~5 min, ripples spread at ~1 px/s. Haptics:
+// petals open a few degrees with env, the light patch brightens. Each onset sends one ripple out from the
+// flower's base.
+__opt = {
+  name: '莲池', english: 'Lotus Pond',
+  note: '静止时莲花几分钟转一圈、水纹以每秒一像素的速度外扩；震动时花瓣随强度张开几度、水面光斑变亮；每次起音从花底荡出一圈水纹。',
+
+  draw(p) {
+    const { ctx, w, h, cx, cy, R, now, env, spring, hits, rot, breath, palette: P, dark, rgba, reduce } = p;
+    const t = now / 1000, K = 0.68;                      // K: foreshortening of the water surface (ry / rx)
+    const lightCol = dark ? P.ink : P.surface, darkCol = dark ? P.bg : P.hero3;
+    const open = reduce ? 0 : env, br = reduce ? 0.5 : breath;
+    const theta = reduce ? -0.4 : rot * 0.25 - 0.4;      // flower rotation: ~5 min per turn when idle
+    const LIGHT = -2.3;                                  // light source direction (top-left), world angle
+    let g;
+
+    // --- the pond: a soft pool of tint around the flower, fading into the page before it reaches the edges
+    ctx.save(); ctx.translate(cx, cy + 10); ctx.scale(1, 0.82);
+    g = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.25);
+    g.addColorStop(0, rgba(P.hero1, dark ? 0.9 : 0.62)); g.addColorStop(0.55, rgba(P.hero1, dark ? 0.55 : 0.36)); g.addColorStop(1, rgba(P.hero1, 0));
+    ctx.fillStyle = g; ctx.fillRect(-w, -h, 2 * w, 2 * h); ctx.restore();
+
+    // --- light patch on the water (top-left, along the light diagonal); brightens with env, breathes slowly
+    ctx.save(); ctx.translate(cx - R * 0.58 + br * 4, cy - R * 0.36 + br * 2); ctx.rotate(-0.4); ctx.scale(1, 0.55);
+    glow(ctx, rgba, lightCol, R * 0.8 + br * 8, (dark ? 0.07 : 0.5) * (1 + env * 0.6));
+    glow(ctx, rgba, lightCol, R * 0.38, (dark ? 0.07 : 0.45) * (1 + env * 0.6));
+    ctx.restore();
+
+    // --- idle ripples: three rings spreading so slowly they read as still, fading in at birth and out at the rim
+    if (!reduce) for (let i = 0; i < 3; i++) {
+      const ph = ((t / 80) + i / 3) % 1, rx = R * (0.84 + ph * 0.32);
+      ring(ctx, rgba, cx, cy + 4, rx, rx * K, Math.sin(ph * Math.PI) * (dark ? 0.26 : 0.24), lightCol, darkCol, dark);
+    }
+
+    // --- lily pads, far from the flower
+    pad(ctx, rgba, P, dark, cx + R * 0.95 + Math.sin(t / 5.3) * 2, cy - R * 0.62 + Math.cos(t / 6.1) * 1.2, R * 0.17, K, 2.6, lightCol, darkCol);
+    pad(ctx, rgba, P, dark, cx - R * 0.98 + Math.sin(t / 4.7 + 2) * 2, cy + R * 0.46 + Math.cos(t / 5.9 + 1) * 1.2, R * 0.12, K, 0.35, lightCol, darkCol);
+
+    // --- onset ripples: one ring per hit, born under the petal tips and travelling outward
+    if (!reduce) for (const hit of hits) {
+      const r = R * 0.74 + 70 * hit.age;
+      const amp = hit.gain * Math.pow(Math.max(0, 1 - hit.age / 1.6), 1.4) * (dark ? 0.7 : 0.55) / (1 + (r - R * 0.74) / 160);
+      if (amp > 0.01) ring(ctx, rgba, cx, cy + 4, r, r * K, amp, lightCol, darkCol, dark);
+      if (hit.gain > 0.7 && hit.age > 0.2) {              // a strong onset leaves a second, weaker ring behind
+        const r2 = R * 0.74 + 70 * (hit.age - 0.2);
+        ring(ctx, rgba, cx, cy + 4, r2, r2 * K, amp * 0.45, lightCol, darkCol, dark);
+      }
+    }
+
+    // --- contact shadow on the water, offset away from the light
+    ctx.save(); ctx.translate(cx + 7, cy + 11); ctx.scale(1, 0.9);
+    glow(ctx, rgba, darkCol, R * 0.86, dark ? 0.5 : 0.2);
+    ctx.restore();
+
+    // --- the flower
+    const sc = 1 + (reduce ? 0 : spring * 0.02);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc * 0.92); ctx.rotate(theta);
+    const la = LIGHT - theta;                                 // light direction in the flower's frame
+    const off = [3 * Math.cos(theta) + 4 * Math.sin(theta), -3 * Math.sin(theta) + 4 * Math.cos(theta)]; // shadow offset, world (3,4)
+    const outer = { n: 6, phase: 0, L: R * (0.7 + open * 0.04), W: R * (0.3 + open * 0.03), b: R * (0.1 + open * 0.02) };
+    const inner = { n: 6, phase: Math.PI / 6, L: R * (0.48 + open * 0.03), W: R * (0.25 + open * 0.02), b: R * (0.05 + open * 0.01) };
+    layer(ctx, rgba, P, dark, outer, la, lightCol, darkCol, off, dark ? 0.35 : 0.12);
+    // ambient shade in the heart of the flower, under the inner petals
+    glow(ctx, rgba, darkCol, R * 0.46, dark ? 0.45 : 0.22);
+    layer(ctx, rgba, P, dark, inner, la, lightCol, darkCol, off, dark ? 0.4 : 0.14);
+    pod(ctx, rgba, P, dark, R * 0.135, la, lightCol, darkCol);
+    ctx.restore();
+  },
+};
+
+// ---------- helpers ----------
+function glow(ctx, rgba, col, r, a) {
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  g.addColorStop(0, rgba(col, a)); g.addColorStop(0.5, rgba(col, a * 0.35)); g.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+}
+// blend two palette colours (t = 0 → a, 1 → b)
+function mix(a, b, t) { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), c = s => Math.round(((A >> s) & 255) * (1 - t) + ((B >> s) & 255) * t); return `rgb(${c(16)},${c(8)},${c(0)})`; }
+function diag(ctx, x, y, rx, ry) { return ctx.createLinearGradient(x - rx, y - ry, x + rx, y + ry); }
+// One ripple = a light hairline offset toward the light and a dark hairline offset away, each alpha-graded
+// along the light direction, so the crest reads as relief rather than an outline.
+function ring(ctx, rgba, x, y, rx, ry, amp, lightCol, darkCol, dark) {
+  const o = 0.6, aL = Math.min(1, amp * (dark ? 0.6 : 1.2)), aD = amp * (dark ? 0.8 : 0.72);
+  let g = diag(ctx, x, y, rx, ry);
+  g.addColorStop(0, rgba(lightCol, aL)); g.addColorStop(0.5, rgba(lightCol, aL * 0.3)); g.addColorStop(1, rgba(lightCol, 0));
+  ctx.beginPath(); ctx.ellipse(x - o * 0.6, y - o, rx, ry, 0, 0, Math.PI * 2); ctx.lineWidth = 0.85; ctx.strokeStyle = g; ctx.stroke();
+  g = diag(ctx, x, y, rx, ry);
+  g.addColorStop(0, rgba(darkCol, 0)); g.addColorStop(0.5, rgba(darkCol, aD * 0.3)); g.addColorStop(1, rgba(darkCol, aD));
+  ctx.beginPath(); ctx.ellipse(x + o * 0.6, y + o, rx, ry, 0, 0, Math.PI * 2); ctx.lineWidth = 0.8; ctx.strokeStyle = g; ctx.stroke();
+}
+// Petal outline in its own frame: base at the origin, tip at (0,-L), half-width W, slightly pointed tip.
+function petalPath(ctx, L, W) {
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-W * 0.85, -L * 0.05, -W * 1.1, -L * 0.45, -W * 0.7, -L * 0.8);   // full flank up to the shoulder
+  ctx.bezierCurveTo(-W * 0.48, -L * 0.93, -W * 0.22, -L * 0.96, 0, -L);              // soft point
+  ctx.bezierCurveTo(W * 0.22, -L * 0.96, W * 0.48, -L * 0.93, W * 0.7, -L * 0.8);
+  ctx.bezierCurveTo(W * 1.1, -L * 0.45, W * 0.85, -L * 0.05, 0, 0); ctx.closePath();
+}
+// One ring of petals. Drawn from the petal facing away from the light to the one facing it, so every petal
+// overlaps a darker neighbour. Shadow pass first (two soft-edged silhouettes), then each petal: length
+// gradient, lateral light/shade, midrib.
+function layer(ctx, rgba, P, dark, S, la, lightCol, darkCol, off, shadowA) {
+  const { n, phase, L, W, b } = S;
+  const ang = i => phase + i * Math.PI * 2 / n;
+  const order = [...Array(n).keys()].sort((i, j) => Math.cos(ang(i) - la) - Math.cos(ang(j) - la));
+  const place = (i, ox, oy, s) => { ctx.save(); const a = ang(i); ctx.translate(ox + Math.cos(a) * b, oy + Math.sin(a) * b); ctx.rotate(a + Math.PI / 2); ctx.scale(s, s); };
+  for (const [k, al] of [[1, shadowA * 0.45], [1.03, shadowA * 0.3], [1.06, shadowA * 0.15]]) for (const i of order) {
+    place(i, off[0] * k, off[1] * k, k); petalPath(ctx, L, W); ctx.fillStyle = rgba(darkCol, al); ctx.fill(); ctx.restore();
+  }
+  for (const i of order) {
+    const a = ang(i), facing = Math.cos(a - la), lx = Math.sin(la - a);   // lx: lateral light component in petal frame
+    place(i, 0, 0, 1);
+    petalPath(ctx, L, W);
+    let g = ctx.createLinearGradient(0, 0, 0, -L);
+    if (dark) { g.addColorStop(0, P.hero2); g.addColorStop(0.5, P.hero3); g.addColorStop(1, mix(P.hero3, P.accent, 0.72)); }
+    else { g.addColorStop(0, P.hero3); g.addColorStop(0.45, P.hero2); g.addColorStop(1, mix(P.hero2, P.hero1, 0.6)); }
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    // across the petal: the side toward the light picks up a sheen, the other side a shade
+    const s = lx < 0 ? 1 : -1, m = Math.abs(lx);
+    g = ctx.createLinearGradient(-W * s, 0, W * s, 0);
+    g.addColorStop(0, rgba(lightCol, (dark ? 0.14 : 0.32) * m)); g.addColorStop(0.5, rgba(lightCol, 0));
+    g.addColorStop(0.55, rgba(darkCol, 0)); g.addColorStop(1, rgba(darkCol, (dark ? 0.26 : 0.14) * m));
+    ctx.fillStyle = g; ctx.fillRect(-W * 1.1, -L, W * 2.2, L);
+    // along the petal: tips toward the light brighten, tips away from it fall into shade
+    g = ctx.createLinearGradient(0, -L * 0.3, 0, -L);
+    if (facing > 0) { g.addColorStop(0, rgba(lightCol, 0)); g.addColorStop(1, rgba(lightCol, (dark ? 0.12 : 0.28) * facing)); }
+    else { g.addColorStop(0, rgba(darkCol, 0)); g.addColorStop(1, rgba(darkCol, (dark ? 0.22 : 0.12) * -facing)); }
+    ctx.fillStyle = g; ctx.fillRect(-W * 1.1, -L, W * 2.2, L);
+    // midrib: one faint hairline, fading before it reaches the tip
+    g = ctx.createLinearGradient(0, -L * 0.1, 0, -L * 0.9);
+    g.addColorStop(0, rgba(darkCol, dark ? 0.22 : 0.16)); g.addColorStop(1, rgba(darkCol, 0));
+    ctx.beginPath(); ctx.moveTo(0, -L * 0.08); ctx.lineTo(0, -L * 0.9); ctx.lineWidth = 0.6; ctx.strokeStyle = g; ctx.stroke();
+    ctx.restore(); ctx.restore();
+  }
+}
+// Seed pod: a small dome lit from the top-left, with a hex array of seed holes (1 + 6 + 12).
+function pod(ctx, rgba, P, dark, r, la, lightCol, darkCol) {
+  glow(ctx, rgba, darkCol, r * 1.8, dark ? 0.5 : 0.28);           // contact shade onto the inner petals
+  let g = ctx.createRadialGradient(-r * 0.4, -r * 0.4, 0, 0, 0, r);
+  if (dark) { g.addColorStop(0, P.hero3); g.addColorStop(0.6, P.hero2); g.addColorStop(1, P.hero1); }
+  else { g.addColorStop(0, mix(P.hero1, P.hero2, 0.4)); g.addColorStop(0.6, P.hero2); g.addColorStop(1, P.hero3); }
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  g = diag(ctx, 0, 0, r, r);                                       // rim: lit edge toward the light, dark edge away
+  g.addColorStop(0, rgba(lightCol, dark ? 0.35 : 0.9)); g.addColorStop(0.5, rgba(lightCol, 0)); g.addColorStop(1, rgba(darkCol, dark ? 0.6 : 0.3));
+  ctx.beginPath(); ctx.arc(0, 0, r - 0.4, 0, Math.PI * 2); ctx.lineWidth = 0.7; ctx.strokeStyle = g; ctx.stroke();
+  const dots = [[0, 0]];
+  for (let i = 0; i < 6; i++) dots.push([Math.cos(i * Math.PI / 3) * r * 0.42, Math.sin(i * Math.PI / 3) * r * 0.42]);
+  for (let i = 0; i < 12; i++) dots.push([Math.cos(i * Math.PI / 6 + Math.PI / 12) * r * 0.76, Math.sin(i * Math.PI / 6 + Math.PI / 12) * r * 0.76]);
+  const d = r * 0.085;
+  for (const [x, y] of dots) {
+    ctx.beginPath(); ctx.arc(x, y, d, 0, Math.PI * 2); ctx.fillStyle = rgba(darkCol, dark ? 0.7 : 0.4); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 0.3, y + 0.3, d, 0.1, Math.PI * 0.6); ctx.lineWidth = 0.6; ctx.strokeStyle = rgba(lightCol, dark ? 0.3 : 0.7); ctx.stroke();
+  }
+}
+// A small lily pad lying flat: a notched disc with faint radial veins, a lit top-left edge and a soft shadow.
+function pad(ctx, rgba, P, dark, x, y, r, K, notch, lightCol, darkCol) {
+  const half = 0.2;                                               // half-angle of the narrow V notch
+  const shape = () => { ctx.beginPath(); ctx.arc(0, 0, r, notch + half, notch - half + Math.PI * 2); ctx.lineTo(Math.cos(notch) * r * 0.08, Math.sin(notch) * r * 0.08); ctx.closePath(); };
+  ctx.save(); ctx.translate(x + 1.5, y + 2.5); ctx.scale(1, K); shape(); ctx.fillStyle = rgba(darkCol, dark ? 0.3 : 0.08); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, K);
+  let g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
+  g.addColorStop(0, rgba(dark ? P.hero3 : P.hero2, dark ? 0.5 : 0.4)); g.addColorStop(1, rgba(dark ? P.hero2 : P.hero3, dark ? 0.7 : 0.3));
+  shape(); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip();
+  g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);                   // veins fade out at the centre and at the rim
+  g.addColorStop(0, rgba(darkCol, 0)); g.addColorStop(0.45, rgba(darkCol, dark ? 0.28 : 0.13)); g.addColorStop(1, rgba(darkCol, 0));
+  ctx.strokeStyle = g; ctx.lineWidth = 0.5; ctx.beginPath();
+  for (let i = 0; i < 9; i++) {
+    const a = notch + half + (i + 0.5) * (Math.PI * 2 - 2 * half) / 9;
+    ctx.moveTo(Math.cos(a) * r * 0.1, Math.sin(a) * r * 0.1); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.stroke();
+  g = diag(ctx, 0, 0, r, r);
+  g.addColorStop(0, rgba(lightCol, dark ? 0.18 : 0.4)); g.addColorStop(0.5, rgba(lightCol, 0)); g.addColorStop(1, rgba(darkCol, dark ? 0.35 : 0.12));
+  shape(); ctx.fillStyle = g; ctx.fill();
+  ctx.restore(); ctx.restore();
+}
+
+ window.LOOM_OPTIONS['lotus'] = __opt; })();
+(() => {
+  const E = window.LoomEngine, notes = {"saturn": {"name": "环宇", "english": "Saturn", "note": "静止时尘粒极慢绕行、环面十秒级微进动；震动时环的亮度与宽度随强度呼吸、行星光晕变亮；每次起音一粒亮点沿 B 环前缘从左向右滑过淡去。", "highlights": [], "score": null}, "water": {"name": "雨落静水", "english": "Still Water", "note": "静止时每隔几秒在随机位置落一滴轻雨，光斑十秒级慢漂；震动时起音强度决定落点（强在中心、弱在外围）与波幅，弹簧把光斑轻轻一晃；音乐时在起音涟漪之外随 env 再添两圈一组的细碎小涟漪；三片花瓣被经过的波纹推开再回位。", "highlights": ["波纹是真正的浮雕：每圈由两条 0.85px 极细线叠成，亮线向左上偏 0.6px、暗线向右下偏，且两条线的透明度各自沿光照对角线渐变（亮线在左上最强、暗线在右下最强），所以圈不是描边而是水面隆起；三到四圈间隔 13px，振幅随圈序、传播距离和寿命三重衰减后淡出。", "水面是一只俯视的浅石盆而不是圆盘：圈和盆沿都用 ry = 0.62 rx 的透视；盆沿是一圈几乎与页面同色的 9px 石唇，水面左上有盆沿投下的柔和内阴影、右下露出一道被照亮的内壁亮线，于是整体读作凹下去的水，而不是凸起的碟子；深色下这套明暗同样成立。", "光斑是两层叠加的天空反光（宽而淡的一层加小而亮的核），沿光照对角线斜放、随呼吸缓慢胀缩并在 10 秒级上漂移，起音时随 spring 轻晃；花瓣是带缺口的樱花瓣，有朝向光源的受光半边、细线边缘和水面上偏右下的淡淡倒影。"], "score": null}, "mandala": {"name": "金线曼陀罗", "english": "Gilt Mandala", "note": "静止时七层细线以各自极慢的速度正反旋转并随呼吸微明暗；震动时线条随强度变亮、莲瓣略张；每次起音一道亮度波从中心逐层向外传过去（每层延迟与半径成正比）。", "highlights": ["八角星是真正的\"编织\"：两个正方形在八个交点处交替上下，下方那条线在 70.7% 处留出 2.3 px 的真实断口，没有用底色遮盖，所以放大后不会在渐变底盘上留下白色/黑色的补丁。", "所有线条的透明度都按朝向左上光源的角度调制（0.70 + 0.30·cos），圆环被拆成 36 段弧来做到这一点，再加上 72 颗珠子和中心一点各自带一粒朝向光源的高光（浅色用 surface、深色用 ink），整体像描金而不是矢量线。", "布局只用一条\"座环\"（0.50 R）同时承托十六瓣莲瓣的底边和八角星的顶点，十二个尖拱在局部坐标里有平行的拱柱，从内环上直接升起，层与层之间互相咬合而不是各自漂着。"], "score": null}, "guilloche": {"name": "雕版织纹", "english": "Guilloché", "note": "静止时两层格纹反向极慢旋转（约 0.5°/s）、莫尔纹缓缓流动；震动时格纹随强度向外张开、墨色加深；每次起音一圈涟漪从中心小圆扫过格纹到外缘（经过处线条短暂外鼓再回落），中心细环同时亮一下；音乐时以上叠加。", "highlights": ["真正的车床雕纹结构：不是几十条同心波线堆叠（那样只会得到毛茸茸的放射状莫尔，前两轮就是这样被我否掉的），而是把一条八瓣曲线 r=base+A·sin(8θ+φ) 以等间距相位复制 16 份，交叉成规整的透镜格纹，越靠近中心越密，最内一圈瓣尖正好落在干净的中心圆上——这是钞票/表盘 guilloché 的本来做法。第二层六瓣×10 份、振幅略小地嵌在里面，只有 0.24 透明度，作为暗格提供层次，两层反向旋转才有莫尔漂移。", "光影不靠叠蒙版：描边本身是一个圆心偏向左上的径向渐变（accent 色，中心 1.0 → 外缘 0.22），所以线条在左上最深、向外和向右下自然变淡，画面上没有任何一块覆盖层，深色模式因此不会出现发灰的脏块；深色下底色换用 hero2 做一个很淡的梅紫色晕，让中心小圆读成表盘中心而不是一个黑洞。", "起音响应是物理的而不是闪一下：hits 变成一圈径向高斯凸起（宽 0.09R、高 0.022R），0.6 秒内从中心圆跑到外缘，格纹线条经过处被真的向外推弯再回落，同时画一道 0.5px 的涟漪细环跟着走、中心 0.7px 细环亮度 +0.35·gain；心跳帧（起音后 40ms）与静止帧的差别是中心环旁多了一圈细环和内圈格纹的轻微外鼓，可感知但不突兀。"], "score": null}, "moon": {"name": "月与星轨", "english": "Moon & Orbits", "note": "静止时珠子极慢运行、星点轻闪；震动时月晕随强度变亮、轨道线提亮；每次起音最靠前的珠子闪一下并沿轨道拖出一段淡尾。", "highlights": ["三条轨道改为同心嵌套、倾角成一把小扇（-0.24/-0.13/-0.04），数值验证过两两最小间距 29pt 和 14pt、永不交叉；只有最内圈从月面下部穿过，中圈与外圈都干净地绕过月球下缘（原先中圈曾与月缘相切），原来左下方的三线交汇彻底消失，静止帧从\"原子模型\"变成一张安静的插画。", "星空从 64 颗减到 42 颗并加最小间距 30pt 的泊松式分布、排除整块轨道椭圆区域，三颗亮星两两相距 ≥200pt 分布在三个角落；亮星的模糊光晕换成两道 0.5px 的十字细芒，浅色模式里不再有发脏的粉色糊点。", "浅色模式月球配色改用调色板间的混合色：暗面从纯 accent 调淡 30%（不再是页面上最重的一块色），顶光不再等于底色而是 surface→hero1 的 40% 混合，边缘描线换成 hero2 的半透明细线，深色模式描线降到 0.15 让暗面真正融进背景；起音光晕在浅色下改用亮色，珠子落在月球暗面时也能读到。"], "score": null}, "ink": {"name": "墨晕", "english": "Ink Bloom", "note": "静止时五团淡彩色块沿利萨茹轨迹极慢漂移、轮廓缓缓变形；震动时整体浓度随强度上升；每次起音从中心晕开一团新淡色，快速扩散再慢慢沉下去。", "highlights": ["色块不是径向渐变硬切出来的，而是 18 层嵌套的有机轮廓（2/3/5 阶正弦调制）逐层低透明度叠出来的，所以柔边严格跟着轮廓走，像颜料在湿纸上自然变薄；最外一层略浓、第二层略淡，形成水彩干透后那条极细的'沉积边'，1x 下几乎看不见、放大才读得出。", "光影方向：每团色的内层随着层数向右下方滑动（光源左上，颜料往右下沉积），中心略浓、边缘散开，整个印记有一个安静的重心而不是对称的糊团。", "深色模式不走'调暗'：只用 hero3 做 lighter 叠加并单独压低浓度和沉积边系数，加出来的光保持藕紫而不是发灰；起音时中心那团新晕在深色下是一个柔和的亮核，40 ms 帧与静止帧有明显但不突兀的区别。渲染成本约 0.5 ms/帧（软件渲染、三个起音同时存活）。"], "score": null}, "silk": {"name": "织锦经纬", "english": "Silk", "note": "静止时高光带每十余秒缓缓扫过一次、褶皱微漂；震动时褶皱随强度被托起，每次起音从中心亮起并荡出一圈波峰；音乐时两者叠加。", "highlights": [], "score": null}, "lotus": {"name": "莲池", "english": "Lotus Pond", "note": "静止时莲花几分钟转一圈、水纹以每秒一像素的速度外扩；震动时花瓣随强度张开几度、水面光斑变亮；每次起音从花底荡出一圈水纹。", "highlights": [], "score": null}}, TONE = {"saturn": 0.66, "water": 0.9, "mandala": 0.82, "guilloche": 0.82, "moon": 0.84, "ink": 1.0, "silk": 0.82, "lotus": 0.78};
+  const canvas = document.getElementById('art'), ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ids = Object.keys(window.LOOM_OPTIONS);
+  let mode = ids[0], rhythm = 'bloom', playing = false, t0 = 0, gain = 0.85;
+  let eng = E.createEngine(), state = {};
+  const isDark = () => {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+  let last = performance.now();
+  function frame(now) {
+    const dtMs = Math.min(50, now - last); last = now;
+    const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const lv = playing ? E.levelAt(rhythm, now - t0, gain) : 0;
+    E.step(eng, lv, dtMs, reduce);
+    const pal = E.palettes[isDark() ? 'dark' : 'light'];
+    ctx.fillStyle = pal.surface; ctx.fillRect(0, 0, w, h);
+    const opt = window.LOOM_OPTIONS[mode];
+    const scale = Math.min(w / 440, h / 470);
+    ctx.save(); ctx.translate((w - 440 * scale) / 2, (h - 470 * scale) / 2); ctx.scale(scale, scale);
+    const p = { ctx, w: 440, h: 470, cx: 220, cy: 470 * 0.46, R: 176, now: eng.time, dt: dtMs / 1000,
+      env: eng.env, spring: eng.spring, hits: eng.hits.map(x => ({ age: (eng.time - x.born) / 1000, gain: x.gain })), rot: eng.rot, breath: eng.breath,
+      palette: pal, dark: isDark(), reduce, state, rgba: E.rgba, playing };
+    ctx.globalAlpha = TONE[mode] || 0.85;
+    try { if (opt.tick) opt.tick({ dt: dtMs / 1000, now: eng.time, env: eng.env, state }); opt.draw(p); } catch (e) { console.error(mode, e); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  const noteEl = document.getElementById('note');
+  function showNote() {
+    const n = notes[mode];
+    noteEl.innerHTML = `<b>${n.name} · ${n.english}</b><br>${n.note}` + (n.highlights.length ? `<ul>${n.highlights.map(h => `<li>${h}</li>`).join('')}</ul>` : '');
+  }
+  showNote();
+  document.getElementById('modes').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    for (const c of e.currentTarget.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(c === b));
+    mode = b.dataset.m; state = {}; eng = E.createEngine(); showNote();
+  });
+  const nameEl = document.getElementById('name'), subEl = document.getElementById('sub');
+  document.getElementById('rhythms').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    for (const c of e.currentTarget.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(c === b));
+    rhythm = b.dataset.r; nameEl.textContent = E.rhythms[rhythm].name; subEl.textContent = E.rhythms[rhythm].sub;
+    if (playing) t0 = performance.now();
+  });
+  const playBtn = document.getElementById('play');
+  playBtn.addEventListener('click', () => { playing = !playing; t0 = performance.now(); playBtn.textContent = playing ? '❚❚ 暂停' : '▶ 开始震动'; });
+  document.getElementById('stop').addEventListener('click', () => { playing = false; playBtn.textContent = '▶ 开始震动'; });
+  const themeBtn = document.getElementById('theme');
+  themeBtn.addEventListener('click', () => {
+    const dark = !isDark();
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    themeBtn.textContent = dark ? '浅色' : '深色'; themeBtn.setAttribute('aria-pressed', String(dark));
+  });
+  themeBtn.textContent = isDark() ? '浅色' : '深色';
+})();
+</script>

@@ -1,0 +1,90 @@
+[
+  {
+    "id": "t01",
+    "file": "Track-t01",
+    "name": "慢步",
+    "englishName": "Slow Walk",
+    "japaneseName": "ゆっくり歩く",
+    "style": "lofi",
+    "bpm": 76,
+    "seconds": 84.0,
+    "bytes": 1098907
+  },
+  {
+    "id": "t02",
+    "file": "Track-t02",
+    "name": "晚灯",
+    "englishName": "Evening Lamp",
+    "japaneseName": "夕べの灯り",
+    "style": "piano",
+    "bpm": 66,
+    "seconds": 92.0,
+    "bytes": 1137672
+  },
+  {
+    "id": "t03",
+    "file": "Track-t03",
+    "name": "塔布拉之夜",
+    "englishName": "Tabla Night",
+    "japaneseName": "タブラの夜",
+    "style": "tabla",
+    "bpm": 104,
+    "seconds": 88.0,
+    "bytes": 1141728
+  },
+  {
+    "id": "t04",
+    "file": "Track-t04",
+    "name": "心潮",
+    "englishName": "Pulse",
+    "japaneseName": "パルス",
+    "style": "synth",
+    "bpm": 112,
+    "seconds": 86.0,
+    "bytes": 1112204
+  },
+  {
+    "id": "t05",
+    "file": "Track-t05",
+    "name": "圆舞",
+    "englishName": "Little Waltz",
+    "japaneseName": "小さなワルツ",
+    "style": "waltz",
+    "bpm": 138,
+    "seconds": 78.0,
+    "bytes": 1023849
+  },
+  {
+    "id": "t06",
+    "file": "Track-t06",
+    "name": "海边",
+    "englishName": "Seaside",
+    "japaneseName": "海辺",
+    "style": "bossa",
+    "bpm": 118,
+    "seconds": 86.0,
+    "bytes": 1163099
+  },
+  {
+    "id": "t07",
+    "file": "Track-t07",
+    "name": "星河",
+    "englishName": "Star Drift",
+    "japaneseName": "星の流れ",
+    "style": "ambient",
+    "bpm": 60,
+    "seconds": 100.0,
+    "bytes": 1217458
+  },
+  {
+    "id": "t08",
+    "file": "Track-t08",
+    "name": "鼓阵",
+    "englishName": "Drumline",
+    "japaneseName": "太鼓の列",
+    "style": "drums",
+    "bpm": 96,
+    "seconds": 80.0,
+    "bytes": 1062274
+  }
+]

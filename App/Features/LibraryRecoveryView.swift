@@ -3,7 +3,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private func recoveryText(_ key: String) -> String {
-    NSLocalizedString(key, tableName: "Recovery", bundle: .main, comment: "Library recovery")
+    AppLanguage.bundle.localizedString(forKey: key, value: nil, table: "Recovery")
 }
 
 /// Recovery is routed before onboarding and does not require a preference write to enter.

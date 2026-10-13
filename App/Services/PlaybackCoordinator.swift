@@ -6,7 +6,6 @@ import UIKit
 @MainActor final class PlaybackCoordinator: ObservableObject {
     @Published private(set) var state: PlaybackState = .idle { didSet { didChange?() } }
     var didChange: (() -> Void)?
-    var accompaniment: ((Bool) throws -> Void)?
     var currentGain: Double { gain }
     @Published private(set) var remaining = 180.0
     @Published private(set) var level = 0.0
@@ -14,11 +13,12 @@ import UIKit
     @Published private(set) var activePattern: HapticPattern?
     @Published private(set) var kind = "pattern"
     @Published var lastError: String?
-    @Published var guardEnabled = false
+    /// Last parameters actually handed to the active output; shown on the troubleshooting page.
+    @Published private(set) var lastDispatch: HapticDispatch?
     @Published private(set) var routineIndex = 0
     private(set) var outputID = UUID()
     private var clock = SessionClock(), phase = 0.0, lastTick = 0.0, windowEnd = 0.0
-    private var gain = 0.55, speed = 1.0, sharp = 0.25
+    private var gain = 0.8, speed = 1.0, sharp = 0.5
     private var timer: Timer?
     private var streamSource: String?
     private var pausedAt: Double?
@@ -42,6 +42,15 @@ import UIKit
         self.outputs = HapticOutputRouter(phone: self.driver)
         self.outputs.interrupted = { [weak self] reason in self?.interrupt(reason) }
         self.outputs.windowCompleted = { [weak self] in self?.nextWindow() }
+        self.outputs.dispatched = { [weak self] dispatch in
+            guard let self else { return }
+            // Streams report at up to 50 Hz; publish only when the readout would change.
+            if let last = self.lastDispatch, last.kind == dispatch.kind, last.target == dispatch.target,
+                abs(last.peakIntensity - dispatch.peakIntensity) < 0.005,
+                abs(last.sharpness - dispatch.sharpness) < 0.005
+            { return }
+            self.lastDispatch = dispatch
+        }
         self.outputs.routeInvalidated = { [weak self] reason in
             guard let self, [.playing, .paused, .preparing, .interrupted].contains(self.state) else { return }
             self.interrupt(reason)
@@ -52,14 +61,19 @@ import UIKit
         RunLoop.main.add(timer!, forMode: .common)
     }
     deinit { timer?.invalidate() }
+    /// The session length comes from the timer, so a built-in piece that would end early repeats instead.
+    static func timed(_ p: HapticPattern) -> HapticPattern {
+        guard p.builtin, !p.loop else { return p }
+        var q = p
+        q.loop = true
+        return q
+    }
     func begin(
-        _ p: HapticPattern, duration: Double, gain: Double, speed: Double = 1, sharp: Double = 0.25,
+        _ p: HapticPattern, duration: Double, gain: Double, speed: Double = 1, sharp: Double = 0.5,
         kind: String = "pattern"
     ) throws {
-        guard foreground else {
-            throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
-        }
         try Validation.pattern(p, requireName: false)
+        let p = Self.timed(p)
         willAcquire?(kind)
         stop(reason: "replaced", notifyExternal: false)
         try outputs.prepare()
@@ -73,7 +87,7 @@ import UIKit
         pausedAt = nil
         phase = 0
         lastTick = now()
-        try clock.start(now: lastTick, duration: min(600, max(0.05, length)))
+        try clock.start(now: lastTick, duration: min(7200, max(0.05, length)))
         do {
             try schedule()
             state = .playing
@@ -148,10 +162,9 @@ import UIKit
         state = outputs.shutdownPending ? .failed : .paused
         level = 0
         restoreScreen()
-        if routine?.sound == true { try? accompaniment?(false) }
     }
     func resume() throws {
-        guard [.paused, .interrupted].contains(state), foreground else { return }
+        guard [.paused, .interrupted].contains(state) else { return }
         pausedAt = nil
         willAcquire?(kind)
         try outputs.prepare()
@@ -161,7 +174,6 @@ import UIKit
             try schedule()
             state = .playing
             holdScreen()
-            if routine?.sound == true { try accompaniment?(true) }
         } catch {
             clock.fail()
             outputs.stop()
@@ -185,7 +197,6 @@ import UIKit
         if outputs.shutdownPending { state = .failed }
         level = 0
         routine = nil
-        guardEnabled = false
         restoreScreen()
         if notifyExternal { didStopExternal?(reason) }
     }
@@ -210,7 +221,8 @@ import UIKit
         guard state == .playing, kind == "pattern" else { return }
         tick()
         guard state == .playing else { return }
-        // Keep elapsed time and the 600-second ceiling across changes of preset.
+        // Keep elapsed time and the two-hour ceiling across changes of preset.
+        let pattern = Self.timed(pattern)
         activePattern = pattern
         title = pattern.displayName()
         phase = 0
@@ -225,7 +237,6 @@ import UIKit
         didChange?()
     }
     func adjust(gain: Double, speed: Double, sharp: Double) throws {
-        guard !guardEnabled else { return }
         tick()
         self.gain = gain
         self.speed = speed
@@ -241,9 +252,6 @@ import UIKit
         if state == .playing { try schedule() }
     }
     func stream(_ intensity: Double, sharpness: Double, source: String) throws {
-        guard foreground else {
-            throw LoomError.unavailable(NSLocalizedString("error.foreground", comment: ""))
-        }
         if streamSource != source {
             willAcquire?(source)
             stop(reason: "replaced", notifyExternal: false)
