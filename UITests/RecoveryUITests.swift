@@ -181,7 +181,12 @@ final class RecoveryUITests: XCTestCase {
         saved(); tap(named(title)); tap(app.buttons["Export"])
         capture("03-native-share-sheet")
         // UIKit exposes share actions as collection-view cells, not buttons.
-        let saveToFiles = app.cells["Save to Files"]
+        // The app locale is forced for app copy, but UIActivityViewController follows the
+        // simulator's system language. Match the native action in English, Chinese, or Japanese.
+        let saveToFiles = app.cells.matching(NSPredicate(
+            format: "label CONTAINS[c] %@ OR label CONTAINS[c] %@ OR label CONTAINS[c] %@",
+            "Save to Files", "保存到", "ファイル"
+        )).firstMatch
         XCTAssertTrue(saveToFiles.waitForExistence(timeout: 8))
         tap(saveToFiles)
         let save = app.buttons["Save"]
