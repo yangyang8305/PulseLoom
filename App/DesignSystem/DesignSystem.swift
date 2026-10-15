@@ -166,12 +166,14 @@ struct LoomButton: View {
     var destructive = false
     var compact = false
     var fill = true
+    var multiline = false
     var action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).font(.body.weight(.medium)) }
-                Text(T(title)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(T(title)).lineLimit(multiline ? nil : 1).minimumScaleFactor(multiline ? 1 : 0.8)
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: multiline)
             }.frame(maxWidth: fill ? .infinity : nil)
         }
         .buttonStyle(
@@ -219,6 +221,7 @@ struct LoomIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol).font(.body.weight(.medium)).frame(width: 44, height: 44)
+                .foregroundStyle(c.accent)
                 .background(c.surface.opacity(0.9), in: Circle())
                 .overlay(Circle().strokeBorder(c.line, lineWidth: 0.8))
         }.buttonStyle(.plain).accessibilityLabel(label)

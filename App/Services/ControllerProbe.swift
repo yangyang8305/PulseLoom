@@ -92,8 +92,7 @@ import GameController
             try player.start(atTime: CHHapticTimeImmediate)
             note("\(step.id): playing \(step.title)")
         } catch {
-            let n = error as NSError
-            note("\(step.id): FAILED \(n.domain) \(n.code) \(n.localizedDescription)")
+            note("\(step.id): \(UserFacingError.message(error, fallback: "error.outputStart"))")
         }
     }
     private func teardown() {

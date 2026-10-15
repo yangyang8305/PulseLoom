@@ -80,6 +80,7 @@ public enum Validation {
         let p = s.preferences
         guard finite(p.gain, 0...1), finite(p.speed, 0.5...2), finite(p.sharpness, 0...1),
             finite(p.timer, 30...7200),
+            p.firstTouchGain.map { finite($0, 0.1...1) } ?? true,
             ThemeCatalog.all.contains(where: { $0.id == p.theme }), p.name.count <= 24,
             ids.contains(p.lastPattern),
             reserved.contains(p.widgetPattern)

@@ -19,6 +19,7 @@
     "App/Features/CreateView.swift",
     "App/Features/EditorModel.swift",
     "App/Features/ExtendedViews.swift",
+    "App/Features/FirstTouchView.swift",
     "App/Features/HomeView.swift",
     "App/Features/LibraryRecoveryView.swift",
     "App/Features/LockScreenView.swift",
@@ -30,6 +31,7 @@
     "App/Services/ControllerProbe.swift",
     "App/Services/DiagLog.swift",
     "App/Services/Diagnostics.swift",
+    "App/Services/FirstTouchSession.swift",
     "App/Services/HapticDriver.swift",
     "App/Services/HapticIO.swift",
     "App/Services/LibraryErasure.swift",
@@ -42,17 +44,20 @@
     "App/Services/RemoteSocketIO.swift",
     "App/Services/SystemMusicIO.swift",
     "App/Services/SystemMusicService.swift",
+    "App/Services/UserFacingError.swift",
     "App/Services/WatchBridge.swift",
     "WatchApp/PulseLoomWatchApp.swift",
     "Widgets/PulseLoomWidget.swift",
     "UITests/EngineeringUITests.swift",
+    "UITests/FirstTouchUITests.swift",
     "UITests/PulseLoomUITests.swift",
     "UITests/RecoveryUITests.swift",
     "ServiceTests/DataSafetyTests.swift",
     "ServiceTests/EngineeringTests.swift",
+    "ServiceTests/FirstTouchTests.swift",
     "ServiceTests/NativeDateSafetyTests.swift",
     "ServiceTests/SafetyTests.swift",
     "ServiceTests/StorageBoundaryTests.swift"
   ],
-  "objectCount": 258
+  "objectCount": 268
 }

@@ -12,6 +12,7 @@ struct MusicView: View {
     @State private var importing = false
     @State private var advanced = false
     @State private var library = false
+    @State private var outputSettings = false
     var body: some View {
         GeometryReader { geo in
             let compact = geo.size.height < 640
@@ -28,8 +29,7 @@ struct MusicView: View {
                     }
                 }
                 HeroArt(level: app.music.requestedLevel, playing: app.music.isPlaying)
-                    .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 260)
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, minHeight: 104, maxHeight: .infinity)
                 if app.music.status == .loading {
                     ProgressView(T("music.analyzing")).frame(maxWidth: .infinity)
                     LoomButton(title: "common.cancel", secondary: true, compact: true) { app.music.cancelLoad() }
@@ -45,7 +45,13 @@ struct MusicView: View {
                 if app.music.status != .loading { sources }
                 if let error = app.music.error {
                     HStack {
-                        Text(error).font(.caption).foregroundStyle(c.muted).lineLimit(2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(error).font(.caption).foregroundStyle(c.muted)
+                            if UserFacingError.isOutputMessage(error) {
+                                Button(T("touch.checkDevice")) { outputSettings = true }
+                                    .font(.caption).accessibilityIdentifier("musicCheckOutput")
+                            }
+                        }
                         Spacer()
                         Button(T("common.dismiss")) { app.music.error = nil }.font(.caption)
                     }
@@ -62,6 +68,11 @@ struct MusicView: View {
         }
         .sheet(isPresented: $advanced) { MusicAdvancedView().environmentObject(app).environment(\.loom, c) }
         .sheet(isPresented: $library) { MusicLibraryView().environmentObject(app).environment(\.loom, c) }
+        .sheet(isPresented: $outputSettings) {
+            NavigationStack { HapticOutputsView().toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button(T("common.done")) { outputSettings = false } }
+            } }.environmentObject(app).environment(\.loom, c)
+        }
     }
     private var loaded: some View {
         VStack(alignment: .leading, spacing: 8) {

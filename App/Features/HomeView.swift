@@ -305,12 +305,6 @@ struct AdjustmentView: View {
                     app.perform { try app.adjust() }
                 }
                 Notice(text: "home.parametersHelp")
-                Picker(T("lock.auto"), selection: $app.autoLockSeconds) {
-                    Text(T("lock.off")).tag(0)
-                    Text(String(format: T("lock.after"), 10)).tag(10)
-                    Text(String(format: T("lock.after"), 30)).tag(30)
-                    Text(String(format: T("lock.after"), 60)).tag(60)
-                }
                 HStack(spacing: 10) {
                     LoomButton(title: "home.testHaptics", symbol: "bolt", secondary: true, compact: true) { showTest = true }
                         .accessibilityIdentifier("homeTestStrength")
@@ -326,7 +320,7 @@ struct AdjustmentView: View {
                     }
                 }
                 }
-            }.navigationDestination(isPresented: $showTest) { TroubleshootingView() }
+            }.navigationDestination(isPresented: $showTest) { FirstTouchView(app: app) }
             .navigationTitle(T("home.adjust")).navigationBarTitleDisplayMode(.inline).toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button(T("common.done")) { dismiss() } }
             }

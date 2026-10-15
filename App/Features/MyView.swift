@@ -269,7 +269,7 @@ struct ThemeView: View {
                     }
                     LoomButton(title: "common.cancel", secondary: true) { preview = nil }
                 }.navigationTitle(T("theme.preview"))
-            }.environment(\.loom, colors)
+            }.environment(\.loom, colors).tint(colors.accent)
         }
     }
 }
@@ -303,6 +303,7 @@ struct SettingsView: View {
                 Button(T("diagnostics.export")) { app.exportDiagnostics() }
             }
             Section(T("settings.help")) {
+                NavigationLink { FirstTouchView(app: app) } label: { Text(T("touch.title")) }
                 NavigationLink { TroubleshootingView() } label: { Text(T("help.troubleshoot")) }
                 NavigationLink { HelpView() } label: { Text(T("help.title")) }
                 NavigationLink { IconsView() } label: { Text(T("icons.title")) }

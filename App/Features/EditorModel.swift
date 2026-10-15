@@ -40,7 +40,7 @@ import UIKit
         do {
             try Validation.pattern(draft, requireName: false)
             return nil
-        } catch { return error.localizedDescription }
+        } catch { return UserFacingError.message(error) }
     }
     init() {}
     func attach(_ app: AppModel) {
@@ -379,7 +379,7 @@ import UIKit
             try app.playback.stream(
                 tool == .xy ? y : 0.5, sharpness: tool == .xy ? x : 0.25, source: "recording")
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(error)
             endTouch()
             end()
         }
@@ -432,7 +432,7 @@ import UIKit
                 draft = p
             }
             persist()
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = UserFacingError.message(error) }
     }
     func removeLastTouch() {
         guard ensureWorkspace() else { return }

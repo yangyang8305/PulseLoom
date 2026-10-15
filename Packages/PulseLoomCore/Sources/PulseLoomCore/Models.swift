@@ -117,7 +117,7 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var theme = "blush"
     public var appearance: Appearance = .auto
     /// 1.0 is the device's full output; presets are tuned so their loudest segment reaches it.
-    public var gain = 0.8
+    public var gain = 0.35
     public var speed = 1.0
     /// 0.5 plays each segment's own texture; lower softens, higher sharpens.
     public var sharpness = 0.5
@@ -129,6 +129,8 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var privacyCover = true
     public var diagnosticsEnabled = false
     public var onboarded = false
+    /// Optional for backward-compatible decoding of existing libraries.
+    public var firstTouchGain: Double?
     public var icon = "default"
     public var widgetPattern = "p02"
     public var widgetPrivate = true

@@ -31,7 +31,7 @@ import WatchConnectivity
             try WCSession.default.updateApplicationContext([
                 "title": title, "gain": gain, "playing": playing, "allowed": allowed && foreground,
             ])
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = UserFacingError.message(error, fallback: "error.watchUnavailable") }
     }
     nonisolated func session(
         _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
@@ -40,7 +40,7 @@ import WatchConnectivity
         Task { @MainActor in
             self.reachable = session.isReachable
             self.installed = session.isWatchAppInstalled
-            self.error = error?.localizedDescription
+            self.error = error.map { UserFacingError.message($0, fallback: "error.watchUnavailable") }
             self.publish(title: self.lastTitle, gain: self.lastGain, playing: self.lastPlaying)
         }
     }
@@ -73,7 +73,7 @@ import WatchConnectivity
                         ])
                 }
                 replyHandler(try self.onCommand?(message) ?? ["ok": false])
-            } catch { replyHandler(["ok": false, "error": error.localizedDescription]) }
+            } catch { replyHandler(["ok": false, "error": UserFacingError.message(error, fallback: "error.watchUnavailable")]) }
         }
     }
 }

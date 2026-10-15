@@ -49,6 +49,7 @@ struct RootView: View {
                 }.tint(Color(hex: dark ? app.theme.dark[4] : app.theme.light[4]))
             }
         }
+        .tint(LoomColors(theme: app.theme, dark: dark).accent)
         .environment(\.loom, LoomColors(theme: app.theme, dark: dark))
         .environment(\.reducedArt, app.prefs.reduceMotion)
         .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
@@ -64,12 +65,14 @@ struct RootView: View {
         .sheet(item: $app.sheet) { route in
             sheet(route).environmentObject(app).environmentObject(editor).environment(
                 \.loom, LoomColors(theme: app.theme, dark: dark))
+                .tint(LoomColors(theme: app.theme, dark: dark).accent)
                 .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
         }
         .sheet(item: $app.share) { item in ShareSheet(url: item.url) }
         .sheet(isPresented: $app.showInvite) {
             NavigationStack { RemoteView() }.environmentObject(app).environment(
                 \.loom, LoomColors(theme: app.theme, dark: dark))
+                .tint(LoomColors(theme: app.theme, dark: dark).accent)
                 .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
         }
         .alert(
@@ -117,22 +120,30 @@ struct WelcomeView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.loom) var c
     @State private var showGuide = false
+    @State private var showFirstTouch = false
     @State private var page = 0
     @State private var showTest = false
     var body: some View {
-        VStack(spacing: 16) {
+        ScrollView { VStack(spacing: 16) {
             Spacer(minLength: 12)
-            HeroArt().frame(maxHeight: 260)
+            HeroArt().frame(height: 180)
             Text("Pulse Loom").font(.system(size: 44, weight: .regular, design: .serif).italic())
                 .multilineTextAlignment(.center)
             Text(T("welcome.subtitle")).font(.headline)
             Text(T("welcome.detail")).font(.footnote).multilineTextAlignment(.center).foregroundStyle(c.muted)
             Spacer(minLength: 12)
-            LoomButton(title: "welcome.enter", symbol: "arrow.right") {
+            LoomButton(title: "touch.begin", symbol: "hand.tap", multiline: true) { showFirstTouch = true }
+                .accessibilityIdentifier("welcomeFirstTouch")
+            LoomButton(title: "touch.skip", symbol: "arrow.right", secondary: true, multiline: true) {
                 app.perform { try app.library.preferences { $0.onboarded = true } }
             }.accessibilityIdentifier("welcomeEnter")
             Button(T("welcome.guide")) { showGuide = true }.frame(minHeight: 44)
-        }.padding(25).frame(maxWidth: .infinity, maxHeight: .infinity).loomBackground()
+        }.padding(25).frame(maxWidth: .infinity) }.loomBackground()
+            .sheet(isPresented: $showFirstTouch) {
+                NavigationStack { FirstTouchView(app: app).toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button(T("common.close")) { showFirstTouch = false } }
+                } }.environmentObject(app)
+            }
             .sheet(isPresented: $showGuide) {
                 NavigationStack {
                     PlainScene {
@@ -147,7 +158,7 @@ struct WelcomeView: View {
                             showGuide = false
                         }
                     }.navigationTitle(T("welcome.guide")).navigationDestination(isPresented: $showTest) {
-                        TroubleshootingView()
+                        FirstTouchView(app: app)
                     }.toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(T("common.close")) { showGuide = false }

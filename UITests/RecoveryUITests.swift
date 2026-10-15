@@ -79,7 +79,19 @@ final class RecoveryUITests: XCTestCase {
     }
     func tap(_ e: XCUIElement) {
         reach(e)
-        e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        // Only our four stable tab identifiers participate in this postcondition.
+        // System Files controls can overlap the underlying app's tab bar geometrically.
+        let isTab = e.elementType == .button
+            && ["house", "music.note", "pencil.tip", "person"].contains(e.identifier)
+            && app.tabBars.firstMatch.exists && app.tabBars.firstMatch.frame.contains(e.frame)
+        if e.elementType == .cell { e.tap() }
+        else { e.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
+        if isTab {
+            // Verify the navigation before looking for controls on the destination page.
+            // A single retry handles a dropped synthesized tap; a real failure still fails here.
+            if !e.waitForSelected(timeout: 3), e.exists && e.isHittable { e.tap() }
+            XCTAssertTrue(e.waitForSelected(timeout: 3), "Tab did not become selected: \(e)")
+        }
     }
     func named(_ label: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", label)).firstMatch
@@ -173,6 +185,9 @@ final class RecoveryUITests: XCTestCase {
         XCTAssertTrue(saveToFiles.waitForExistence(timeout: 8))
         tap(saveToFiles)
         let save = app.buttons["Save"]
+        if !save.waitForExistence(timeout: 10), saveToFiles.exists && saveToFiles.isHittable {
+            saveToFiles.tap()
+        }
         XCTAssertTrue(save.waitForExistence(timeout: 10))
         // iOS 18 exposes the filename without an identifier; iOS 26 adds one.
         // Bind by index after finding its initial value so edits do not invalidate the query.

@@ -40,7 +40,10 @@ struct PremiumView: View {
                         }
                     }
                 }
-                if app.purchase.outcome != .idle { Notice(text: outcomeText) }
+                if app.purchase.outcome != .idle,
+                    !(app.purchase.product == nil && app.purchase.outcome == .failed(T("purchase.unavailable"))) {
+                    Notice(text: outcomeText)
+                }
                 LoomButton(title: "purchase.restore", secondary: true) {
                     app.stopAll()
                     Task { await app.purchase.restore() }
@@ -236,7 +239,7 @@ struct IconsView: View {
                     UIApplication.shared.setAlternateIconName(name == "default" ? nil : name) { error in
                         Task { @MainActor in
                             if let error {
-                                app.error = error.localizedDescription
+                                app.error = UserFacingError.message(error)
                             } else {
                                 app.perform { try app.library.preferences { $0.icon = name } }
                             }

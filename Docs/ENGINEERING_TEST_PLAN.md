@@ -77,3 +77,8 @@ python3 Scripts/test-engineering.py --portable-only --python .venv-current/bin/p
 运行器优先选择专用PulseLoom-UITest-EN，不接受继承环境中其它项目的默认destination；Apple构建清除不匹配的SDKROOT。服务与UI顺序运行。UI前reset-engineering-runner.py只移除测试harness，不卸载主App或清用户资料。额外sysdiagnose默认不收集，避免磁盘耗尽；原始xcresult/断言日志正常保留。大字体Form采用明确的双向滚动路径，仍断言控件可点击，不要求所有设置初始就同时可见。
 
 本次失败的既有UI用例未改写或删除。针对整个工作区的检查和结果应与ENGINEERING_TEST_RESULTS_2026-10-13.md一同阅读。
+
+
+## 2026-10-15 首次体验与错误提示回归
+
+新增 FirstTouchTests（6 项）与 FirstTouchUITests（5 项），覆盖真实输出完成门槛、感受确认保存、停机与替换、旧库兼容、三语入口、中文错误和设备设置跳转。产品行为、实际执行范围及证据见 [首次触感体验与中文错误整改](FIRST_TOUCH_AND_ERRORS_2026-10-15.md)。模拟器不替代用户在实际设备上的舒适度确认。

@@ -96,7 +96,7 @@ import UIKit
         } catch {
             clock.fail()
             state = .failed
-            lastError = error.localizedDescription
+            lastError = UserFacingError.message(error)
             throw error
         }
     }
@@ -212,7 +212,7 @@ import UIKit
         outputs.stop()
         if outputs.shutdownPending { state = .failed }
         level = 0
-        lastError = reason
+        lastError = UserFacingError.message(LoomError.unavailable(reason))
         restoreScreen()
         didStopExternal?(reason)
     }

@@ -164,7 +164,7 @@ import PulseLoomCore
         // Cancellation belongs to the old operation; it may not overwrite a newly enabled session.
         guard generation == expected else { return }
         if state != .conflict { state = .failed }
-        error = failure.localizedDescription
+        error = UserFacingError.message(failure, fallback: "error.syncUnavailable")
     }
     private func upload(_ value: LibrarySnapshot, generation expected: UUID) async throws {
         var temporary: URL?
@@ -198,7 +198,7 @@ import PulseLoomCore
                 state = .conflict
                 // The old resolution input is stale. Require synchronize() to fetch the new record.
                 remoteSnapshot = nil
-                error = "Cloud content changed again. Sync before resolving."
+                error = T("error.syncChanged")
             }
             throw e
         } catch {

@@ -43,7 +43,7 @@ import UIKit
         do {
             product = try await Product.products(for: [productID]).first
             if product == nil { outcome = .failed(T("purchase.unavailable")) }
-        } catch { outcome = .failed(error.localizedDescription) }
+        } catch { outcome = .failed(UserFacingError.message(error, fallback: "purchase.unavailable")) }
     }
     func refresh() async {
         var valid = false
@@ -68,19 +68,19 @@ import UIKit
                 }
                 await refresh()
                 await t.finish()
-                outcome = pro ? .success : .failed("Verified purchase did not grant an active entitlement.")
+                outcome = pro ? .success : .failed(T("error.purchaseNotActive"))
             case .userCancelled: outcome = .cancelled
             case .pending: outcome = .pending
-            @unknown default: outcome = .failed("Unknown purchase result.")
+            @unknown default: outcome = .failed(T("purchase.unavailable"))
             }
-        } catch { outcome = .failed(error.localizedDescription) }
+        } catch { outcome = .failed(UserFacingError.message(error, fallback: "purchase.unavailable")) }
     }
     func restore() async {
         do {
             try await AppStore.sync()
             await refresh()
             outcome = pro ? .restored : .none
-        } catch { outcome = .failed(error.localizedDescription) }
+        } catch { outcome = .failed(UserFacingError.message(error, fallback: "purchase.unavailable")) }
     }
     func refund() async {
         guard
@@ -95,6 +95,6 @@ import UIKit
                 }
             }
             outcome = .none
-        } catch { outcome = .failed(error.localizedDescription) }
+        } catch { outcome = .failed(UserFacingError.message(error, fallback: "purchase.unavailable")) }
     }
 }

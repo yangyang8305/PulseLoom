@@ -587,9 +587,9 @@ final class PresetTuningTests: XCTestCase {
         }
         XCTAssertGreaterThan(taps, 0)
     }
-    func testDefaultPreferencesStartStrongWithNeutralTexture() {
+    func testNewPreferencesStartGentlyWithNeutralTexture() {
         let d = Preferences()
-        XCTAssertEqual(d.gain, 0.8)
+        XCTAssertEqual(d.gain, 0.35)
         XCTAssertEqual(d.sharpness, 0.5)
         XCTAssertNoThrow(try Validation.snapshot(LibrarySnapshot()))
     }

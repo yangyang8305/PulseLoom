@@ -102,7 +102,7 @@ import PulseLoomCore
             } catch {
                 guard self.generation == token else { return }
                 self.status = .failed
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error, fallback: "error.audioRead")
             }
         }
     }
@@ -157,7 +157,7 @@ import PulseLoomCore
         do {
             try DemoAudio.wav(mist: mist).write(to: u, options: .atomic)
             load(url: u)
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = UserFacingError.message(error, fallback: "error.audioRead") }
     }
     func cancelLoad() {
         generation = UUID()
@@ -210,7 +210,7 @@ import PulseLoomCore
         player.volume = Float(config.volume)
         do { try output?(requestedLevel, config.sharpness) } catch {
             pause()
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(error, fallback: "error.audioRead")
         }
     }
     func pause() {

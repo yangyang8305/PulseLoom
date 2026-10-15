@@ -389,7 +389,7 @@ enum HapticRoutePolicy {
             activeID = nil
             active = phone
             activeName = "iPhone"
-            lastFallbackReason = error.localizedDescription
+            lastFallbackReason = UserFacingError.message(error)
             try phone.prepare()
         }
     }

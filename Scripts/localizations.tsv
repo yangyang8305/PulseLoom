@@ -235,7 +235,7 @@ purchase.buy|Unlock Pro|解锁 Pro|Proを解除
 purchase.restore|Restore purchases|恢复购买|購入を復元
 purchase.refund|Request a refund from Apple|向 Apple 申请退款|Appleに返金を申請
 purchase.terms|Terms of use|使用条款|利用規約
-purchase.unavailable|The store product is unavailable. Retry after checking your store account and the product configuration.|暂时无法取得商店商品，请核对商店账号和商品配置后重试。|ストア商品を取得できません。アカウントと商品設定を確認して再試行してください。
+purchase.unavailable|Purchase information is temporarily unavailable. Retry later; existing customers can restore purchases.|暂时无法载入购买信息。请稍后重试；已购用户可尝试恢复购买。|購入情報を取得できません。後で再試行してください。購入済みの場合は購入を復元できます。
 purchase.view|View Pro access|查看 Pro 权益|Proの内容を見る
 purchase.processing|Waiting for the store…|等待商店处理…|ストアの処理を待っています…
 purchase.success|Purchase verified. Pro is unlocked.|购买验证通过，Pro 已解锁。|購入を検証しました。Proが有効です。
@@ -289,7 +289,7 @@ sync.state.failed|Failed|同步失败|失敗
 remote.title|Remote sharing|远程共享|リモート共有
 remote.allow|Allow the other person to control|允许对方控制|相手からの操作を許可
 remote.connecting|Connecting…|正在连接…|接続中…
-remote.notConfigured|A relay server has not been configured for this build. Remote controls stay unavailable until deployment is configured.|此构建尚未配置中继服务器，配置实际部署后才能使用远控。|このビルドには中継サーバーが設定されていません。実際のサーバー設定後に利用できます。
+remote.notConfigured|Remote sharing is temporarily unavailable. You can still use local features and try again later.|远程共享暂不可用。你仍可使用本机触感，请稍后再试。|リモート共有を利用できません。ローカル機能を使い、後で再試行してください。
 remote.pasteInvite|Paste an invitation link|粘贴邀请链接|招待リンクを貼り付け
 remote.peer|Other device|对方设备|相手の端末
 remote.reconnect|Reconnect and authorize again|重新连接并授权|再接続して再度許可
@@ -465,11 +465,63 @@ settings.language|Language|语言|言語
 language.system|Follow system|跟随系统|システムに従う
 lock.enter|Lock screen|锁定屏幕|画面をロック
 lock.hint|Triple-tap anywhere to unlock|连点三下屏幕解锁|画面を3回タップして解除
-lock.auto|Auto-lock while playing|播放时自动锁定|再生中に自動ロック
-lock.off|Off|关|オフ
-lock.after|After %d s|%d 秒后|%d秒後
 lock.confirmTitle|Lock the screen?|进入锁定模式？|画面をロックしますか？
 lock.confirmMessage|The screen goes dark and ignores touches while output continues. To unlock, tap anywhere three times quickly.|屏幕将变黑并忽略所有触摸，震动继续。解锁方法：在屏幕任意位置快速连点三下。|画面が暗くなりタッチを無視します。出力は続きます。解除するには画面を素早く3回タップしてください。
 lock.confirm|Enter lock mode|确定锁定|ロックする
 help.probe|Run controller probe|开始手柄测试|コントローラーテスト
 help.probeTriggers|Trigger sweep|扳机测试|トリガーテスト
+
+touch.begin|Find my comfortable touch|找到适合我的触感|自分に合う感触を探す
+touch.title|First touch experience|第一次触感体验|はじめての触覚体験
+touch.intro|Check the output device, try a short touch, then choose what feels right. Nothing starts automatically.|先确认输出设备，再试一次短触感。轻重由你判断，每次都由你点击开始。|出力端末を確認し、短い感触を試して好みを選びます。自動では開始しません。
+touch.device|1. Check the device|1. 确认设备|1. 端末を確認
+touch.capability|The system reports haptic support. Your feedback confirms whether you actually feel it.|系统报告支持触感；是否真的感觉到，仍由你亲自确认。|システムは触覚対応と報告しています。実際の感じ方は自分で確認してください。
+touch.checkDevice|Check or change output device|检查或更换输出设备|出力端末を確認・変更
+touch.level|2. Try %d%% strength|2. 体验强度：%d%%|2. 強さ %d%% を試す
+touch.shortTest|Two brief touches, less than one second. Stop at any time. Percentages describe relative output, not measured sensation.|两段短触感，不到 1 秒，随时可停止。百分比是设备相对输出，不是实际感受的测量。|1秒未満の短い感触です。いつでも停止できます。百分率は出力の相対値で、感じ方の測定ではありません。
+touch.play|Play this short test|体验这档触感|この強さを試す
+touch.playing|Playing — you can stop|正在体验，可随时停止|再生中・いつでも停止可能
+touch.question|3. How did that feel?|3. 这档触感适合你吗？|3. 感じ方はいかがですか？
+touch.comfortable|Comfortable — save this level|合适，保存这档强度|ちょうどよい・この強さを保存
+touch.notFelt|Didn't feel it — try a little stronger|没感觉，试高一档|感じない・少し強く試す
+touch.tooStrong|Too strong — try a little gentler|太强，试轻一档|強すぎる・少し弱く試す
+touch.retest|Level adjusted. Tap to try it; nothing plays automatically.|已调整一档。请再次点击体验，不会自动播放。|強さを調整しました。もう一度タップして試してください。自動再生はしません。
+touch.ceiling|This is the maximum relative output. Check the device and system vibration setting below; paying for Pro cannot increase motor power.|已到设备相对输出上限。仍没感觉，请检查输出设备及下方系统振动设置；购买 Pro 不会提高马达功率。|相対出力の上限です。感じない場合は出力端末と下記の振動設定を確認してください。Proでもモーター出力は増えません。
+touch.minimum|This is the gentlest test level. You can stop and return later; you do not need to save an uncomfortable level.|已到本测试最轻档位。仍觉得太强，可以停止后稍后再试，不必保存不舒服的强度。|このテストの最小の強さです。まだ強い場合は停止して後で試してください。無理に保存する必要はありません。
+touch.interrupted|Test stopped or interrupted. Try again before saving a level.|体验已停止或被中断。请重新体验后，再确认并保存。|テストを停止または中断しました。もう一度試してから保存してください。
+touch.saved|Your everyday touch strength is saved. You can adjust it from Home or manual control; music keeps its separate strength setting.|已保存常用触感强度，可在首页或手动触感中继续调整。音乐跟随仍使用独立强度。|普段使う触覚の強さを保存しました。ホームや手動操作で変更できます。音楽は別の強さ設定を使います。
+touch.scope|Saving updates your everyday touch strength. Music has a separate setting. Closing without saving does not change your preferences.|保存后更新常用触感强度，音乐仍有独立设置。不保存直接关闭，不会修改偏好。|保存すると普段使う触覚の強さを更新します。音楽は別設定です。保存せず閉じると設定は変わりません。
+error.operation|Couldn't complete this action. Try again; if it persists, restart the app or open Help.|操作未完成。请重试；仍有问题可重新打开 App，或前往帮助查看处理方法。|操作を完了できませんでした。再試行し、続く場合はアプリを開き直すかヘルプを確認してください。
+error.outputUnavailable|No haptic output is available. Check the output device and use a compatible physical iPhone or haptic controller.|当前没有可用的触感输出。请检查输出设备，使用支持触感的实体 iPhone 或手柄后再试。|触覚を出力できません。出力端末を確認し、対応する実機iPhoneまたはコントローラで再試行してください。
+error.controllerDisconnected|The selected controller is disconnected. Reconnect it or select this iPhone in output settings.|所选手柄已断开。请重新连接，或在输出设备中切换为本机 iPhone。|選択したコントローラが切断されました。接続し直すか出力設定でiPhoneを選んでください。
+error.controllerUnsupported|This controller does not report haptic support. Select a supported device in output settings.|此手柄未报告触感能力。请在输出设备中选择支持触感的设备。|このコントローラは触覚に対応していません。出力設定で対応端末を選んでください。
+error.outputStart|Haptic output could not start. Check the output device, keep the app in front, and retry.|触感输出未能启动。请检查输出设备，保持 App 在前台后重试。|触覚を開始できません。出力端末を確認し、アプリを前面にして再試行してください。
+error.outputStopping|The previous output has not confirmed stopping. Tap Stop, wait briefly, then retry. If it persists, close the app.|上一次输出尚未确认停止。请点击停止、稍等后重试；仍未停止请关闭 App。|前の出力の停止を確認できません。停止を押して少し待ち再試行してください。続く場合はアプリを閉じてください。
+error.audioRead|Couldn't read this audio. Choose another local audio file within 30 MB and 10 minutes.|无法读取这份音频。请换一个可播放的本地音频文件，大小不超过 30MB、时长不超过 10 分钟。|音声を読み込めません。30MB・10分以内の別のローカル音声ファイルを選んでください。
+error.audioStart|Audio could not start. Check the audio output and retry, or choose another track.|音乐未能开始播放。请检查音频输出后重试，或换一首曲目。|音楽を再生できません。音声出力を確認して再試行するか別の曲を選んでください。
+error.audioSize|This audio exceeds 30 MB. Choose a smaller file.|这份音频超过 30MB，请选择更小的文件。|音声が30MBを超えています。小さいファイルを選んでください。
+error.audioLength|This audio exceeds 10 minutes. Choose a shorter file.|这份音频超过 10 分钟，请选择更短的曲目。|音声が10分を超えています。短い曲を選んでください。
+error.network|Couldn't connect. Check your network and retry; local features remain available.|连接失败。请检查网络后重试，本机功能仍可使用。|接続できません。ネットワークを確認し再試行してください。ローカル機能は引き続き使えます。
+error.cancelled|Cancelled. You can try again when ready.|操作已取消，准备好后可重新尝试。|キャンセルしました。準備ができたら再試行できます。
+error.diskFull|Not enough storage. Free some space and retry saving.|存储空间不足。请释放一些空间，再重试保存。|保存容量が不足しています。空き容量を増やして保存し直してください。
+error.file|Couldn't access this file. Check that it exists and can be opened, or select it again.|无法访问这份文件。请确认文件存在且可打开，或重新选择文件。|ファイルにアクセスできません。存在と読み取り可否を確認するか選び直してください。
+error.storage|The library operation failed. Check free storage, or restore a backup in Privacy & data.|作品库操作未完成。请检查可用存储空间，或在隐私与数据中选择恢复备份。|ライブラリ操作に失敗しました。空き容量を確認するか、プライバシーとデータでバックアップを復元してください。
+error.invalidInput|The content is invalid or exceeds a limit. Check the name, segments and values; imported files must be PulseLoom patterns or backups.|内容无效或超出限制。请检查名称、片段和数值；导入文件需为触律作品或备份。|内容が無効か上限を超えています。名前・区間・数値を確認し、PulseLoomの作品またはバックアップを選んでください。
+error.emptyPattern|Record a touch or add a nonzero segment before previewing or saving.|请先录入触碰，或添加一个有强度的片段，再预览或保存。|タッチを録音するか強さのある区間を追加してからプレビュー・保存してください。
+error.proRequired|This content or additional save slots require Pro. Open Pro benefits to see the options.|此内容或额外保存位需要 Pro，可前往 Pro 权益查看说明。|この内容または追加保存枠にはProが必要です。Proの説明をご確認ください。
+error.syncOff|iCloud sync is off. Enable it in sync settings before retrying.|iCloud 同步未开启，请在同步设置中开启后重试。|iCloud同期がオフです。同期設定で有効にして再試行してください。
+error.syncUnavailable|iCloud sync is temporarily unavailable. Check your iCloud account or try later; local work remains available.|iCloud 同步暂不可用。请检查 iCloud 登录状态或稍后重试，本机作品仍可使用。|iCloud同期を利用できません。アカウントを確認するか後で再試行してください。ローカル作品は使えます。
+error.syncBusy|Sync is in progress. Wait for it to finish before retrying.|正在同步，请等待完成后再操作。|同期中です。完了後に再試行してください。
+error.syncConflict|There is no pending sync conflict. Refresh sync before choosing a version.|当前没有待处理的同步冲突，请刷新同步后再选择版本。|解決待ちの同期競合はありません。同期を更新してからバージョンを選んでください。
+error.remoteConsent|Remote permission has expired. Reconnect and ask the receiver to allow control again.|远控许可已失效。请重新连接，并由接收者再次允许控制。|リモート許可が失効しました。再接続し、受信側でもう一度許可してください。
+error.remoteLocal|Stop local playback before allowing remote output.|请先停止本机播放，再允许远控输出。|ローカル再生を停止してからリモート出力を許可してください。
+error.remoteUnavailable|Remote sharing could not complete. Check your connection or return to local use and retry later.|远程共享未能完成。请检查连接，或先使用本机功能，稍后重试。|リモート共有を完了できません。接続を確認するか、ローカル機能を使い後で再試行してください。
+error.watchUnavailable|Couldn't connect to Apple Watch. Check pairing and open the Watch app, then retry.|无法连接 Apple Watch。请检查配对状态，并打开手表端 App 后重试。|Apple Watchに接続できません。ペアリングとWatchアプリの起動を確認して再試行してください。
+touch.skip|Skip for now and open Home|暂时跳过，进入首页|今はスキップしてホームへ
+error.syncChanged|Cloud content changed again. Refresh sync, then choose the version to keep.|云端内容再次变化，请先刷新同步，再选择要保留的版本。|クラウドの内容が変わりました。同期を更新してから残すバージョンを選んでください。
+error.purchaseNotActive|This purchase has not activated Pro. Try Restore purchases; if it persists, check your purchase history with Apple.|这次购买尚未激活 Pro。请尝试恢复购买；仍有问题可在 Apple 购买记录中核查。|購入でProが有効になりませんでした。購入を復元し、続く場合はAppleの購入履歴を確認してください。
+error.remoteVersion|The devices cannot establish compatible remote control. Update both apps and reconnect.|两端暂无法建立兼容的远控连接。请更新两端 App 后重新连接。|互換性のある接続を確立できません。両方のアプリを更新して接続し直してください。
+error.remoteRequirements|Allowing remote control requires Pro and the app in the foreground. Check both before retrying.|允许远控需要 Pro 且 App 保持前台，请确认后重试。|リモート許可にはProと前面表示が必要です。確認して再試行してください。
+error.remoteHandshake|Wait for both devices to finish connecting before allowing control. If it persists, reconnect.|请等待两端连接完成后，再允许控制。长时间未完成请重新连接。|両端末の接続完了後に操作を許可してください。続く場合は接続し直してください。
+touch.notFeltMaximum|Still no sensation — show advice|仍没感觉，查看建议|まだ感じない・対処方法を確認
+touch.tooStrongMinimum|Still too strong — show advice|仍觉得太强，查看建议|まだ強すぎる・対処方法を確認

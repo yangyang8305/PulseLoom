@@ -68,7 +68,7 @@ import UIKit
             let result = try await SystemMusicCatalog.songs(matching: query)
             guard searchGeneration == generation, authorized, !Task.isCancelled else { return }
             songs = result
-        } catch { if searchGeneration == generation { self.error = error.localizedDescription } }
+        } catch { if searchGeneration == generation { self.error = UserFacingError.message(error, fallback: "music.systemUnavailable") } }
     }
     func choose(_ song: Song) async { await choose(SystemMusicTrack(song: song)) }
     func choose(_ song: SystemMusicTrack) async {

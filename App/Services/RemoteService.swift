@@ -145,7 +145,7 @@ import PulseLoomCore
                 }
             } catch {
                 guard self.generation == gen else { return }
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error, fallback: "error.remoteUnavailable")
                 self.disconnect()
             }
         }
@@ -191,7 +191,7 @@ import PulseLoomCore
                 consent.revoke()
                 peerNonce = nil
                 onSafetyStop?()
-                error = "Both devices must support the current remote safety protocol."
+                error = T("error.remoteVersion")
                 return
             }
             if role == .sender { peerNonce = command.connectionID }
@@ -215,7 +215,7 @@ import PulseLoomCore
                     onCommand?(command, actual)
                 }
             } catch {
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error, fallback: "error.remoteUnavailable")
                 if !hasPro { authorize(false) } else { onSafetyStop?() }
             }
         } else if command.action == "emergencyStop" || command.action == "stop" {
@@ -248,11 +248,11 @@ import PulseLoomCore
     func authorize(_ value: Bool) {
         if value {
             guard hasPro, foreground, state == .connected else {
-                error = "Pro and foreground access are required before authorizing remote control."
+                error = T("error.remoteRequirements")
                 return
             }
             guard peerPresent, peerProtocol == RemoteCommand.currentProtocol else {
-                error = "Wait for a compatible receiver/sender handshake before allowing control."
+                error = T("error.remoteHandshake")
                 return
             }
             consent.grant()
@@ -281,7 +281,7 @@ import PulseLoomCore
             guard generation == expected, state == .connected else { return }
             do { try await send(action: "ping") } catch {
                 guard generation == expected else { return }
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error, fallback: "error.remoteUnavailable")
             }
         }
     }
@@ -293,7 +293,7 @@ import PulseLoomCore
             guard generation == expected, state == .connected else { return }
             do { try await send(action: "emergencyStop") } catch {
                 guard generation == expected else { return }
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error, fallback: "error.remoteUnavailable")
                 disconnect()
             }
         }
@@ -318,7 +318,7 @@ import PulseLoomCore
                     self.error = T("remote.timeout")
                 }
                 do { try await self.send(action: "ping") } catch {
-                    self.error = error.localizedDescription
+                    self.error = UserFacingError.message(error, fallback: "error.remoteUnavailable")
                     self.disconnect()
                     return
                 }

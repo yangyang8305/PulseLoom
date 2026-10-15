@@ -44,7 +44,7 @@ import PulseLoomCore
     private func failRecovery(_ error: Error) {
         writable = false
         recoveryRequired = true
-        loadError = error.localizedDescription
+        loadError = UserFacingError.message(error)
     }
     private func loadCurrentFiles() throws {
         let url = root.appendingPathComponent("library.json")
@@ -58,13 +58,13 @@ import PulseLoomCore
         history = []
         if FileManager.default.fileExists(atPath: historyURL.path) {
             do { history = try FileCodec.read([HistoryEntry].self, from: historyURL); pruneHistory() }
-            catch { loadError = error.localizedDescription }
+            catch { loadError = UserFacingError.message(error) }
         }
         draft = nil
         let draftURL = root.appendingPathComponent("draft.json")
         if FileManager.default.fileExists(atPath: draftURL.path) {
             do { draft = try FileCodec.read(HapticPattern.self, from: draftURL) }
-            catch { loadError = error.localizedDescription }
+            catch { loadError = UserFacingError.message(error) }
         }
         writable = true
         recoveryRequired = false
@@ -142,7 +142,7 @@ import PulseLoomCore
                 try await Task.sleep(nanoseconds: 500_000_000)
                 guard let self, self.contentGeneration == expected, !Task.isCancelled else { return }
                 try self.flushDraft()
-            } catch is CancellationError {} catch { self?.loadError = error.localizedDescription }
+            } catch is CancellationError {} catch { self?.loadError = UserFacingError.message(error) }
         }
     }
     func flushDraft() throws {
@@ -200,7 +200,7 @@ import PulseLoomCore
         guard writable, !recoveryRequired, snapshot.preferences.historyEnabled, seconds > 0 else { return }
         history.insert(HistoryEntry(title: title, kind: kind, seconds: seconds, reason: reason), at: 0)
         pruneHistory()
-        do { try saveHistory() } catch { loadError = error.localizedDescription }
+        do { try saveHistory() } catch { loadError = UserFacingError.message(error) }
     }
     func clearHistory() throws {
         try requireWritable()

@@ -61,34 +61,19 @@ enum PersonalBuild {
     /// Shown before entering lock mode so the way out is explained first.
     @Published var lockPrompt = false
     private let lockMode = LockMode()
-    private var autoLockWork: DispatchWorkItem?
-    @Published var autoLockSeconds: Int = UserDefaults.standard.integer(forKey: "pulseloom.autoLock") {
-        didSet { UserDefaults.standard.set(autoLockSeconds, forKey: "pulseloom.autoLock"); scheduleAutoLock() }
-    }
     func lock() {
         guard !locked else { return }
         locked = true
         lockMode.enter()
     }
     func unlock() {
-        autoLockWork?.cancel()
         guard locked else { return }
         locked = false
         lockMode.exit()
     }
     private var outputActive: Bool { playback.isPlaying || music.isPlaying }
-    private func scheduleAutoLock() {
-        autoLockWork?.cancel()
-        guard autoLockSeconds > 0, outputActive, !locked else { return }
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, self.outputActive, !self.locked else { return }
-            self.lock()
-        }
-        autoLockWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(autoLockSeconds), execute: work)
-    }
     private func playbackDidChange() {
-        if !outputActive { unlock() } else { scheduleAutoLock() }
+        if !outputActive { unlock() }
     }
     private var pendingShare: Task<Void, Never>?
     private var shareGeneration = UUID()
@@ -274,14 +259,14 @@ enum PersonalBuild {
     }
     func perform(_ operation: () throws -> Void) {
         do { try operation() } catch LoomError.entitlement { sheet = .premium } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.message(error)
             diagnostics.record(code: "OPERATION_FAILED", category: "ui")
         }
     }
     func asyncPerform(_ operation: @escaping @MainActor () async throws -> Void) {
         Task {
             do { try await operation() } catch is CancellationError {} catch LoomError.entitlement { sheet = .premium } catch {
-                self.error = error.localizedDescription
+                self.error = UserFacingError.message(error)
             }
         }
     }
