@@ -81,7 +81,7 @@ import PulseLoomCore
                 guard !Task.isCancelled, self.generation == token else { return }
                 let next = try self.makePlayer(result.0)
                 guard self.preparePlayer(next) else {
-                    throw LoomError.unavailable("Audio could not be prepared.")
+                    throw LoomError.failure(.audioRead)
                 }
                 // Injected/framework callbacks may reenter clear or load. Never
                 // publish an obsolete prepared player over the newer request.
@@ -111,7 +111,7 @@ import PulseLoomCore
         defer { if scope { url.stopAccessingSecurityScopedResource() } }
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size > 0, size <= 30 * 1024 * 1024 else {
-            throw LoomError.invalid("Audio must be at most 30 MB.")
+            throw LoomError.failure(.audioSize)
         }
         let copied = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             .appendingPathExtension(url.pathExtension)
@@ -122,10 +122,10 @@ import PulseLoomCore
             let format = file.processingFormat
             let seconds = Double(file.length) / format.sampleRate
             guard seconds > 0, seconds <= 600 else {
-                throw LoomError.invalid("Audio must be no longer than 10 minutes.")
+                throw LoomError.failure(.audioLength)
             }
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4096) else {
-                throw LoomError.invalid("Audio buffer allocation failed.")
+                throw LoomError.failure(.audioRead)
             }
             var analyzer = try AudioAnalyzer(sampleRate: format.sampleRate)
             while file.framePosition < file.length {
@@ -184,7 +184,7 @@ import PulseLoomCore
         if position < config.from || position >= endpoint { position = config.from }
         player.currentTime = position
         player.volume = Float(config.volume)
-        guard player.play() else { throw LoomError.unavailable("Audio could not start.") }
+        guard player.play() else { throw LoomError.failure(.audioStart) }
         lastTick = ProcessInfo.processInfo.systemUptime
         isPlaying = true
     }

@@ -235,13 +235,13 @@ enum PersonalBuild {
         guard pro else { relinquishRemoteControl(); throw LoomError.entitlement }
         guard remote.state == .connected, remote.role == .receiver, remote.foreground,
               remote.consent.allowed, command.connectionID == remote.controlID else {
-            throw LoomError.unavailable("Remote authorization is not current.")
+            throw LoomError.failure(.remoteConsent)
         }
         switch command.action {
         case "start":
             guard ![.playing, .preparing, .paused].contains(playback.state)
                     || (remoteOutputID == playback.outputID && playback.kind == "remote") else {
-                throw LoomError.unavailable("Stop the local session before granting remote output.")
+                throw LoomError.failure(.remoteLocal)
             }
             guard let pattern = library.pattern(command.patternID ?? ""), Entitlements.canPlay(pattern, pro: pro) else {
                 throw LoomError.entitlement
@@ -251,7 +251,7 @@ enum PersonalBuild {
         case "gain":
             guard remoteOutputID == playback.outputID, playback.kind == "remote",
                   [.playing, .paused].contains(playback.state) else {
-                throw LoomError.unavailable("The remote connection does not own the current output.")
+                throw LoomError.failure(.remoteConsent)
             }
             try playback.adjust(gain: gain ?? 0, speed: 1, sharp: prefs.sharpness)
         default: throw LoomError.invalid("Unsupported output command.")

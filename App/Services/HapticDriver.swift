@@ -39,7 +39,7 @@ import UIKit
     var supported: Bool { supportsHaptics() }
     func prepare() throws {
         guard !shutdownPending else {
-            throw LoomError.unavailable("Haptic shutdown is not confirmed. Stop again before restarting.")
+            throw LoomError.failure(.outputStopping)
         }
         guard supported else {
             throw LoomError.unavailable(T("error.unsupported"))
@@ -63,7 +63,8 @@ import UIKit
                     self.streaming = false
                     self.generation &+= 1
                     if reason != .idleTimeout && reason != .notifyWhenFinished {
-                        self.reportFailure("Haptic engine stopped: \(reason.rawValue)")
+                        DiagLog.write("engine stopped reason=\(reason.rawValue)")
+                        self.reportFailure(T("error.interruption"))
                     }
                 }
             }
@@ -88,7 +89,7 @@ import UIKit
         try Validation.pattern(p, requireName: false)
         try prepare()
         try stopPlayer()
-        guard let engine else { throw LoomError.unavailable("Haptic engine could not be prepared.") }
+        guard let engine else { throw LoomError.failure(.outputStart) }
         let duration = min(10, max(0.01, length))
         let cycle = p.durationMS / 1000
         let speed = min(2, max(0.5, speed))
@@ -208,7 +209,7 @@ import UIKit
             Task { @MainActor in
                 guard let self, self.generation == expected else { return }
                 if let error {
-                    self.interrupted?(error.localizedDescription)
+                    self.interrupted?(UserFacingError.message(error, fallback: "error.interruption"))
                 } else {
                     self.windowCompleted?()
                 }
@@ -267,7 +268,7 @@ import UIKit
     }
     func stream(intensity: Double, sharpness: Double) throws {
         guard !shutdownPending else {
-            throw LoomError.unavailable("Haptic shutdown is not confirmed.")
+            throw LoomError.failure(.outputStopping)
         }
         // Preparing discovers the actuator; even the first render must use its calibration.
         if !streaming {
@@ -279,7 +280,7 @@ import UIKit
             intensity: tone != nil ? pow(min(1, max(0, intensity)), tone == .voiceCoil ? 0.55 : 0.7) : intensity,
             sharpness: tone.map { Double(Self.controllerSharpness(Float(sharpness), tone: $0)) } ?? sharpness)
         if !streaming {
-            guard let engine else { throw LoomError.unavailable("Haptic engine unavailable.") }
+            guard let engine else { throw LoomError.failure(.outputStart) }
             let e = CHHapticEvent(
                 eventType: .hapticContinuous,
                 parameters: [
@@ -310,7 +311,7 @@ import UIKit
     }
     private func stopPlayer() throws {
         guard !shutdownPending else {
-            throw LoomError.unavailable("Haptic shutdown is not confirmed.")
+            throw LoomError.failure(.outputStopping)
         }
         generation &+= 1
         // Retain both handles until stop succeeds; losing the handle is not a stop.
@@ -345,7 +346,8 @@ import UIKit
                 if let error {
                     self.termination = .failed
                     // Reporting may call coordinator.interrupt -> stop. That is not an explicit retry.
-                    self.reportFailure("Haptic shutdown is not confirmed: " + error.localizedDescription)
+                    DiagLog.write("engine stop FAILED \(error.localizedDescription)")
+                    self.reportFailure(T("error.outputStopping"))
                 } else {
                     self.releaseTerminatedEngine(epoch: epoch)
                 }
@@ -374,7 +376,7 @@ import UIKit
     /// Force an unused/disconnected controller engine to stop, retaining it until confirmation.
     func retire() {
         if shutdownPending { requestEngineTermination(); return }
-        do { try stopPlayer() } catch { reportFailure(error.localizedDescription); return }
+        do { try stopPlayer() } catch { reportFailure(UserFacingError.message(error, fallback: "error.outputStopping")); return }
         guard engine != nil else { terminationConfirmed?(); return }
         engine?.isMutedForHaptics = true
         termination = .failed
@@ -385,7 +387,7 @@ import UIKit
             if !notifyingFailure { requestEngineTermination() }
             return false
         }
-        do { try stopPlayer() } catch { reportFailure(error.localizedDescription) }
+        do { try stopPlayer() } catch { reportFailure(UserFacingError.message(error, fallback: "error.outputStopping")) }
         return !shutdownPending
     }
 }

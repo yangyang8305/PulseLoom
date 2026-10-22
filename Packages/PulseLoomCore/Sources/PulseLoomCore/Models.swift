@@ -267,14 +267,41 @@ public struct LibrarySnapshot: Codable, Equatable, Sendable {
         return s
     }
 }
+/// Typed, user-facing failure reasons. The app localizes each one through
+/// `localizationKey`; no English copy is matched at presentation time.
+public enum LoomFailure: String, Sendable, CaseIterable, Equatable {
+    case outputUnavailable, controllerDisconnected, controllerUnsupported
+    case outputStart, outputStopping, interruption
+    case audioRead, audioStart, audioSize, audioLength
+    case name, emptyPattern
+    case syncOff, syncUnavailable, syncBusy, syncConflict
+    case remoteConsent, remoteLocal, remoteUnavailable
+    case purchaseUnverified
+
+    public var localizationKey: String {
+        switch self {
+        case .purchaseUnverified: return "purchase.unavailable"
+        default: return "error.\(rawValue)"
+        }
+    }
+}
+
 public enum LoomError: Error, LocalizedError, Equatable {
+    /// Invalid input; the string is a developer-facing detail, shown to users as `error.invalidInput`.
     case invalid(String)
+    /// Storage failure; the string is a developer-facing detail, shown to users as `error.storage`.
     case storage(String)
+    /// Already-localized, user-facing text. Shown verbatim.
     case unavailable(String)
+    /// A typed failure the app localizes by key.
+    case failure(LoomFailure)
+    /// Raw SDK / technical detail for logs. Never shown; the presenter uses its fallback copy.
+    case diagnostic(String)
     case entitlement
     public var errorDescription: String? {
         switch self {
-        case .invalid(let s), .storage(let s), .unavailable(let s): return s
+        case .invalid(let s), .storage(let s), .unavailable(let s), .diagnostic(let s): return s
+        case .failure(let f): return f.rawValue
         case .entitlement: return "Pro is required for this content or additional saved patterns."
         }
     }

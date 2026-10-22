@@ -45,7 +45,7 @@ import PulseLoomCore
         let expected = UUID()
         generation = expected
         guard let id = Bundle.main.object(forInfoDictionaryKey: "CloudContainerID") as? String, !id.isEmpty
-        else { throw LoomError.unavailable("CloudKit container is not configured.") }
+        else { throw LoomError.failure(.syncUnavailable) }
         let c = CKContainer(identifier: id)
         guard try await c.accountStatus() == .available else {
             throw LoomError.unavailable(T("sync.account"))
@@ -67,7 +67,7 @@ import PulseLoomCore
         guard let database else {
             throw LoomError.unavailable(T("sync.account"))
         }
-        guard state != .syncing else { throw LoomError.unavailable("A sync is already in progress.") }
+        guard state != .syncing else { throw LoomError.failure(.syncBusy) }
         state = .syncing
         error = nil
         do {
@@ -137,8 +137,8 @@ import PulseLoomCore
     func resolve(local: LibrarySnapshot, choice: String) async throws -> LibrarySnapshot {
         let expected = generation
         guard ["local", "remote", "both"].contains(choice) else { throw LoomError.invalid("Unknown conflict choice.") }
-        guard state != .syncing else { throw LoomError.unavailable("A sync is already in progress.") }
-        guard let remoteSnapshot else { throw LoomError.invalid("No sync conflict is pending.") }
+        guard state != .syncing else { throw LoomError.failure(.syncBusy) }
+        guard let remoteSnapshot else { throw LoomError.failure(.syncConflict) }
         var result: LibrarySnapshot
         if choice == "remote" {
             result = remoteSnapshot
@@ -171,7 +171,7 @@ import PulseLoomCore
         defer { if let temporary { try? FileManager.default.removeItem(at: temporary) } }
         do {
             try requireCurrent(expected)
-            guard let database else { throw LoomError.unavailable("Cloud sync is off.") }
+            guard let database else { throw LoomError.failure(.syncOff) }
             let data = try FileCodec.encode(value)
             guard data.count <= FileCodec.libraryMaxBytes else { throw LoomError.storage("Cloud library exceeds the size limit.") }
             try FileManager.default.createDirectory(at: stagingRoot, withIntermediateDirectories: true)
@@ -208,8 +208,8 @@ import PulseLoomCore
     }
     func deleteCloud() async throws {
         let expected = generation
-        guard let database else { throw LoomError.unavailable("Cloud sync is off. No cloud deletion was requested.") }
-        guard state != .syncing else { throw LoomError.unavailable("A sync is already in progress.") }
+        guard let database else { throw LoomError.failure(.syncOff) }
+        guard state != .syncing else { throw LoomError.failure(.syncBusy) }
         state = .syncing
         do {
             try requireCurrent(expected)

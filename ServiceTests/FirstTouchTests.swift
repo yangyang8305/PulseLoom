@@ -115,10 +115,11 @@ import PulseLoomCore
     func testChineseMessagesCoverOutputStorageNetworkAndUnknownSDKFailures() {
         AppLanguage.apply("zh-Hans", persist: false)
         let samples: [Error] = [
-            LoomError.unavailable("No haptic output is available."),
-            LoomError.unavailable("Selected controller is disconnected."),
-            LoomError.invalid("Audio must be at most 30 MB."),
+            LoomError.failure(.outputUnavailable),
+            LoomError.failure(.controllerDisconnected),
+            LoomError.failure(.audioSize),
             LoomError.storage("Injected disk failure"),
+            LoomError.diagnostic("CHHapticEngine start failed (com.apple.CoreHaptics -4810)"),
             NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet),
             NSError(domain: "SDK.Private", code: -4810, userInfo: [NSLocalizedDescriptionKey: "Raw English failure"])
         ]
@@ -134,7 +135,13 @@ import PulseLoomCore
         let restricted = englishBundle.localizedString(forKey: "export.restricted", value: nil, table: "Recovery")
         XCTAssertEqual(UserFacingError.message(LoomError.invalid(restricted)),
                        AppLanguage.bundle.localizedString(forKey: "export.restricted", value: nil, table: "Recovery"))
-        XCTAssertEqual(UserFacingError.message(LoomError.unavailable("Haptic shutdown is not confirmed: SDK failure")), T("error.outputStopping"))
+        XCTAssertEqual(UserFacingError.message(LoomError.failure(.outputStopping)), T("error.outputStopping"))
+        XCTAssertEqual(UserFacingError.message(LoomError.failure(.purchaseUnverified)), T("purchase.unavailable"))
+        XCTAssertEqual(UserFacingError.message(LoomError.diagnostic("raw"), fallback: "error.outputStart"), T("error.outputStart"))
+        // Every typed reason must resolve to a real localized string, not its key.
+        for reason in LoomFailure.allCases {
+            XCTAssertNotEqual(T(reason.localizationKey), reason.localizationKey, reason.rawValue)
+        }
         XCTAssertTrue(UserFacingError.message(samples[0]).contains("输出设备"))
         XCTAssertTrue(UserFacingError.message(samples[1]).contains("重新连接"))
         XCTAssertEqual(UserFacingError.message(LoomError.unavailable(T("error.thermal"))), T("error.thermal"))

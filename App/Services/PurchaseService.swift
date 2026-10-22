@@ -64,7 +64,7 @@ import UIKit
             switch try await product.purchase() {
             case .success(let result):
                 guard case .verified(let t) = result, t.productID == productID, t.revocationDate == nil else {
-                    throw LoomError.unavailable("Transaction could not be verified.")
+                    throw LoomError.failure(.purchaseUnverified)
                 }
                 await refresh()
                 await t.finish()

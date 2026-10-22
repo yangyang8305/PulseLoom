@@ -6,7 +6,7 @@ public enum Validation {
     }
     public static func pattern(_ p: HapticPattern, requireName: Bool = true) throws {
         if requireName && !(1...30).contains(p.name.trimmingCharacters(in: .whitespacesAndNewlines).count) {
-            throw LoomError.invalid("Name must contain 1–30 characters.")
+            throw LoomError.failure(.name)
         }
         guard !p.id.isEmpty, p.id.count <= 100 else { throw LoomError.invalid("Invalid pattern identifier.") }
         // Built-in compositions may run for minutes; user patterns stay within 30 seconds.
@@ -26,7 +26,7 @@ public enum Validation {
                 last = n.time
             }
             guard p.nodes.contains(where: { $0.value > 0 }) else {
-                throw LoomError.invalid("A pattern needs at least one nonzero segment.")
+                throw LoomError.failure(.emptyPattern)
             }
         } else {
             let maxCount = p.builtin ? 1024 : (p.mode == .basic ? 16 : 128)
@@ -41,7 +41,7 @@ public enum Validation {
                 else { throw LoomError.invalid("Segment values are out of range.") }
             }
             guard p.segments.contains(where: { $0.gain > 0 }) else {
-                throw LoomError.invalid("A pattern needs at least one nonzero segment.")
+                throw LoomError.failure(.emptyPattern)
             }
         }
     }

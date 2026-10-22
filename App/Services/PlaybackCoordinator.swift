@@ -113,7 +113,7 @@ import UIKit
         guard state == .playing else { return }
         tick()
         guard state == .playing else { return }
-        do { try schedule() } catch { interrupt(error.localizedDescription) }
+        do { try schedule() } catch { interrupt(UserFacingError.message(error, fallback: "error.interruption")) }
     }
     func tick() {
         if let pausedAt, [.paused, .interrupted].contains(state),
@@ -212,7 +212,8 @@ import UIKit
         outputs.stop()
         if outputs.shutdownPending { state = .failed }
         level = 0
-        lastError = UserFacingError.message(LoomError.unavailable(reason))
+        // `reason` is already user-facing: every interrupt(_:) caller localizes before calling.
+        lastError = reason
         restoreScreen()
         didStopExternal?(reason)
     }
@@ -231,7 +232,7 @@ import UIKit
         self.sharp = sharp
         if !pattern.loop { try clock.setRemaining(min(clock.remaining, pattern.durationMS / 1000 / speed)) }
         do { try schedule() } catch {
-            interrupt(error.localizedDescription)
+            interrupt(UserFacingError.message(error, fallback: "error.interruption"))
             throw error
         }
         didChange?()
@@ -242,7 +243,7 @@ import UIKit
         self.speed = speed
         self.sharp = sharp
         if state == .playing {
-            do { try schedule() } catch { interrupt(error.localizedDescription); throw error }
+            do { try schedule() } catch { interrupt(UserFacingError.message(error, fallback: "error.interruption")); throw error }
         }
         didChange?()
     }
@@ -302,7 +303,7 @@ import UIKit
     }
     func advanceRoutine(to i: Int) {
         guard let r = routine, r.items.indices.contains(i) else { return }
-        do { try startRoutineStep(r, i) } catch { interrupt(error.localizedDescription) }
+        do { try startRoutineStep(r, i) } catch { interrupt(UserFacingError.message(error, fallback: "error.interruption")) }
     }
     private func holdScreen() {
         guard keepAwake else { return }

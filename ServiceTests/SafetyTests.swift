@@ -290,7 +290,7 @@ extension SystemMusicSafetyTests {
             try await service.play()
             XCTFail("A second player start must not overlap the canceled pending start")
         } catch let error as LoomError {
-            guard case .unavailable = error else { return XCTFail("Unexpected error: \(error)") }
+            guard case .failure(.outputStopping) = error else { return XCTFail("Unexpected error: \(error)") }
         }
         probe.playGate?.resume(); probe.playGate = nil
         try await old.value

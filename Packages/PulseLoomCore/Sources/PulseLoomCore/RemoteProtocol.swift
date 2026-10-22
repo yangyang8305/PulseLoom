@@ -45,7 +45,7 @@ public struct RemoteConsent: Sendable {
         if c.action == "stop" || c.action == "ping" { return nil }
         guard pro else { throw LoomError.entitlement }
         guard allowed, foreground else {
-            throw LoomError.unavailable("The receiver must authorize control in the foreground.")
+            throw LoomError.diagnostic("The receiver must authorize control in the foreground.")
         }
         if let id = c.patternID {
             guard let p = Catalog.presets.first(where: { $0.id == id }), Entitlements.canPlay(p, pro: pro)

@@ -87,7 +87,7 @@ import UIKit
         // A canceled framework start may still complete. Do not let a newer start
         // overlap it: cleanup of the old operation must never pause a new song.
         guard !startInFlight else {
-            throw LoomError.unavailable("The previous music request is still ending. Try again shortly.")
+            throw LoomError.failure(.outputStopping)
         }
         guard let song = selected else { return }
         guard systemEnabled, trackAvailable, io.enabled() else {

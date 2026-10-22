@@ -75,7 +75,7 @@ import PulseLoomCore
         req.timeoutInterval = 15
         let (data, res) = try await URLSession.shared.data(for: req)
         guard (res as? HTTPURLResponse)?.statusCode == 201 else {
-            throw LoomError.unavailable("Relay could not create a room.")
+            throw LoomError.diagnostic("Relay could not create a room.")
         }
         guard hasPro, foreground else { throw LoomError.entitlement }
         let r = try JSONDecoder().decode(Created.self, from: data)
@@ -204,7 +204,7 @@ import PulseLoomCore
                 if ["start", "gain"].contains(command.action) {
                     guard peerProtocol == RemoteCommand.currentProtocol,
                         command.protocolVersion == RemoteCommand.currentProtocol
-                    else { throw LoomError.unavailable("Remote safety handshake is incomplete.") }
+                    else { throw LoomError.diagnostic("Remote safety handshake is incomplete.") }
                 }
                 let actual = try consent.accept(command, foreground: foreground, pro: hasPro)
                 if command.action == "emergencyStop" {
@@ -228,18 +228,18 @@ import PulseLoomCore
             guard hasPro, foreground, role == .sender else { throw LoomError.entitlement }
         }
         guard state == .connected, let socket, let key else {
-            throw LoomError.unavailable("Remote connection is not ready.")
+            throw LoomError.diagnostic("Remote connection is not ready.")
         }
         if role == .sender && ["start", "gain"].contains(action)
             && (peerNonce == nil || peerProtocol != RemoteCommand.currentProtocol) {
-            throw LoomError.unavailable("Waiting for receiver handshake.")
+            throw LoomError.diagnostic("Waiting for receiver handshake.")
         }
         sequence &+= 1
         let command = RemoteCommand(
             sequence: sequence, action: action, patternID: patternID, gain: gain,
             connectionID: role == .receiver ? connectionNonce : peerNonce)
         let box = try AES.GCM.seal(JSONEncoder().encode(command), using: key, authenticating: Data(room.utf8))
-        guard let bytes = box.combined else { throw LoomError.unavailable("Unable to encrypt command.") }
+        guard let bytes = box.combined else { throw LoomError.diagnostic("Unable to encrypt command.") }
         let json = try JSONSerialization.data(withJSONObject: [
             "type": "data", "payload": bytes.base64EncodedString(),
         ])
@@ -300,7 +300,7 @@ import PulseLoomCore
     }
     func reconnect() throws {
         guard let i = storedInvitation else {
-            throw LoomError.unavailable("Create or accept an invitation first.")
+            throw LoomError.diagnostic("Create or accept an invitation first.")
         }
         try connect(i, role: role)
     }

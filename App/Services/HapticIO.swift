@@ -79,7 +79,7 @@ struct HapticDispatch: Equatable {
         do { try engine.start(); DiagLog.write("engine started") } catch {
             let e = error as NSError
             DiagLog.write("engine start FAILED domain=\(e.domain) code=\(e.code) \(e.localizedDescription) info=\(e.userInfo)")
-            throw LoomError.unavailable("\(e.localizedDescription) (\(e.domain) \(e.code))")
+            throw LoomError.diagnostic("\(e.localizedDescription) (\(e.domain) \(e.code))")
         }
     }
     func stop(completion: @escaping (Error?) -> Void) { engine.stop(completionHandler: completion) }
@@ -175,17 +175,17 @@ enum HapticRoutePolicy {
         switch choice {
         case .automatic:
             if let first = devices.first(where: { $0.supportsHaptics }) { return first.id }
-            guard phoneSupported else { throw LoomError.unavailable("No haptic output is available.") }
+            guard phoneSupported else { throw LoomError.failure(.outputUnavailable) }
             return nil
         case .phone:
-            guard phoneSupported else { throw LoomError.unavailable("iPhone Core Haptics unavailable.") }
+            guard phoneSupported else { throw LoomError.failure(.outputUnavailable) }
             return nil
         case .controller(let id):
             guard let device = devices.first(where: { $0.id == id }) else {
-                throw LoomError.unavailable("Selected controller is disconnected.")
+                throw LoomError.failure(.controllerDisconnected)
             }
             guard device.supportsHaptics else {
-                throw LoomError.unavailable("Selected controller has no public haptic output.")
+                throw LoomError.failure(.controllerUnsupported)
             }
             return id
         }
@@ -249,7 +249,7 @@ enum HapticRoutePolicy {
         let id = try HapticRoutePolicy.choose(choice, devices: devices, phoneSupported: phoneSupported)
         guard let id else { return (nil, nil) }
         guard let controller = entries[id] else {
-            throw LoomError.unavailable("Controller disconnected before playback.")
+            throw LoomError.failure(.controllerDisconnected)
         }
         return (id, controller)
     }
@@ -298,7 +298,7 @@ enum HapticRoutePolicy {
         configure(phone, id: nil)
         self.controllers.onRemoved = { [weak self] ids in self?.disconnect(ids) }
         self.controllers.onChoiceChanged = { [weak self] in
-            self?.routeInvalidated?("Output changed. Playback stopped; start again.")
+            self?.routeInvalidated?(T("error.interruption"))
         }
     }
     private func configure(_ driver: HapticDriver, id: UUID?) {
@@ -319,7 +319,7 @@ enum HapticRoutePolicy {
     }
     private func disconnect(_ removed: Set<UUID>) {
         if let id = activeID, removed.contains(id) {
-            routeInvalidated?("Controller disconnected. Playback stopped; select output and restart.")
+            routeInvalidated?(T("error.controllerDisconnected"))
         }
         for id in removed {
             guard let driver = drivers.removeValue(forKey: id) else { continue }
@@ -338,11 +338,11 @@ enum HapticRoutePolicy {
         controllers.refresh()
         let (id, controller) = try controllers.resolve(phoneSupported: phone.supported)
         guard !shutdownPending else {
-            throw LoomError.unavailable("Previous output shutdown unconfirmed. Wait before restarting.")
+            throw LoomError.failure(.outputStopping)
         }
         if id != activeID {
             guard active.stop() else {
-                throw LoomError.unavailable("Previous output stop could not be confirmed.")
+                throw LoomError.failure(.outputStopping)
             }
             activeID = id
             if let id, let controller {
@@ -360,7 +360,7 @@ enum HapticRoutePolicy {
                                 haptics.supportedLocalities.contains(locality),
                                 let engine = haptics.createEngine(withLocality: locality) else {
                                 DiagLog.write("create controller engine FAILED (nil)")
-                                throw LoomError.unavailable("Could not create controller haptic engine.")
+                                throw LoomError.failure(.outputStart)
                             }
                             return AppleHapticEngine(engine: engine, tone: tone)
                         },

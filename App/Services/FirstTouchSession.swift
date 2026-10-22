@@ -45,7 +45,7 @@ import PulseLoomCore
         case .completed: stage = .feedback
         case .failed, .interrupted, .paused, .idle:
             stage = .ready
-            message = app.playback.lastError.map { UserFacingError.message(LoomError.unavailable($0)) } ?? T("touch.interrupted")
+            message = app.playback.lastError ?? T("touch.interrupted")
         default: break
         }
     }

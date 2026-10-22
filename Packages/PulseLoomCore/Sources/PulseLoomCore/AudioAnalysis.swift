@@ -47,17 +47,17 @@ public struct AudioAnalyzer: Sendable {
     private var total = 0
     public init(sampleRate: Double) throws {
         guard Validation.finite(sampleRate, 8000...192000) else {
-            throw LoomError.invalid("Unsupported sample rate.")
+            throw LoomError.failure(.audioRead)
         }
         self.sampleRate = sampleRate
         window = max(1, Int(sampleRate * 0.02))
     }
     public mutating func consume(_ samples: [Float]) throws {
         guard Double(total + samples.count) / sampleRate <= 600.1 else {
-            throw LoomError.invalid("Audio exceeds 10 minutes.")
+            throw LoomError.failure(.audioLength)
         }
         for s in samples {
-            guard s.isFinite else { throw LoomError.invalid("Audio contains invalid samples.") }
+            guard s.isFinite else { throw LoomError.failure(.audioRead) }
             let x = Double(s)
             sum += x * x
             count += 1
@@ -70,7 +70,7 @@ public struct AudioAnalyzer: Sendable {
         }
     }
     public func finish() throws -> AudioAnalysis {
-        guard total > 0 else { throw LoomError.invalid("Empty audio.") }
+        guard total > 0 else { throw LoomError.failure(.audioRead) }
         var raw = rms
         if count > 0 { raw.append(sqrt(sum / Double(count))) }
         let sorted = raw.sorted()

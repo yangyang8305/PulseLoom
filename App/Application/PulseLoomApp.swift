@@ -28,6 +28,8 @@ struct RootView: View {
             Text(T("lock.confirmMessage"))
         }
     }
+    private var loom: LoomColors { LoomColors(theme: app.theme, dark: dark) }
+    private var colorScheme: ColorScheme? { app.prefs.appearance == .auto ? nil : dark ? .dark : .light }
     private var content: some View {
         Group {
             if app.library.recoveryRequired {
@@ -49,10 +51,10 @@ struct RootView: View {
                 }.tint(Color(hex: dark ? app.theme.dark[4] : app.theme.light[4]))
             }
         }
-        .tint(LoomColors(theme: app.theme, dark: dark).accent)
-        .environment(\.loom, LoomColors(theme: app.theme, dark: dark))
+        .tint(loom.accent)
+        .environment(\.loom, loom)
         .environment(\.reducedArt, app.prefs.reduceMotion)
-        .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
+        .preferredColorScheme(colorScheme)
         .overlay {
             if app.privacyHidden {
                 ZStack {
@@ -63,17 +65,13 @@ struct RootView: View {
             }
         }
         .sheet(item: $app.sheet) { route in
-            sheet(route).environmentObject(app).environmentObject(editor).environment(
-                \.loom, LoomColors(theme: app.theme, dark: dark))
-                .tint(LoomColors(theme: app.theme, dark: dark).accent)
-                .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
+            sheet(route).environmentObject(app).environmentObject(editor)
+                .environment(\.loom, loom).tint(loom.accent).preferredColorScheme(colorScheme)
         }
         .sheet(item: $app.share) { item in ShareSheet(url: item.url) }
         .sheet(isPresented: $app.showInvite) {
-            NavigationStack { RemoteView() }.environmentObject(app).environment(
-                \.loom, LoomColors(theme: app.theme, dark: dark))
-                .tint(LoomColors(theme: app.theme, dark: dark).accent)
-                .preferredColorScheme(app.prefs.appearance == .auto ? nil : dark ? .dark : .light)
+            NavigationStack { RemoteView() }.environmentObject(app)
+                .environment(\.loom, loom).tint(loom.accent).preferredColorScheme(colorScheme)
         }
         .alert(
             T("common.error"),
