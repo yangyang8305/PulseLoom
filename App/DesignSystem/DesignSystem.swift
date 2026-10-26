@@ -73,8 +73,8 @@ struct LoomLattice: View {
                     let r = step * 0.3
                     for i in 0..<8 {
                         let a = Double(i) / 8 * 2 * .pi, a2 = a + .pi / 8
-                        let outer = CGPoint(x: x + cos(a) * r, y: y + sin(a) * r)
-                        let inner = CGPoint(x: x + cos(a2) * r * 0.52, y: y + sin(a2) * r * 0.52)
+                        let outer = CGPoint(x: x + CGFloat(cos(a)) * r, y: y + CGFloat(sin(a)) * r)
+                        let inner = CGPoint(x: x + CGFloat(cos(a2)) * r * 0.52, y: y + CGFloat(sin(a2)) * r * 0.52)
                         if i == 0 { stars.move(to: outer) } else { stars.addLine(to: outer) }
                         stars.addLine(to: inner)
                     }
@@ -464,7 +464,7 @@ struct LoomArt: View {
                 let path = petal(center: center, angle: a, inner: radius * ring.inner, outer: radius * ring.outer, width: radius * ring.width)
                 g.fill(path, with: .linearGradient(
                     Gradient(colors: [ring.color.opacity(ring.opacity), c.hero3.opacity(ring.opacity * 0.4)]),
-                    startPoint: center, endPoint: CGPoint(x: center.x + cos(a) * radius, y: center.y + sin(a) * radius)))
+                    startPoint: center, endPoint: CGPoint(x: center.x + CGFloat(cos(a)) * radius, y: center.y + CGFloat(sin(a)) * radius)))
                 g.stroke(path, with: .color(c.accent.opacity(0.35)), lineWidth: 0.6)
             }
         }
@@ -474,7 +474,7 @@ struct LoomArt: View {
         var dots = Path()
         for k in 0..<8 {
             let a = Double(k) / 8 * 2 * .pi
-            let p = CGPoint(x: center.x + cos(a) * core * 0.55, y: center.y + sin(a) * core * 0.55)
+            let p = CGPoint(x: center.x + CGFloat(cos(a)) * core * 0.55, y: center.y + CGFloat(sin(a)) * core * 0.55)
             dots.addEllipse(in: CGRect(x: p.x - 1.4, y: p.y - 1.4, width: 2.8, height: 2.8))
         }
         g.fill(dots, with: .color(c.accent.opacity(0.7)))
@@ -509,7 +509,7 @@ struct LoomArt: View {
         for k in 0..<6 {
             let a = Double(k) / 6 * 2 * .pi - .pi / 2
             let path = boteh(center: center, angle: a, length: radius * 0.92)
-            g.fill(path, with: .linearGradient(Gradient(colors: [c.hero1.opacity(0.85), c.hero2.opacity(0.35)]), startPoint: center, endPoint: CGPoint(x: center.x + cos(a) * radius, y: center.y + sin(a) * radius)))
+            g.fill(path, with: .linearGradient(Gradient(colors: [c.hero1.opacity(0.85), c.hero2.opacity(0.35)]), startPoint: center, endPoint: CGPoint(x: center.x + CGFloat(cos(a)) * radius, y: center.y + CGFloat(sin(a)) * radius)))
             g.stroke(path, with: .color(c.accent.opacity(0.45)), lineWidth: 0.7)
             let innerPath = boteh(center: center, angle: a, length: radius * 0.55)
             g.stroke(innerPath, with: .color(c.accent.opacity(0.3)), lineWidth: 0.5)
