@@ -6,24 +6,53 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.loom) var c
+    @Environment(\.dynamicTypeSize) var typeSize
     var body: some View {
         GeometryReader { geo in
             let compact = geo.size.height < 640
-            VStack(alignment: .leading, spacing: compact ? 7 : 11) {
-                header
-                HeroArt(level: app.playback.level, playing: app.playback.isPlaying)
-                    .frame(maxWidth: .infinity, minHeight: 104, maxHeight: .infinity)
-                nameplate
-                PatternShelf(title: favorites.isEmpty ? "home.loops" : "home.favorites", patterns: favorites.isEmpty ? Catalog.presets : favorites)
-                LoomSlider(title: "home.intensity", value: app.pref(\.gain), live: { app.adjustLive(gain: $0) }) {
-                    app.perform { try app.adjust() }
-                }.accessibilityIdentifier("homeIntensity")
-                status
-                HapticDock()
+            if typeSize.isAccessibilitySize {
+                // Accessibility text sizes cannot fit one screen: scroll, keep the dock pinned below.
+                VStack(spacing: 8) {
+                    ScrollView {
+                        content(spacing: 11, artHeight: min(220, geo.size.height * 0.3))
+                    }
+                    HapticDock().padding(.horizontal, 20).padding(.bottom, 8)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: compact ? 7 : 11) {
+                    content(spacing: compact ? 7 : 11, artHeight: nil)
+                    HapticDock()
+                }
+                .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 8)
             }
-            .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 8)
         }
         .loomBackground().toolbar(.hidden, for: .navigationBar)
+    }
+    /// Everything above the dock. `artHeight` nil lets the artwork take the remaining space.
+    @ViewBuilder private func content(spacing: CGFloat, artHeight: CGFloat?) -> some View {
+        let art = HeroArt(level: app.playback.level, playing: app.playback.isPlaying)
+        let shelf = PatternShelf(title: favorites.isEmpty ? "home.loops" : "home.favorites", patterns: favorites.isEmpty ? Catalog.presets : favorites)
+        let slider = LoomSlider(title: "home.intensity", value: app.pref(\.gain), live: { app.adjustLive(gain: $0) }) {
+            app.perform { try app.adjust() }
+        }.accessibilityIdentifier("homeIntensity")
+        if let artHeight {
+            VStack(alignment: .leading, spacing: spacing) {
+                header
+                art.frame(maxWidth: .infinity).frame(height: artHeight)
+                nameplate
+                shelf
+                slider
+                status
+            }
+            .padding(.horizontal, 20).padding(.top, 6)
+        } else {
+            header
+            art.frame(maxWidth: .infinity, minHeight: 104, maxHeight: .infinity)
+            nameplate
+            shelf
+            slider
+            status
+        }
     }
     /// Built-in rhythms the user marked with a heart, in catalog order.
     private var favorites: [HapticPattern] {
